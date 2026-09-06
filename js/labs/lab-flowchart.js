@@ -1,0 +1,3222 @@
+/**
+ * ==============================================================================
+ * 📊 [실습 3코스] 순서도 만들기 스튜디오 엔진 (Flowchart Studio 2.0)
+ * ==============================================================================
+ * - Level 1: 기초 퍼즐 챌린지 (기존 완성본 100% 보존: 라면, 놀이기구, 비밀번호)
+ * - Level 2: 선생님과 함께하는 예시 공방 (지각 방지 등교 알고리즘 튜토리얼)
+ * - Level 3: 나만의 백지 공방 (자연어 카드 빌더 + 자유 캔버스 + 스마트 유도등)
+ * - 띵커보드(ThinkerBoard) 원클릭 이미지 복사 & 제출 파이프라인
+ */
+
+// ==========================================
+// 1. 5단계 원스톱 수업 로드맵 제어기 (Unified Roadmap Stepper)
+// ==========================================
+let currentFlowchartStep = 1;
+const completedFlowchartSteps = new Set();
+
+function switchFlowchartStep(stepNum) {
+  currentFlowchartStep = stepNum;
+
+  // 1. 상단 5단계 버튼 활성 상태 업데이트
+  for (let i = 1; i <= 5; i++) {
+    const btn = document.getElementById(`fc-step-btn-${i}`);
+    const checkBadge = document.getElementById(`fc-check-${i}`);
+    if (btn) {
+      const isCompleted = completedFlowchartSteps.has(i);
+      if (checkBadge) {
+        checkBadge.classList.toggle('hidden', !isCompleted);
+      }
+
+      if (i === stepNum) {
+        btn.className = "px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-black transition flex items-center gap-1 whitespace-nowrap bg-indigo-600 text-white shadow-xs";
+      } else {
+        const bgClass = isCompleted ? "bg-emerald-50 text-emerald-800 border border-emerald-200" : "text-slate-600 hover:text-slate-900 hover:bg-slate-200";
+        btn.className = `px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 whitespace-nowrap ${bgClass}`;
+      }
+    }
+  }
+
+  // 2. 뷰 컨테이너 토글
+  const v1 = document.getElementById('fc-level1-view');
+  const v2 = document.getElementById('fc-level2-view');
+  const v3 = document.getElementById('fc-level3-view');
+
+  const isL1 = stepNum >= 1 && stepNum <= 3;
+  const isL2 = stepNum === 4;
+  const isL3 = stepNum === 5;
+
+  if (v1) v1.classList.toggle('hidden', !isL1);
+  if (v2) v2.classList.toggle('hidden', !isL2);
+  if (v3) v3.classList.toggle('hidden', !isL3);
+
+  // 3. 해당 스텝별 초기화
+  if (isL1) {
+    selectFlowchartMission(stepNum);
+  } else if (isL2) {
+    initLevel2Walkthrough();
+  } else if (isL3) {
+    initLevel3FreeStudio();
+  }
+
+  if (typeof playSfx === 'function') playSfx('step');
+}
+
+// 하위 호환성 별칭
+function switchFlowchartLevel(lvl) {
+  if (lvl === 1) switchFlowchartStep(1);
+  else if (lvl === 2) switchFlowchartStep(4);
+  else if (lvl === 3) switchFlowchartStep(5);
+}
+
+function markStepCompleted(stepNum) {
+  completedFlowchartSteps.add(stepNum);
+  const checkBadge = document.getElementById(`fc-check-${stepNum}`);
+  if (checkBadge) checkBadge.classList.remove('hidden');
+}
+
+function goToNextFlowchartStep() {
+  if (currentFlowchartStep < 5) {
+    switchFlowchartStep(currentFlowchartStep + 1);
+    window.scrollTo({ top: 120, behavior: 'smooth' });
+  }
+}
+
+
+// ==========================================
+// 2. [Level 1] 기존 기초 퍼즐 챌린지 엔진 (100% 보존)
+// ==========================================
+let currentMissionIdx = 0;
+let placedBlocks = {};
+let isSimulating = false;
+let isWaitingUserRetry = false;
+let typedPw = "";
+
+function selectFlowchartMission(misId) {
+  currentMissionIdx = misId - 1;
+  const m = missions[currentMissionIdx];
+  placedBlocks = {};
+  isSimulating = false;
+  isWaitingUserRetry = false;
+
+  for (let i = 1; i <= 3; i++) {
+    const btn = document.getElementById(`fc-mission-tab-${i}`);
+    if (btn) {
+      btn.className = i === misId
+        ? "px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-white text-indigo-600 shadow-xs whitespace-nowrap"
+        : "px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900 whitespace-nowrap";
+    }
+  }
+
+  const stepInd = document.getElementById('mission-step-indicator');
+  const titleEl = document.getElementById('mission-title');
+  const descEl = document.getElementById('mission-desc');
+
+  if (stepInd) stepInd.textContent = `Mission ${misId} of 3 (${m.type})`;
+  if (titleEl) titleEl.textContent = m.title;
+  if (descEl) descEl.textContent = m.desc;
+
+  renderInventory(m);
+  renderCanvasSlots(m);
+  renderIOPanels(m);
+  resetFlowchartAIFeedback();
+}
+
+function resetFlowchartAIFeedback() {
+  const card = document.getElementById('ai-feedback-card');
+  const text = document.getElementById('ai-feedback-text');
+  if (!card || !text) return;
+  card.className = "p-3.5 rounded-2xl border border-slate-200 bg-slate-50 text-xs space-y-1 transition-all";
+  text.innerHTML = "순서도를 완성한 후 실행 버튼을 눌러보세요. 논리적 오류가 발생하면 AI가 구체적인 원인을 짚어줍니다.";
+}
+
+function updateLoopArrowPosition() {
+  const m = missions[currentMissionIdx];
+  if (!m || m.id !== 3) return;
+
+  const svg = document.getElementById('mission3-loop-svg');
+  const fromEl = document.getElementById('slot-s4_no');
+  const toEl = document.getElementById('slot-s2');
+  const outerLayout = document.getElementById('flowchart-outer-layout');
+
+  if (!svg || !fromEl || !toEl || !outerLayout) return;
+
+  const cRect = outerLayout.getBoundingClientRect();
+  const fRect = fromEl.getBoundingClientRect();
+  const tRect = toEl.getBoundingClientRect();
+
+  if (cRect.width === 0 || fRect.width === 0 || tRect.width === 0) return;
+
+  const x1 = Math.round(fRect.right - cRect.left);
+  const y1 = Math.round(fRect.top + fRect.height / 2 - cRect.top);
+  const x2 = Math.round(tRect.right - cRect.left);
+  const y2 = Math.round(tRect.top + tRect.height / 2 - cRect.top);
+
+  const loopRight = Math.max(x1, x2) + 38;
+
+  const path = document.getElementById('loop-path');
+  const arr = document.getElementById('loop-arrow');
+  if (!path || !arr) return;
+
+  const d = `M ${x1} ${y1} H ${loopRight} V ${y2} H ${x2 + 8}`;
+  path.setAttribute('d', d);
+
+  arr.setAttribute('points', `${x2 + 10},${y2 - 5} ${x2},${y2} ${x2 + 10},${y2 + 5}`);
+}
+
+function renderInventory(m) {
+  const inv = document.getElementById('block-inventory');
+  if (!inv) return;
+  inv.innerHTML = '';
+
+  const shuffled = [...m.palette].sort(() => Math.random() - 0.5);
+
+  shuffled.forEach(b => {
+    const div = document.createElement('div');
+    div.id = `block-${b.id}`;
+    div.draggable = true;
+    div.ondragstart = (e) => handleDragStart(e, b.id);
+
+    let shapeClass = "shape-process";
+    if (b.shape === "terminal") shapeClass = "shape-terminal";
+    else if (b.shape === "io") shapeClass = "shape-io";
+    else if (b.shape === "decision") shapeClass = "shape-decision";
+
+    div.className = `p-3 ${shapeClass} text-xs sm:text-sm font-bold shadow-xs cursor-grab active:cursor-grabbing hover:scale-[1.02] transition select-none flex items-center justify-center text-center`;
+    
+    if (b.shape === "io") {
+      div.innerHTML = `<span class="shape-io-inner">${b.text}</span>`;
+    } else {
+      div.innerText = b.text;
+    }
+
+    inv.appendChild(div);
+  });
+}
+
+function renderCanvasSlots(m) {
+  const canvas = document.getElementById('flowchart-canvas');
+  if (!canvas) return;
+  canvas.innerHTML = '';
+
+  const outerLayout = document.createElement('div');
+  outerLayout.id = "flowchart-outer-layout";
+  outerLayout.className = "w-full max-w-[420px] flex flex-col items-center relative pr-4";
+
+  if (m.id === 1) {
+    m.slots.forEach((s, idx) => {
+      outerLayout.appendChild(createSlotElement(m, s));
+      if (idx < m.slots.length - 1) {
+        outerLayout.appendChild(createVerticalArrow());
+      }
+    });
+  } else if (m.id === 2) {
+    m.slots.forEach((s, idx) => {
+      if (s.id === 's4_yes' || s.id === 's4_no') return;
+
+      outerLayout.appendChild(createSlotElement(m, s));
+
+      if (s.id === 's3') {
+        const forkRow = document.createElement('div');
+        forkRow.className = "w-full flex items-center justify-between text-xs font-black text-slate-400 px-6 py-1";
+        forkRow.innerHTML = `<span>[예]</span><span>[아니오]</span>`;
+        outerLayout.appendChild(forkRow);
+
+        const forkSlots = document.createElement('div');
+        forkSlots.className = "w-full grid grid-cols-2 gap-3";
+
+        const slotYes = m.slots.find(x => x.id === 's4_yes');
+        const slotNo = m.slots.find(x => x.id === 's4_no');
+
+        forkSlots.appendChild(createSlotElement(m, slotYes));
+        forkSlots.appendChild(createSlotElement(m, slotNo));
+        outerLayout.appendChild(forkSlots);
+
+        const mergeArrows = document.createElement('div');
+        mergeArrows.className = "w-full flex justify-around py-1 text-slate-400";
+        mergeArrows.innerHTML = `
+          <i class="fa-solid fa-arrow-down-long text-slate-300 text-sm"></i>
+          <i class="fa-solid fa-arrow-down-long text-slate-300 text-sm"></i>
+        `;
+        outerLayout.appendChild(mergeArrows);
+      } else if (idx < m.slots.length - 1) {
+        outerLayout.appendChild(createVerticalArrow());
+      }
+    });
+  } else if (m.id === 3) {
+    m.slots.forEach((s, idx) => {
+      if (s.id === 's4_yes' || s.id === 's4_no') return;
+
+      outerLayout.appendChild(createSlotElement(m, s));
+
+      if (s.id === 's3') {
+        const exitRow = document.createElement('div');
+        exitRow.className = "w-full flex items-center justify-between text-xs font-black text-slate-400 px-6 py-1";
+        exitRow.innerHTML = `<span>[일치: 예]</span><span>[불일치: 아니오]</span>`;
+        outerLayout.appendChild(exitRow);
+
+        const forkSlots = document.createElement('div');
+        forkSlots.className = "w-full grid grid-cols-2 gap-3";
+
+        const slotYes = m.slots.find(x => x.id === 's4_yes');
+        const slotNo = m.slots.find(x => x.id === 's4_no');
+
+        forkSlots.appendChild(createSlotElement(m, slotYes));
+        forkSlots.appendChild(createSlotElement(m, slotNo));
+        outerLayout.appendChild(forkSlots);
+
+        const mergeArrows = document.createElement('div');
+        mergeArrows.className = "w-full flex justify-between px-16 py-1 text-slate-400";
+        mergeArrows.innerHTML = `
+          <i class="fa-solid fa-arrow-down-long text-slate-300 text-sm"></i>
+          <span class="text-[10px] text-amber-500 font-bold">재입력 루프</span>
+        `;
+        outerLayout.appendChild(mergeArrows);
+      } else if (idx < m.slots.length - 1) {
+        outerLayout.appendChild(createVerticalArrow());
+      }
+    });
+
+    const loopSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    loopSvg.id = "mission3-loop-svg";
+    loopSvg.setAttribute("class", "absolute top-0 left-0 w-full h-full pointer-events-none overflow-visible");
+    loopSvg.innerHTML = `
+      <path id="loop-path" d="" fill="none" stroke="#f59e0b" stroke-width="2.5" class="loop-line-flow" />
+      <polygon id="loop-arrow" points="" fill="#f59e0b" />
+    `;
+    outerLayout.appendChild(loopSvg);
+  }
+
+  canvas.appendChild(outerLayout);
+
+  if (m.id === 3) {
+    setTimeout(updateLoopArrowPosition, 80);
+  }
+}
+
+function createVerticalArrow() {
+  const div = document.createElement('div');
+  div.className = "my-1 text-slate-300 flex items-center justify-center";
+  div.innerHTML = `<i class="fa-solid fa-arrow-down-long text-sm sm:text-base"></i>`;
+  return div;
+}
+
+function createSlotElement(m, slot) {
+  const el = document.createElement('div');
+  el.id = `slot-${slot.id}`;
+
+  let shapeClass = "shape-process";
+  if (slot.shape === "terminal") shapeClass = "shape-terminal";
+  else if (slot.shape === "io") shapeClass = "shape-io";
+  else if (slot.shape === "decision") shapeClass = "shape-decision";
+
+  if (slot.fixed) {
+    el.className = `w-full min-h-[52px] sm:min-h-[56px] px-4 py-3 ${shapeClass} flex items-center justify-center font-black text-xs sm:text-base shadow-xs select-none relative z-20`;
+    el.innerText = slot.label;
+  } else {
+    el.className = "w-full min-h-[52px] sm:min-h-[56px] px-4 py-3 slot-target slot-box rounded-2xl flex items-center justify-between text-xs sm:text-base transition relative z-20";
+    el.ondragover = (e) => { e.preventDefault(); el.classList.add('drag-over'); };
+    el.ondragleave = () => el.classList.remove('drag-over');
+    el.ondrop = (e) => handleDrop(e, slot.id);
+
+    el.innerHTML = `
+      <span class="text-slate-400 font-bold text-xs sm:text-sm italic">${slot.hint}</span>
+      <span class="text-[10px] text-slate-300 font-bold border border-slate-200 px-1.5 py-0.5 rounded">Drop</span>
+    `;
+  }
+  return el;
+}
+
+let draggedBlockId = null;
+function handleDragStart(e, bId) {
+  draggedBlockId = bId;
+  e.dataTransfer.setData('text/plain', bId);
+}
+
+function handleDrop(e, slotId) {
+  e.preventDefault();
+  const slotEl = document.getElementById(`slot-${slotId}`);
+  if (!slotEl) return;
+  slotEl.classList.remove('drag-over');
+  if (!draggedBlockId) return;
+
+  const m = missions[currentMissionIdx];
+  const block = m.palette.find(b => b.id === draggedBlockId);
+  if (!block) return;
+
+  const oldSlotId = Object.keys(placedBlocks).find(k => placedBlocks[k] === draggedBlockId);
+  if (oldSlotId) {
+    clearSlot(oldSlotId);
+  }
+
+  // 덮어쓰기 시 기존에 놓여있던 블록을 보관함(팔레트)으로 안전 복구
+  const existingBlockId = placedBlocks[slotId];
+  if (existingBlockId && existingBlockId !== draggedBlockId) {
+    const existingEl = document.getElementById(`block-${existingBlockId}`);
+    if (existingEl) {
+      existingEl.classList.remove('opacity-30', 'pointer-events-none');
+    }
+  }
+
+  placedBlocks[slotId] = draggedBlockId;
+
+  let shapeClass = "shape-process";
+  if (block.shape === "terminal") shapeClass = "shape-terminal";
+  else if (block.shape === "io") shapeClass = "shape-io";
+  else if (block.shape === "decision") shapeClass = "shape-decision";
+
+  slotEl.className = `w-full min-h-[52px] sm:min-h-[56px] px-4 py-3 ${shapeClass} flex items-center justify-between text-xs sm:text-base font-bold shadow-xs select-none transition relative z-20`;
+
+  let innerText = block.text;
+  if (block.shape === "io") {
+    innerText = `<span class="shape-io-inner">${block.text}</span>`;
+  }
+
+  slotEl.innerHTML = `
+    <span class="text-center flex-1">${innerText}</span>
+    <button onclick="clearSlot('${slotId}')" class="ml-2 w-6 h-6 rounded-full hover:bg-black/10 flex items-center justify-center text-slate-400 hover:text-rose-500 transition">
+      <i class="fa-solid fa-xmark text-xs"></i>
+    </button>
+  `;
+
+  const blockEl = document.getElementById(`block-${draggedBlockId}`);
+  if (blockEl) blockEl.classList.add('opacity-30', 'pointer-events-none');
+
+  if (typeof playSfx === 'function') playSfx('snap');
+  draggedBlockId = null;
+
+  if (m.id === 3) {
+    setTimeout(updateLoopArrowPosition, 60);
+  }
+}
+
+function clearSlot(slotId) {
+  const bId = placedBlocks[slotId];
+  if (!bId) return;
+
+  delete placedBlocks[slotId];
+  const m = missions[currentMissionIdx];
+  const slot = m.slots.find(s => s.id === slotId);
+  const slotEl = document.getElementById(`slot-${slotId}`);
+  if (!slotEl || !slot) return;
+
+  slotEl.className = "w-full min-h-[52px] sm:min-h-[56px] px-4 py-3 slot-target slot-box rounded-2xl flex items-center justify-between text-xs sm:text-base transition relative z-20";
+  slotEl.innerHTML = `
+    <span class="text-slate-400 font-bold text-xs sm:text-sm italic">${slot.hint}</span>
+    <span class="text-[10px] text-slate-300 font-bold border border-slate-200 px-1.5 py-0.5 rounded">Drop</span>
+  `;
+
+  const blockEl = document.getElementById(`block-${bId}`);
+  if (blockEl) blockEl.classList.remove('opacity-30', 'pointer-events-none');
+
+  if (typeof playSfx === 'function') playSfx('step');
+
+  if (m.id === 3) {
+    setTimeout(updateLoopArrowPosition, 60);
+  }
+}
+
+function resetCurrentMission() {
+  selectFlowchartMission(currentMissionIdx + 1);
+  if (typeof playSfx === 'function') playSfx('step');
+}
+
+function renderIOPanels(m) {
+  const inBox = document.getElementById('io-input-container');
+  const outBox = document.getElementById('io-output-display');
+  const logBox = document.getElementById('tracer-log');
+  const badge = document.getElementById('io-input-badge');
+
+  if (badge) badge.classList.add('hidden');
+  if (outBox) outBox.textContent = "대기 중...";
+  if (logBox) logBox.innerHTML = '<div class="text-slate-500 italic">블록을 배치하고 [실행]을 누르면 데이터가 노드를 따라 이동합니다.</div>';
+
+  if (!inBox) return;
+
+  if (m.id === 1) {
+    inBox.innerHTML = `
+      <div class="p-3 bg-white rounded-xl border border-slate-200 text-xs font-mono text-slate-600 flex items-center justify-between">
+        <span>고정 입력: 물 용량</span>
+        <strong class="text-blue-600">500ml</strong>
+      </div>
+    `;
+  } else if (m.id === 2) {
+    inBox.innerHTML = `
+      <div class="flex items-center gap-2">
+        <input type="number" id="test-user-height" value="155" placeholder="키(cm)" class="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-800 focus:outline-none focus:border-indigo-500" />
+        <span class="text-xs font-bold text-slate-400 shrink-0">cm</span>
+      </div>
+    `;
+  } else if (m.id === 3) {
+    inBox.innerHTML = `
+      <div class="space-y-1.5">
+        <div class="flex items-center gap-2">
+          <input type="text" id="test-user-pw" maxlength="4" value="1234" placeholder="4자리 번호" class="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-mono font-bold tracking-widest text-slate-800 focus:outline-none focus:border-indigo-500" />
+          <button onclick="document.getElementById('test-user-pw').value='7777'" class="px-2.5 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold shrink-0 border border-indigo-200 transition" title="정답 암호 입력">
+            정답(7777)
+          </button>
+        </div>
+        <p class="text-[11px] text-slate-400 font-medium leading-tight">* 기본값 '1234'로 실행 시 틀려 루프백되며, '7777' 입력 시 탈출합니다.</p>
+      </div>
+    `;
+  }
+}
+
+async function runFlowchartSimulation() {
+  if (isSimulating) return;
+
+  const m = missions[currentMissionIdx];
+  const outBox = document.getElementById('io-output-display');
+  const aiCard = document.getElementById('ai-feedback-card');
+  const aiText = document.getElementById('ai-feedback-text');
+
+  const reqSlots = m.slots.filter(s => !s.fixed);
+  const isAllFilled = reqSlots.every(s => placedBlocks[s.id]);
+
+  if (!isAllFilled) {
+    if (typeof playSfx === 'function') playSfx('error');
+    if (aiCard && aiText) {
+      aiCard.className = "p-4 rounded-2xl border border-rose-200 bg-rose-50 text-xs sm:text-sm space-y-1.5";
+      aiText.innerHTML = `
+        <div class="font-bold text-rose-800">⚠️ 아직 비어있는 순서도 슬롯이 있습니다!</div>
+        <div class="text-rose-600">모든 빈칸에 알맞은 블록을 끌어다 놓은 후 실행 버튼을 눌러주세요.</div>
+      `;
+    }
+    return;
+  }
+
+  isSimulating = true;
+  const btnText = document.getElementById('btn-run-text');
+  if (btnText) btnText.textContent = "시뮬레이션 검증 중...";
+
+  const tracer = document.getElementById('tracer-log');
+  if (tracer) tracer.innerHTML = '';
+  tracerLog("🚀 [시뮬레이터 시작] 데이터 흐름 추적 시작...", "text-indigo-400");
+
+  const isCorrect = m.validate(placedBlocks);
+
+  if (m.id === 1) {
+    await highlightNode('s1', 500);
+    tracerLog("① [단말] 알고리즘 시작", "text-slate-300");
+
+    await highlightNode('s2', 600);
+    tracerLog("② [입출력] 물 500ml 붓기", "text-emerald-300");
+
+    await highlightNode('s3', 600);
+    tracerLog("③ [처리] 가스레인지 켜서 물 끓이기", "text-blue-300");
+
+    await highlightNode('s4', 600);
+    tracerLog("④ [처리] 면과 스프 넣고 끓이기", "text-blue-300");
+
+    await highlightNode('s5', 500);
+    tracerLog("⑤ [단말] 조리 완료 (종료)", "text-indigo-300");
+
+    if (isCorrect) {
+      if (outBox) outBox.textContent = "🍲 라면 완성! 맛있게 드세요.";
+      if (typeof playSfx === 'function') playSfx('success');
+      tracerLog("✅ [검증 성공] 순차 구조 순서도가 정확합니다!", "text-emerald-400 font-bold");
+      if (aiCard && aiText) {
+        aiCard.className = "p-4 rounded-2xl border border-emerald-200 bg-emerald-50 text-xs sm:text-sm space-y-1.5";
+        markStepCompleted(1);
+        aiText.innerHTML = `
+          <div class="font-bold text-emerald-800">🎉 완벽한 순차 구조 순서도입니다!</div>
+          <div class="text-emerald-700">물 붓기 ➔ 끓이기 ➔ 면/스프 넣기 과정이 컴퓨터가 실행하기에 완벽한 순서로 설계되었습니다.</div>
+          <div class="pt-2.5">
+            <button onclick="switchFlowchartStep(2)" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-xs sm:text-sm transition flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20">
+              <span>다음 단계(2. 선택 퍼즐)로 이동 ➔</span>
+            </button>
+          </div>
+        `;
+      }
+    } else {
+      diagnoseWithSolarAI(m, placedBlocks);
+    }
+
+  } else if (m.id === 2) {
+    const inputEl = document.getElementById('test-user-height');
+    const height = inputEl ? (parseInt(inputEl.value, 10) || 155) : 155;
+
+    await highlightNode('s1', 400);
+    tracerLog("① [단말] 탑승 판정기 시작", "text-slate-300");
+
+    await highlightNode('s2', 500);
+    tracerLog(`② [입출력] 사용자 키 입력: ${height}cm`, "text-emerald-300");
+
+    await highlightNode('s3', 600);
+    const pass = height >= 150;
+    tracerLog(`③ [판단] 키(${height}) >= 150 검사 ➔ 결과: ${pass ? '[예]' : '[아니오]'}`, "text-amber-300 font-bold");
+
+    if (pass) {
+      await highlightNode('s4_yes', 600);
+      tracerLog("④ [분기-예] '탑승 가능' 블록 실행", "text-emerald-300");
+      if (outBox) outBox.textContent = "🎢 키 150cm 이상! 탑승 환영합니다.";
+    } else {
+      await highlightNode('s4_no', 600);
+      tracerLog("④ [분기-아니오] '탑승 불가' 블록 실행", "text-rose-300");
+      if (outBox) outBox.textContent = "🚫 안전 기준 미달 (150cm 미만) 탑승 불가";
+    }
+
+    await highlightNode('s5', 400);
+    tracerLog("⑤ [단말] 판정 종료 합류", "text-indigo-300");
+
+    if (isCorrect) {
+      if (typeof playSfx === 'function') playSfx('success');
+      tracerLog("✅ [검증 성공] 조건 분기 구조가 완벽합니다!", "text-emerald-400 font-bold");
+      if (aiCard && aiText) {
+        aiCard.className = "p-4 rounded-2xl border border-emerald-200 bg-emerald-50 text-xs sm:text-sm space-y-1.5";
+        markStepCompleted(2);
+        aiText.innerHTML = `
+          <div class="font-bold text-emerald-800">🎉 훌륭합니다! 조건 선택 구조를 완벽히 이해했습니다.</div>
+          <div class="text-emerald-700">입력된 키에 따라 [예]와 [아니오] 갈림길로 올바르게 분기하여 판단하는 알고리즘입니다.</div>
+          <div class="pt-2.5">
+            <button onclick="switchFlowchartStep(3)" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-xs sm:text-sm transition flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20">
+              <span>다음 단계(3. 반복 퍼즐)로 이동 ➔</span>
+            </button>
+          </div>
+        `;
+      }
+    } else {
+      diagnoseWithSolarAI(m, placedBlocks);
+    }
+
+  } else if (m.id === 3) {
+    const inputEl = document.getElementById('test-user-pw');
+    typedPw = inputEl ? inputEl.value : "1234";
+
+    await highlightNode('s1', 400);
+    tracerLog("① [단말] 도어락 시작", "text-slate-300");
+
+    await highlightNode('s2', 500);
+    tracerLog(`② [입출력] 비밀번호 입력: "${typedPw}"`, "text-emerald-300");
+
+    await highlightNode('s3', 600);
+    const pass = typedPw === "7777";
+    tracerLog(`③ [판단] 비밀번호 == 7777 인가? ➔ 결과: ${pass ? '[예]' : '[아니오]'}`, "text-amber-300 font-bold");
+
+    if (pass) {
+      await highlightNode('s4_yes', 600);
+      tracerLog("④ [분기-예] '로그인 성공' 출력", "text-emerald-300");
+      if (outBox) outBox.textContent = "🔓 문이 열렸습니다! (로그인 성공)";
+
+      await highlightNode('s5', 400);
+      tracerLog("⑤ [단말] 인증 완료 후 정상 종료", "text-indigo-300");
+
+      if (isCorrect) {
+        if (typeof playSfx === 'function') playSfx('success');
+        tracerLog("✅ [검증 성공] 반복 제어 루프가 정확합니다!", "text-emerald-400 font-bold");
+        if (aiCard && aiText) {
+          aiCard.className = "p-4 rounded-2xl border border-emerald-200 bg-emerald-50 text-xs sm:text-sm space-y-1.5";
+          markStepCompleted(3);
+          aiText.innerHTML = `
+            <div class="font-bold text-emerald-800">🎉 반복 제어 구조 마스터!</div>
+            <div class="text-emerald-700">틀렸을 때 재입력으로 되돌아가는 루프백 흐름과 성공 시 종료로 빠져나오는 구조가 완벽합니다.</div>
+            <div class="pt-2.5">
+              <button onclick="switchFlowchartStep(4)" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-xs sm:text-sm transition flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20">
+                <span>다음 단계(4. 예시 공방)로 이동 ➔</span>
+              </button>
+            </div>
+          `;
+        }
+      } else {
+        diagnoseWithSolarAI(m, placedBlocks);
+      }
+
+    } else {
+      await highlightNode('s4_no', 600);
+      tracerLog("④ [분기-아니오] '비밀번호 불일치' 경고 처리", "text-rose-300");
+      if (outBox) outBox.textContent = "❌ 비밀번호 오류! 다시 입력하세요.";
+
+      tracerLog("🔄 [루프백 화살표] 2단계(비밀번호 입력)로 되감기 실행!", "text-amber-400 font-bold");
+      const path = document.getElementById('loop-path');
+      if (path) {
+        path.setAttribute('stroke', '#ef4444');
+        path.setAttribute('stroke-width', '4');
+      }
+
+      await new Promise(r => setTimeout(r, 600));
+      if (path) {
+        path.setAttribute('stroke', '#f59e0b');
+        path.setAttribute('stroke-width', '2.5');
+      }
+
+      if (typeof playSfx === 'function') playSfx('error');
+
+      const badge = document.getElementById('io-input-badge');
+      if (badge) badge.classList.remove('hidden');
+
+      if (isCorrect) {
+        if (aiCard && aiText) {
+          aiCard.className = "p-4 rounded-2xl border border-amber-200 bg-amber-50 text-xs sm:text-sm space-y-1.5";
+          aiText.innerHTML = `
+            <div class="font-bold text-amber-800">🔄 반복 루프 검증 성공 (재입력 대기 중)</div>
+            <div class="text-amber-700">비밀번호가 틀렸을 때 이전 단계로 돌아가는 화살표가 올바르게 작동했습니다! 우측 상단 비밀번호를 '7777'로 바꾸고 다시 [실행]을 누르면 탈출합니다.</div>
+          `;
+        }
+      } else {
+        diagnoseWithSolarAI(m, placedBlocks);
+      }
+    }
+  }
+
+  isSimulating = false;
+  if (btnText) btnText.textContent = "순서도 실행 검증 (Run)";
+}
+
+function highlightNode(slotId, duration) {
+  return new Promise(resolve => {
+    const el = document.getElementById(`slot-${slotId}`);
+    if (el) el.classList.add('node-running');
+    if (typeof playSfx === 'function') playSfx('step');
+
+    setTimeout(() => {
+      if (el) el.classList.remove('node-running');
+      resolve();
+    }, duration);
+  });
+}
+
+function tracerLog(msg, colorClass) {
+  const tracer = document.getElementById('tracer-log');
+  if (!tracer) return;
+  const div = document.createElement('div');
+  div.className = `flex items-center gap-1.5 ${colorClass || 'text-slate-300'}`;
+  div.innerHTML = `<span>•</span> <span>${msg}</span>`;
+  tracer.appendChild(div);
+  tracer.scrollTop = tracer.scrollHeight;
+}
+
+async function diagnoseWithSolarAI(m, placed) {
+  const card = document.getElementById('ai-feedback-card');
+  const text = document.getElementById('ai-feedback-text');
+  if (!card || !text) return;
+
+  if (typeof playSfx === 'function') playSfx('error');
+  card.className = "p-4 rounded-2xl border border-rose-200 bg-rose-50 text-xs sm:text-sm space-y-1.5";
+  text.innerHTML = `
+    <div class="font-bold text-rose-800 flex items-center gap-1.5">
+      <span class="w-2 h-2 rounded-full bg-rose-600 animate-ping"></span>
+      <span>Solar AI가 순서도 논리 오류를 진단하고 있습니다...</span>
+    </div>
+  `;
+
+  const studentState = Object.entries(placed).map(([slot, bId]) => {
+    const block = m.palette.find(b => b.id === bId);
+    return `[슬롯 ${slot}]에 배치된 블록: "${block ? block.text : '없음'}" (기호형태: ${block ? block.shape : '알수없음'})`;
+  }).join('\n');
+
+  const prompt = `당신은 대한민국 중학교 2학년 정보 교과 '알고리즘과 순서도' 단원의 친절한 AI 선생님입니다.
+학생이 [${m.title}] 미션에서 순서도 블록을 조립했으나 논리적 오류가 발생했습니다.
+
+[미션 목표]: ${m.desc}
+[학생이 배치한 상태]:
+${studentState}
+
+[지침]:
+1. 학생의 배치가 왜 논리적으로 어색한지 중2 눈높이에서 2문장 이내로 친절하게 짚어주세요.
+2. 어떤 블록의 순서나 기호(단말/입출력/처리/판단)를 바꿔야 하는지 명확한 힌트를 1문장 제공하세요.
+3. 총 3문장 이내로 다정하게 작성하세요.`;
+
+  try {
+    const res = await fetch("https://api.upstage.ai/v1/solar/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${UPSTAGE_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: typeof SOLAR_MODEL !== 'undefined' ? SOLAR_MODEL : "solar-pro4",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.5
+      })
+    });
+
+    if (!res.ok) throw new Error("API Response Error");
+    const data = await res.json();
+    const feedback = data.choices[0].message.content;
+
+    card.className = "p-4 rounded-2xl border border-rose-300 bg-rose-50 text-xs sm:text-sm space-y-1.5";
+    text.innerHTML = `
+      <div class="font-bold text-rose-800 flex items-center gap-1.5">
+        <i class="fa-solid fa-wand-magic-sparkles text-rose-600"></i>
+        <span>Solar AI 닥터의 처방전</span>
+      </div>
+      <div class="text-slate-800 leading-relaxed font-medium">${feedback.replace(/\n/g, '<br>')}</div>
+    `;
+
+  } catch (err) {
+    card.className = "p-4 rounded-2xl border border-rose-200 bg-rose-50 text-xs sm:text-sm space-y-1.5";
+    text.innerHTML = `
+      <div class="font-bold text-rose-800">⚠️ 블록 순서가 맞지 않습니다!</div>
+      <div class="text-rose-700">기호의 형태(입출력 ▱, 처리 ▭, 판단 ◇)와 실제 일어나는 행동 순서를 다시 확인해 보세요.</div>
+    `;
+  }
+}
+
+
+// ==========================================
+// 3. [Level 2 / Step 4] 선생님과 함께하는 예시 공방 인터랙션 엔진
+// ==========================================
+let l2RevealedStep = 0;
+
+function initLevel2Walkthrough() {
+  const container = document.getElementById('fc-level2-view');
+  if (!container) return;
+
+  renderL2NaturalCards();
+  renderL2Canvas();
+}
+
+function resetL2Walkthrough() {
+  l2RevealedStep = 0;
+  if (typeof playSfx === 'function') playSfx('snap');
+  renderL2NaturalCards();
+  renderL2Canvas();
+}
+
+function revealAllL2Steps() {
+  l2RevealedStep = 4;
+  markStepCompleted(4);
+  if (typeof playSfx === 'function') playSfx('success');
+  renderL2NaturalCards();
+  renderL2Canvas();
+}
+
+function revealL2Step(stepIdx) {
+  if (stepIdx <= l2RevealedStep) {
+    if (typeof playSfx === 'function') playSfx('step');
+    return;
+  }
+
+  l2RevealedStep = stepIdx;
+  if (l2RevealedStep >= 4) {
+    markStepCompleted(4);
+    if (typeof playSfx === 'function') playSfx('success');
+  } else {
+    if (typeof playSfx === 'function') playSfx('step');
+  }
+
+  renderL2NaturalCards();
+  renderL2Canvas();
+}
+
+function renderL2NaturalCards() {
+  const cardList = document.getElementById('l2-natural-card-list');
+  const counterEl = document.getElementById('l2-step-counter');
+  if (counterEl) counterEl.textContent = `진행: ${l2RevealedStep} / 4`;
+  if (!cardList) return;
+
+  const data = (typeof level2Walkthrough !== 'undefined' ? level2Walkthrough : (window.level2Walkthrough || { steps: [] }));
+  const steps = data.steps || [];
+
+  cardList.innerHTML = steps.map((s, idx) => {
+    const sNum = idx + 1;
+    const isRevealed = l2RevealedStep >= sNum;
+    const isNext = l2RevealedStep === sNum - 1;
+
+    let borderClass = isRevealed ? "border-emerald-300 bg-emerald-50/40" : (isNext ? "border-indigo-400 bg-indigo-50/40 card-pulse-guide" : "border-slate-200 bg-slate-50 opacity-75");
+    let checkBadge = isRevealed 
+      ? `<span class="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] font-black shrink-0">✓</span>`
+      : `<span class="w-5 h-5 rounded-full ${isNext ? 'bg-indigo-600 text-white' : 'bg-slate-300 text-slate-600'} flex items-center justify-center text-[10px] font-black shrink-0">${sNum}</span>`;
+
+    let clickGuide = isNext 
+      ? `<div class="mt-2 text-[11px] font-black text-indigo-700 flex items-center gap-1.5"><i class="fa-solid fa-hand-pointer animate-bounce"></i> <span>클릭하여 우측 캔버스에 [${s.symbolShapeName}] 생성하기!</span></div>` 
+      : (isRevealed ? `<div class="mt-1 text-[10px] text-emerald-700 font-bold flex items-center gap-1"><i class="fa-solid fa-circle-check"></i> <span>캔버스에 기호 생성 완료 (${s.symbolShapeName})</span></div>` : '');
+
+    if (s.symbolType === 'decision') {
+      return `
+        <div onclick="revealL2Step(${sNum})" class="p-4 border-2 ${borderClass} rounded-2xl cursor-pointer transition shadow-xs space-y-2 hover:shadow-md">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              ${checkBadge}
+              <span class="text-sm sm:text-base font-black text-slate-900">${s.cardTitle}</span>
+            </div>
+            <span class="text-[11px] font-black px-2.5 py-0.5 rounded-md border ${s.badgeClass}">${s.cardBadge}</span>
+          </div>
+          <div class="text-sm sm:text-base text-slate-900 font-black pl-7">
+            만약 [ <strong class="text-amber-800">${s.condition}</strong> ] 라면?
+          </div>
+          <div class="pl-7 space-y-1 text-xs sm:text-sm">
+            <div class="text-emerald-700 font-bold">• ${s.yesAction}</div>
+            <div class="text-rose-600 font-bold">• ${s.noAction}</div>
+          </div>
+          <div class="pl-7 text-xs text-slate-600 leading-relaxed font-normal">${s.explanation}</div>
+          <div class="pl-7">${clickGuide}</div>
+        </div>
+      `;
+    } else {
+      return `
+        <div onclick="revealL2Step(${sNum})" class="p-4 border-2 ${borderClass} rounded-2xl cursor-pointer transition shadow-xs space-y-2 hover:shadow-md">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              ${checkBadge}
+              <span class="text-sm sm:text-base font-black text-slate-900">${s.cardTitle}</span>
+            </div>
+            <span class="text-[11px] font-black px-2.5 py-0.5 rounded-md border ${s.badgeClass}">${s.cardBadge}</span>
+          </div>
+          <div class="text-sm sm:text-base text-slate-900 font-black pl-7">${s.naturalText}</div>
+          <div class="pl-7 text-xs text-slate-600 leading-relaxed font-normal">${s.explanation}</div>
+          <div class="pl-7">${clickGuide}</div>
+        </div>
+      `;
+    }
+  }).join('');
+}
+
+function renderL2Canvas() {
+  const svg = document.getElementById('l2-svg');
+  if (!svg) return;
+
+  const defs = `
+    <defs>
+      <marker id="arrow-l2" markerWidth="11" markerHeight="9" refX="10" refY="4.5" orient="auto">
+        <polygon points="0 0, 11 4.5, 0 9" fill="#64748b" />
+      </marker>
+      <marker id="arrow-l2-yes" markerWidth="11" markerHeight="9" refX="10" refY="4.5" orient="auto">
+        <polygon points="0 0, 11 4.5, 0 9" fill="#10b981" />
+      </marker>
+      <marker id="arrow-l2-no" markerWidth="11" markerHeight="9" refX="10" refY="4.5" orient="auto">
+        <polygon points="0 0, 11 4.5, 0 9" fill="#f43f5e" />
+      </marker>
+    </defs>
+  `;
+
+  let content = defs;
+
+  // 0. 단말: 시작 (항상 표시, 1.35배 확대)
+  content += `
+    <g class="pop-in">
+      <rect x="235" y="16" width="230" height="48" rx="24" fill="#faf5ff" stroke="#a855f7" stroke-width="3" />
+      <text x="350" y="46" fill="#581c87" font-size="15" font-weight="900" text-anchor="middle">⬭ 시작</text>
+    </g>
+  `;
+
+  // 1. 입출력: 현재 시각 확인 (l2RevealedStep >= 1)
+  if (l2RevealedStep >= 1) {
+    content += `
+      <!-- 0 -> 1 연결선 -->
+      <line x1="350" y1="64" x2="350" y2="100" stroke="#64748b" stroke-width="3.5" marker-end="url(#arrow-l2)" />
+
+      <!-- 평행사변형 (입출력) -->
+      <g class="pop-in">
+        <polygon points="230,102 485,102 455,152 200,152" fill="#ecfdf5" stroke="#10b981" stroke-width="3" />
+        <text x="342" y="132" fill="#064e3b" font-size="14" font-weight="800" text-anchor="middle">▱ 현재 시각 확인</text>
+      </g>
+    `;
+  }
+
+  // 2. 처리: 기상 및 세수하기 (l2RevealedStep >= 2)
+  if (l2RevealedStep >= 2) {
+    content += `
+      <!-- 1 -> 2 연결선 -->
+      <line x1="350" y1="152" x2="350" y2="188" stroke="#64748b" stroke-width="3.5" marker-end="url(#arrow-l2)" />
+
+      <!-- 직사각형 (처리) -->
+      <g class="pop-in">
+        <rect x="235" y="190" width="230" height="48" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="3" />
+        <text x="350" y="219" fill="#1e3a8a" font-size="14" font-weight="800" text-anchor="middle">▭ 기상 및 세수하기</text>
+      </g>
+    `;
+  }
+
+  // 3. 판단: 현재 시각 <= 07:30 ? 및 2개 분기 (l2RevealedStep >= 3)
+  if (l2RevealedStep >= 3) {
+    content += `
+      <!-- 2 -> 3 연결선 -->
+      <line x1="350" y1="238" x2="350" y2="276" stroke="#64748b" stroke-width="3.5" marker-end="url(#arrow-l2)" />
+
+      <!-- 마름모 (판단) -->
+      <g class="pop-in">
+        <polygon points="350,278 495,325 350,372 205,325" fill="#fffbeb" stroke="#f59e0b" stroke-width="3" />
+        <text x="350" y="330" fill="#78350f" font-size="14" font-weight="900" text-anchor="middle">◇ 현재 시각 &lt;= 07:30?</text>
+      </g>
+
+      <!-- [예] 좌측 분기선 및 직사각형 -->
+      <g class="pop-in">
+        <path d="M 205 325 L 120 325 L 120 392" stroke="#10b981" stroke-width="3.5" fill="none" marker-end="url(#arrow-l2-yes)" />
+        <text x="162" y="315" fill="#10b981" font-size="12" font-weight="900" text-anchor="middle">[예]</text>
+        <rect x="15" y="396" width="210" height="48" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="3" />
+        <text x="120" y="425" fill="#1e3a8a" font-size="13" font-weight="800" text-anchor="middle">▭ 아침밥 든든히 먹기</text>
+      </g>
+
+      <!-- [아니오] 우측 분기선 및 직사각형 -->
+      <g class="pop-in">
+        <path d="M 495 325 L 580 325 L 580 392" stroke="#f43f5e" stroke-width="3.5" fill="none" marker-end="url(#arrow-l2-no)" />
+        <text x="538" y="315" fill="#f43f5e" font-size="12" font-weight="900" text-anchor="middle">[아니오]</text>
+        <rect x="475" y="396" width="210" height="48" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="3" />
+        <text x="580" y="425" fill="#1e3a8a" font-size="13" font-weight="800" text-anchor="middle">▭ 서둘러 즉시 출발</text>
+      </g>
+    `;
+  }
+
+  // 4. 합류 & 등교 버스 탑승 및 종료 (l2RevealedStep >= 4)
+  if (l2RevealedStep >= 4) {
+    content += `
+      <!-- 분기 합류선 -->
+      <g class="pop-in">
+        <path d="M 120 444 L 120 480 L 290 510" stroke="#64748b" stroke-width="3" fill="none" />
+        <path d="M 580 444 L 580 480 L 410 510" stroke="#64748b" stroke-width="3" fill="none" />
+        <line x1="350" y1="495" x2="350" y2="522" stroke="#64748b" stroke-width="3.5" marker-end="url(#arrow-l2)" />
+
+        <!-- 직사각형 (처리): 등교 버스 탑승 -->
+        <rect x="235" y="525" width="230" height="48" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="3" />
+        <text x="350" y="554" fill="#1e3a8a" font-size="14" font-weight="800" text-anchor="middle">▭ 등교 버스 탑승</text>
+
+        <!-- 종료 단말 연결 -->
+        <line x1="350" y1="573" x2="350" y2="608" stroke="#64748b" stroke-width="3.5" marker-end="url(#arrow-l2)" />
+
+        <!-- 타원 (단말): 종료 -->
+        <rect x="235" y="610" width="230" height="48" rx="24" fill="#faf5ff" stroke="#a855f7" stroke-width="3" />
+        <text x="350" y="640" fill="#581c87" font-size="15" font-weight="900" text-anchor="middle">⬭ 종료 (등교 성공)</text>
+      </g>
+    `;
+  }
+
+  svg.innerHTML = content;
+}
+
+// ==========================================
+// 4. [Level 3] 나만의 백지 공방 & 자연어 카드 빌더 엔진
+// ==========================================
+let nlCards = [
+  { id: "nl-1", type: "seq", text: "아침 알람을 듣고 침대에서 일어난다." },
+  { id: "nl-2", type: "seq", text: "세수를 하고 거울을 본다." },
+  { id: "nl-3", type: "sel", condition: "배가 고픈가?", yesAction: "토스트를 구워 먹는다.", noAction: "물 한 잔을 마신다." },
+  { id: "nl-4", type: "seq", text: "가방을 메고 학교로 출발한다." }
+];
+
+let freeBlocks = [];
+let freeConnections = [];
+let nextBlockId = 1;
+
+// 캔버스 드래그 및 선 잇기 상태
+let isDraggingBlock = false;
+let draggedBlockObj = null;
+let dragOffset = { x: 0, y: 0 };
+
+let isConnecting = false;
+let connectionSource = null; // { blockId, portType }
+
+function initLevel3FreeStudio() {
+  renderNlCards();
+  renderFreeCanvas();
+  renderPresetBadges();
+}
+
+// --------------------------------------------------
+// 자연어 카드 빌더 로직
+// --------------------------------------------------
+function autoResizeNlTextarea(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = Math.max(34, el.scrollHeight) + 'px';
+}
+
+function autoResizeAllNlTextareas() {
+  setTimeout(() => {
+    document.querySelectorAll('.auto-expand-nl-input').forEach(ta => {
+      autoResizeNlTextarea(ta);
+    });
+  }, 30);
+}
+
+function renderNlCards() {
+  const container = document.getElementById('nl-cards-container');
+  if (!container) return;
+
+  if (nlCards.length === 0) {
+    container.innerHTML = `
+      <div class="p-8 text-center border-2 border-dashed border-slate-200 rounded-3xl text-slate-400 text-xs sm:text-sm space-y-2">
+        <div>📝 아직 작성된 자연어 카드가 없습니다.</div>
+        <div class="text-[11px] text-slate-400">상단의 [순차], [선택], [반복] 버튼을 눌러 알고리즘 단계를 추가해 보세요!</div>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = nlCards.map((c, idx) => {
+    if (c.type === 'seq') {
+      return `
+        <div id="card-${c.id}" class="p-3 bg-white border-2 border-blue-200 rounded-2xl shadow-xs space-y-2 nl-card-seq transition hover:border-blue-400 group">
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-1.5">
+              <span class="w-5 h-5 rounded-lg bg-blue-600 text-white font-black flex items-center justify-center text-[11px]">${idx + 1}</span>
+              <span class="font-bold text-blue-700">순차 단계 (행동 실행)</span>
+            </div>
+            <button onclick="removeNlCard('${c.id}')" class="text-slate-300 hover:text-rose-500 transition p-1" title="카드 삭제">
+              <i class="fa-solid fa-xmark text-xs"></i>
+            </button>
+          </div>
+          <div class="space-y-1">
+            <textarea rows="1" 
+                      oninput="autoResizeNlTextarea(this); updateNlCardText('${c.id}', this.value)" 
+                      placeholder="어떤 행동을 하나요? (예: 자판기 동전 투입구에 동전을 넣는다)" 
+                      class="auto-expand-nl-input w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500 resize-none leading-relaxed overflow-hidden transition-all"
+            >${c.text || ''}</textarea>
+          </div>
+        </div>
+      `;
+    } else if (c.type === 'sel') {
+      return `
+        <div id="card-${c.id}" class="p-3 bg-white border-2 border-amber-200 rounded-2xl shadow-xs space-y-2.5 nl-card-sel transition hover:border-amber-400 group">
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-1.5">
+              <span class="w-5 h-5 rounded-lg bg-amber-500 text-white font-black flex items-center justify-center text-[11px]">${idx + 1}</span>
+              <span class="font-bold text-amber-700">선택 단계 (조건 분기)</span>
+            </div>
+            <button onclick="removeNlCard('${c.id}')" class="text-slate-300 hover:text-rose-500 transition p-1" title="카드 삭제">
+              <i class="fa-solid fa-xmark text-xs"></i>
+            </button>
+          </div>
+          
+          <!-- 1. 조건 검사 (가로 100% full width) -->
+          <div class="bg-amber-50/70 border border-amber-200 rounded-xl p-2.5 space-y-1">
+            <div class="flex items-center justify-between text-[11px] font-black text-amber-800">
+              <span>🤔 만약 아래 조건이 참(True)이라면?</span>
+            </div>
+            <textarea rows="1" 
+                      oninput="autoResizeNlTextarea(this); updateNlCardField('${c.id}', 'condition', this.value)" 
+                      placeholder="검사할 질문/조건 (예: 투입한 동전이 자판기 인식 기준에 맞는가?)" 
+                      class="auto-expand-nl-input w-full px-2.5 py-1.5 bg-white border border-amber-300 rounded-lg text-xs sm:text-sm font-bold text-amber-950 focus:outline-none focus:border-amber-500 resize-none leading-relaxed overflow-hidden transition-all"
+            >${c.condition || ''}</textarea>
+          </div>
+
+          <!-- 2. [예] & [아니오] 분기 액션 (각각 가로 100% full width) -->
+          <div class="space-y-1.5 text-xs">
+            <div class="p-2 rounded-xl bg-emerald-50/60 border border-emerald-200 space-y-1">
+              <div class="flex items-center gap-1 text-[11px] font-black text-emerald-700">
+                <i class="fa-solid fa-check text-[10px]"></i>
+                <span>[예] 참일 때 실행할 행동:</span>
+              </div>
+              <textarea rows="1" 
+                        oninput="autoResizeNlTextarea(this); updateNlCardField('${c.id}', 'yesAction', this.value)" 
+                        placeholder="예 일 때 할 일 (예: 원하는 음료수 버튼에 불이 켜진다)" 
+                        class="auto-expand-nl-input w-full px-2.5 py-1 bg-white border border-emerald-300 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-emerald-500 resize-none leading-relaxed overflow-hidden transition-all"
+              >${c.yesAction || ''}</textarea>
+            </div>
+
+            <div class="p-2 rounded-xl bg-rose-50/60 border border-rose-200 space-y-1">
+              <div class="flex items-center gap-1 text-[11px] font-black text-rose-600">
+                <i class="fa-solid fa-xmark text-[10px]"></i>
+                <span>[아니오] 거짓일 때 실행할 행동:</span>
+              </div>
+              <textarea rows="1" 
+                        oninput="autoResizeNlTextarea(this); updateNlCardField('${c.id}', 'noAction', this.value)" 
+                        placeholder="아니오 일 때 할 일 (예: 동전이 인식되지 않아 반환구로 나온다)" 
+                        class="auto-expand-nl-input w-full px-2.5 py-1 bg-white border border-rose-300 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-rose-500 resize-none leading-relaxed overflow-hidden transition-all"
+              >${c.noAction || ''}</textarea>
+            </div>
+          </div>
+        </div>
+      `;
+    } else if (c.type === 'loop') {
+      return `
+        <div id="card-${c.id}" class="p-3 bg-white border-2 border-emerald-200 rounded-2xl shadow-xs space-y-2.5 nl-card-loop transition hover:border-emerald-400 group">
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-1.5">
+              <span class="w-5 h-5 rounded-lg bg-emerald-600 text-white font-black flex items-center justify-center text-[11px]">${idx + 1}</span>
+              <span class="font-bold text-emerald-700">반복 단계 (조건 루프)</span>
+            </div>
+            <button onclick="removeNlCard('${c.id}')" class="text-slate-300 hover:text-rose-500 transition p-1" title="카드 삭제">
+              <i class="fa-solid fa-xmark text-xs"></i>
+            </button>
+          </div>
+
+          <!-- 1. 반복 조건 (가로 100%) -->
+          <div class="bg-emerald-50/70 border border-emerald-200 rounded-xl p-2.5 space-y-1">
+            <div class="text-[11px] font-black text-emerald-800">
+              <span>🔁 반복 지속 조건 (아래 조건이 참인 동안 반복):</span>
+            </div>
+            <textarea rows="1" 
+                      oninput="autoResizeNlTextarea(this); updateNlCardField('${c.id}', 'condition', this.value)" 
+                      placeholder="탈출/지속 조건 (예: 올바른 비밀번호를 입력할 때까지)" 
+                      class="auto-expand-nl-input w-full px-2.5 py-1.5 bg-white border border-emerald-300 rounded-lg text-xs sm:text-sm font-bold text-emerald-950 focus:outline-none focus:border-emerald-500 resize-none leading-relaxed overflow-hidden transition-all"
+            >${c.condition || ''}</textarea>
+          </div>
+
+          <!-- 2. 반복 실행 행동 (가로 100%) -->
+          <div class="p-2 rounded-xl bg-slate-50 border border-slate-200 space-y-1 text-xs">
+            <div class="flex items-center gap-1 text-[11px] font-black text-slate-700">
+              <i class="fa-solid fa-rotate text-emerald-600 text-[10px]"></i>
+              <span>반복할 행동:</span>
+            </div>
+            <textarea rows="1" 
+                      oninput="autoResizeNlTextarea(this); updateNlCardField('${c.id}', 'loopAction', this.value)" 
+                      placeholder="반복할 행동 (예: 비밀번호를 다시 입력받는다)" 
+                      class="auto-expand-nl-input w-full px-2.5 py-1 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-emerald-500 resize-none leading-relaxed overflow-hidden transition-all"
+            >${c.loopAction || ''}</textarea>
+          </div>
+        </div>
+      `;
+    }
+  }).join('');
+
+  autoResizeAllNlTextareas();
+}
+
+function addNlCard(type) {
+  const newId = `nl-${Date.now()}`;
+  if (type === 'seq') {
+    nlCards.push({ id: newId, type: 'seq', text: '' });
+  } else if (type === 'sel') {
+    nlCards.push({ id: newId, type: 'sel', condition: '', yesAction: '', noAction: '' });
+  } else if (type === 'loop') {
+    nlCards.push({ id: newId, type: 'loop', condition: '', loopAction: '' });
+  }
+  renderNlCards();
+  if (typeof playSfx === 'function') playSfx('snap');
+
+  setTimeout(() => {
+    const el = document.getElementById(`card-${newId}`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    autoResizeAllNlTextareas();
+  }, 60);
+}
+
+function removeNlCard(cardId) {
+  nlCards = nlCards.filter(c => c.id !== cardId);
+  renderNlCards();
+  if (typeof playSfx === 'function') playSfx('step');
+}
+
+function updateNlCardText(cardId, text) {
+  const c = nlCards.find(x => x.id === cardId);
+  if (c) c.text = text;
+}
+
+function updateNlCardField(cardId, field, value) {
+  const c = nlCards.find(x => x.id === cardId);
+  if (c) c[field] = value;
+}
+
+// --------------------------------------------------
+// 추상화 닥터 재료 바구니 연동
+// --------------------------------------------------
+function renderPresetBadges() {
+  const tray = document.getElementById('abstraction-badge-tray');
+  if (!tray) return;
+
+  const pres = window.latestAbstractionPrescription || (window.defaultAbstractionPresets ? window.defaultAbstractionPresets[0] : null);
+
+  if (!pres) {
+    tray.innerHTML = `<span class="text-xs text-slate-400 italic">추상화 워크북을 먼저 진행하면 재료가 자동으로 채워집니다.</span>`;
+    return;
+  }
+
+  const items = [];
+  if (pres.currentStatus) items.push({ label: `현재: ${pres.currentStatus}`, type: "current" });
+  if (pres.goalStatus) items.push({ label: `목표: ${pres.goalStatus}`, type: "goal" });
+  if (pres.conditions) pres.conditions.forEach(c => items.push({ label: `조건: ${c}`, type: "cond" }));
+  if (pres.coreVariables) pres.coreVariables.forEach(v => items.push({ label: `변수: ${v}`, type: "var" }));
+
+  tray.innerHTML = items.map(it => `
+    <button onclick="applyBadgeToCard('${it.label}')" class="px-2.5 py-1 bg-white hover:bg-violet-50 text-slate-700 hover:text-violet-700 border border-slate-200 rounded-lg text-[11px] font-bold transition shadow-2xs flex items-center gap-1">
+      <i class="fa-solid fa-tag text-[9px] text-violet-500"></i>
+      <span>${it.label}</span>
+    </button>
+  `).join('');
+}
+
+function applyBadgeToCard(badgeText) {
+  addNlCard('seq');
+  const lastCard = nlCards[nlCards.length - 1];
+  if (lastCard) {
+    lastCard.text = badgeText;
+    renderNlCards();
+  }
+}
+
+// --------------------------------------------------
+// 🩺 스마트 문제 분석 & 다단계 순서도 처방전 팝업 엔진
+// --------------------------------------------------
+const PRESCRIPTION_PRESETS = {
+  weather: {
+    title: "오늘 날씨별 옷차림 추천",
+    goal: "오늘 날씨에 딱 맞는 옷차림을 결정한다",
+    variables: "현재 기온, 옷차림",
+    steps: [
+      { type: "seq", text: "기상청 앱을 켜고 오늘의 현재 기온을 확인(입력)한다." },
+      { type: "sel", condition: "현재 기온이 4℃ 이하인가?", yesAction: "두꺼운 롱패딩과 기모 바지를 입는다", noAction: "가벼운 코트나 재킷을 입는다" },
+      { type: "seq", text: "따뜻하고 쾌적하게 등교 외출 준비를 완료한다." }
+    ]
+  },
+  school: {
+    title: "지각 방지 등교 작전",
+    goal: "8시 10분 등교 버스를 안전하게 탑승한다",
+    variables: "현재 시각, 알람 소리, 준비 시간",
+    steps: [
+      { type: "seq", text: "오전 7시 알람 소리를 듣고 침대에서 기상한다." },
+      { type: "seq", text: "세수를 하고 교복을 단정하게 입는다." },
+      { type: "sel", condition: "현재 시각이 7시 40분 이전인가?", yesAction: "든든하게 아침 식사를 하고 정류장으로 이동한다", noAction: "간단한 간식을 챙겨 서둘러 정류장으로 달린다" },
+      { type: "seq", text: "8시 10분 정류장에 도착하여 등교 버스에 안전하게 탑승한다." }
+    ]
+  },
+  sandwich: {
+    title: "통새우 샌드위치 조리",
+    goal: "맛있는 통새우 샌드위치를 완성한다",
+    variables: "식빵 2장, 딸기잼, 통새우, 양상추, 치즈, 토마토",
+    steps: [
+      { type: "seq", text: "식빵 2장을 토스터기에 넣고 1분간 노릇노릇하게 굽는다." },
+      { type: "seq", text: "구운 식빵 한쪽 면에 달콤한 딸기잼과 버터를 골고루 바른다." },
+      { type: "seq", text: "양상추, 구운 통새우, 체다 치즈, 토마토를 순서대로 차곡차곡 올린다." },
+      { type: "sel", condition: "치즈를 따뜻하게 녹여서 먹을 것인가?", yesAction: "전자레인지에 넣고 20초간 살짝 데운다", noAction: "신선한 상태 그대로 조리를 진행한다" },
+      { type: "seq", text: "나머지 식빵 한 장을 덮고 먹기 좋은 크기로 반을 자른다." }
+    ]
+  },
+  login: {
+    title: "비밀번호 5회 검증",
+    goal: "비밀번호 검증을 통과하여 시스템에 로그인한다",
+    variables: "입력 아이디, 입력 비밀번호, 시도 횟수",
+    steps: [
+      { type: "seq", text: "로그인 창에 사용자 아이디와 비밀번호를 입력받는다." },
+      { type: "sel", condition: "입력한 비밀번호가 등록된 암호와 일치하는가?", yesAction: "로그인 성공 메시지를 띄우고 메인 화면으로 이동한다", noAction: "비밀번호 오류 알림을 띄우고 재입력을 요청한다" },
+      { type: "seq", text: "안전하게 서비스 메인 화면에 진입한다." }
+    ]
+  },
+  study: {
+    title: "25분 집중 뽀모도로 타이머",
+    goal: "25분 집중 공부 후 5분 휴식한다",
+    variables: "공부 시간(분), 타이머 알람",
+    steps: [
+      { type: "seq", text: "책상에 바른 자세로 앉아 25분 집중 공부 타이머를 시작한다." },
+      { type: "loop", condition: "공부 시간이 25분에 도달할 때까지", loopAction: "스마트폰을 보지 않고 책과 필기에만 오롯이 집중한다" },
+      { type: "seq", text: "25분 알람이 울리면 자리에서 일어나 5분간 스트레칭하며 휴식한다." }
+    ]
+  }
+};
+
+let currentPrescriptionPresetKey = 'sandwich';
+let currentPrescriptionSteps = [];
+
+function renderPrescriptionSteps() {
+  const container = document.getElementById('pres-steps-list');
+  if (!container) return;
+
+  if (!currentPrescriptionSteps || currentPrescriptionSteps.length === 0) {
+    container.innerHTML = `<div class="text-xs text-slate-400 py-3 text-center">등록된 조립 단계가 없습니다. 상단의 '+ 단계 추가' 버튼을 눌러보세요.</div>`;
+    return;
+  }
+
+  container.innerHTML = currentPrescriptionSteps.map((s, idx) => {
+    if (s.type === 'seq') {
+      return `
+        <div class="bg-white border border-slate-200 rounded-xl p-2.5 shadow-2xs space-y-1 relative">
+          <div class="flex items-center justify-between">
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-blue-100 text-blue-800">
+              <span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+              <span>단계 ${idx + 1}. [순차 실행]</span>
+            </span>
+            <button type="button" onclick="removePrescriptionStep(${idx})" class="text-slate-400 hover:text-rose-500 transition px-1" title="단계 삭제">
+              <i class="fa-solid fa-xmark text-xs"></i>
+            </button>
+          </div>
+          <input type="text" value="${s.text || ''}" onchange="updatePrescriptionStep(${idx}, 'text', this.value)" 
+                 class="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 font-bold text-slate-800 focus:outline-none focus:border-blue-500 focus:bg-white transition" 
+                 placeholder="수행할 동작이나 명령어 입력">
+        </div>
+      `;
+    } else if (s.type === 'sel') {
+      return `
+        <div class="bg-amber-50/50 border border-amber-200 rounded-xl p-2.5 shadow-2xs space-y-1.5 relative">
+          <div class="flex items-center justify-between">
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-100 text-amber-900">
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+              <span>단계 ${idx + 1}. [조건 분기 - 선택]</span>
+            </span>
+            <button type="button" onclick="removePrescriptionStep(${idx})" class="text-amber-400 hover:text-rose-500 transition px-1" title="단계 삭제">
+              <i class="fa-solid fa-xmark text-xs"></i>
+            </button>
+          </div>
+          <div class="space-y-1">
+            <input type="text" value="${s.condition || ''}" onchange="updatePrescriptionStep(${idx}, 'condition', this.value)" 
+                   class="w-full text-xs bg-white border border-amber-300 rounded-lg px-2.5 py-1.5 font-bold text-amber-950 focus:outline-none focus:border-amber-500 transition" 
+                   placeholder="만약 [조건]인가? (◇ 마름모 기준)">
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+            <div class="flex items-center gap-1">
+              <span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-black text-[10px] flex-shrink-0">예</span>
+              <input type="text" value="${s.yesAction || ''}" onchange="updatePrescriptionStep(${idx}, 'yesAction', this.value)" 
+                     class="flex-1 text-xs bg-white border border-emerald-300 rounded-lg px-2 py-1 font-bold text-slate-800 focus:outline-none focus:border-emerald-500" 
+                     placeholder="조건 만족 시 실행">
+            </div>
+            <div class="flex items-center gap-1">
+              <span class="px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 font-black text-[10px] flex-shrink-0">아니오</span>
+              <input type="text" value="${s.noAction || ''}" onchange="updatePrescriptionStep(${idx}, 'noAction', this.value)" 
+                     class="flex-1 text-xs bg-white border border-rose-300 rounded-lg px-2 py-1 font-bold text-slate-800 focus:outline-none focus:border-rose-500" 
+                     placeholder="조건 불만족 시 실행">
+            </div>
+          </div>
+        </div>
+      `;
+    } else if (s.type === 'loop') {
+      return `
+        <div class="bg-emerald-50/50 border border-emerald-200 rounded-xl p-2.5 shadow-2xs space-y-1.5 relative">
+          <div class="flex items-center justify-between">
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-emerald-100 text-emerald-900">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+              <span>단계 ${idx + 1}. [반복 루프]</span>
+            </span>
+            <button type="button" onclick="removePrescriptionStep(${idx})" class="text-emerald-400 hover:text-rose-500 transition px-1" title="단계 삭제">
+              <i class="fa-solid fa-xmark text-xs"></i>
+            </button>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+            <input type="text" value="${s.condition || ''}" onchange="updatePrescriptionStep(${idx}, 'condition', this.value)" 
+                   class="w-full text-xs bg-white border border-emerald-300 rounded-lg px-2 py-1.5 font-bold text-slate-800 focus:outline-none focus:border-emerald-500" 
+                   placeholder="[반복 조건] ~할 때까지">
+            <input type="text" value="${s.loopAction || ''}" onchange="updatePrescriptionStep(${idx}, 'loopAction', this.value)" 
+                   class="w-full text-xs bg-white border border-emerald-300 rounded-lg px-2 py-1.5 font-bold text-slate-800 focus:outline-none focus:border-emerald-500" 
+                   placeholder="반복 수행할 행동">
+          </div>
+        </div>
+      `;
+    }
+    return '';
+  }).join('');
+}
+
+function addPrescriptionStep(type) {
+  if (type === 'seq') {
+    currentPrescriptionSteps.push({ type: 'seq', text: '정해진 순서대로 명령을 수행한다.' });
+  } else if (type === 'sel') {
+    currentPrescriptionSteps.push({ type: 'sel', condition: '조건을 만족하는가?', yesAction: '예 동작 수행', noAction: '아니오 동작 수행' });
+  } else if (type === 'loop') {
+    currentPrescriptionSteps.push({ type: 'loop', condition: '목표에 도달할 때까지', loopAction: '동작을 반복 실행한다' });
+  }
+  renderPrescriptionSteps();
+  if (typeof playSfx === 'function') playSfx('snap');
+}
+
+function removePrescriptionStep(idx) {
+  currentPrescriptionSteps.splice(idx, 1);
+  renderPrescriptionSteps();
+  if (typeof playSfx === 'function') playSfx('step');
+}
+
+function updatePrescriptionStep(idx, key, val) {
+  if (currentPrescriptionSteps[idx]) {
+    currentPrescriptionSteps[idx][key] = val;
+  }
+}
+
+function openPrescriptionModal() {
+  const modal = document.getElementById('prescription-modal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+
+  // 최신 프리셋 로드
+  selectPrescriptionPreset(currentPrescriptionPresetKey || 'sandwich');
+
+  if (typeof playSfx === 'function') playSfx('btn');
+}
+
+function closePrescriptionModal() {
+  const modal = document.getElementById('prescription-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function switchPrescriptionTab(tabKey) {
+  const tabPresets = document.getElementById('pres-tab-presets');
+  const tabCustom = document.getElementById('pres-tab-custom');
+  const panelPresets = document.getElementById('pres-panel-presets');
+  const panelCustom = document.getElementById('pres-panel-custom');
+
+  if (tabKey === 'presets') {
+    if (tabPresets) {
+      tabPresets.className = "px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition bg-violet-600 text-white shadow-xs";
+    }
+    if (tabCustom) {
+      tabCustom.className = "px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition text-slate-600 hover:text-slate-900 hover:bg-slate-100";
+    }
+    if (panelPresets) panelPresets.classList.remove('hidden');
+    if (panelCustom) panelCustom.classList.add('hidden');
+    selectPrescriptionPreset(currentPrescriptionPresetKey || 'sandwich');
+  } else {
+    if (tabPresets) {
+      tabPresets.className = "px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition text-slate-600 hover:text-slate-900 hover:bg-slate-100";
+    }
+    if (tabCustom) {
+      tabCustom.className = "px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition bg-violet-600 text-white shadow-xs";
+    }
+    if (panelPresets) panelPresets.classList.add('hidden');
+    if (panelCustom) panelCustom.classList.remove('hidden');
+
+    const curInp = document.getElementById('pres-custom-cur');
+    if (curInp && !curInp.value) {
+      setCustomIdeaPreset('vending');
+    }
+  }
+  if (typeof playSfx === 'function') playSfx('btn');
+}
+
+function setCustomIdeaPreset(type) {
+  const curInp = document.getElementById('pres-custom-cur');
+  const goalInp = document.getElementById('pres-custom-goal');
+  if (type === 'vending') {
+    if (curInp) curInp.value = "목이 마른데 동전을 쥐고 자판기 앞에 서 있는 상태";
+    if (goalInp) goalInp.value = "동전을 투입하여 원하는 시원한 음료수를 뽑아 마시는 상태";
+  } else if (type === 'bus') {
+    if (curInp) curInp.value = "아침 7시 40분에 일어나서 등교 버스 도착 시간을 모르는 상태";
+    if (goalInp) goalInp.value = "버스 도착 시간을 확인하고 지각하지 않고 등교 버스에 탑승하는 상태";
+  } else if (type === 'recycle') {
+    if (curInp) curInp.value = "다 마신 플라스틱 음료수 페트병에 라벨이 붙어있는 상태";
+    if (goalInp) goalInp.value = "라벨을 떼어내고 세척 후 플라스틱 수거함에 올바르게 분리수거하는 상태";
+  } else if (type === 'study') {
+    if (curInp) curInp.value = "공부를 시작하려는데 스마트폰 때문에 집중력이 흐트러지는 상태";
+    if (goalInp) goalInp.value = "25분 집중 타이머를 가동하고 알람이 울릴 때까지 공부를 마치는 상태";
+  }
+  if (typeof playSfx === 'function') playSfx('snap');
+}
+
+async function requestSolarPrescription() {
+  const btn = document.getElementById('btn-solar-prescription');
+  const cur = (document.getElementById('pres-custom-cur')?.value || "").trim();
+  const goal = (document.getElementById('pres-custom-goal')?.value || "").trim();
+
+  if (!cur || !goal) {
+    alert("현재 상태와 목표 상태를 모두 입력해 주세요!");
+    return;
+  }
+
+  const origBtnHtml = btn ? btn.innerHTML : "";
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-amber-300"></i> <span>Solar AI가 입체적 다단계 레시피를 분석 중입니다...</span>`;
+  }
+
+  const prompt = `당신은 대한민국 2022 개정 중학교 정보 교과 '알고리즘 설계와 순서도' 단원의 친절한 AI 지도교사입니다.
+학생이 입력한 [현재 상태]에서 [목표 상태]에 도달하기 위한 현실적이고 논리적인 다단계 알고리즘 레시피(순차, 선택, 반복 구조 활용)를 작성해 주세요.
+예를 들어 샌드위치 조리나 라면 끓이기라면 순차적으로 재료를 넣고 굽는 과정과 조건 분기가 포함되어야 합니다.
+
+[현재 상태]: "${cur}"
+[목표 상태]: "${goal}"
+
+[작성 원칙]:
+1. goal: 해결할 문제 상황 한 문장 요약
+2. variables: 핵심 준비물 또는 상태 변수들 (쉼표로 구분)
+3. steps: 학생이 쉽게 이해할 수 있는 3~5개의 단계 배열.
+   - type: "seq" (순차 실행), "sel" (조건 선택 분기), "loop" (반복)
+   - seq인 경우: {"type": "seq", "text": "명령 내용"}
+   - sel인 경우: {"type": "sel", "condition": "질문 형식의 조건", "yesAction": "예 동작", "noAction": "아니오 동작"}
+   - loop인 경우: {"type": "loop", "condition": "반복 조건", "loopAction": "반복 수행 동작"}
+
+반드시 아래 JSON 포맷으로만 응답하세요:
+{
+  "goal": "...",
+  "variables": "...",
+  "steps": [
+    { "type": "seq", "text": "..." },
+    { "type": "sel", "condition": "...", "yesAction": "...", "noAction": "..." },
+    { "type": "seq", "text": "..." }
+  ]
+}`;
+
+  try {
+    const res = await fetch("https://api.upstage.ai/v1/solar/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${UPSTAGE_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: typeof SOLAR_MODEL !== 'undefined' ? SOLAR_MODEL : "solar-pro4",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.4
+      })
+    });
+
+    if (!res.ok) throw new Error("API Response Error");
+    const data = await res.json();
+    const raw = data.choices[0].message.content;
+
+    let parsed = null;
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      try { parsed = JSON.parse(jsonMatch[0]); } catch (e) {}
+    }
+
+    if (parsed) {
+      if (parsed.goal) document.getElementById('pres-inp-goal').value = parsed.goal;
+      if (parsed.variables) document.getElementById('pres-inp-variables').value = parsed.variables;
+      if (Array.isArray(parsed.steps) && parsed.steps.length > 0) {
+        currentPrescriptionSteps = parsed.steps;
+      } else {
+        // 폴백
+        currentPrescriptionSteps = [
+          { type: "seq", text: `[${parsed.variables || '데이터'}] 준비 및 확인` },
+          { type: "sel", condition: "조건을 충족하는가?", yesAction: parsed.goal, noAction: "보완 후 다시 시도" },
+          { type: "seq", text: `${parsed.goal} 달성 완료` }
+        ];
+      }
+      renderPrescriptionSteps();
+    } else {
+      throw new Error("JSON 파싱 실패");
+    }
+
+    if (typeof playSfx === 'function') playSfx('success');
+  } catch (err) {
+    // 안전한 룰 기반 폴백
+    document.getElementById('pres-inp-goal').value = goal;
+    document.getElementById('pres-inp-variables').value = "상태 데이터, 판정 기준";
+    currentPrescriptionSteps = [
+      { type: "seq", text: `${cur.split(' ')[0] || '초기'} 상태를 확인하고 필요한 재료나 정보를 준비한다.` },
+      { type: "sel", condition: `${cur.split(' ')[0] || '목표'} 조건을 충족하는가?`, yesAction: goal, noAction: "문제를 보완하고 다시 시도한다" },
+      { type: "seq", text: `${goal} 완료 및 성공 상태 확인` }
+    ];
+    renderPrescriptionSteps();
+    if (typeof playSfx === 'function') playSfx('snap');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = origBtnHtml;
+    }
+  }
+}
+
+function selectPrescriptionPreset(key) {
+  const data = PRESCRIPTION_PRESETS[key];
+  if (!data) return;
+  currentPrescriptionPresetKey = key;
+
+  // 카드 활성화 보더 갱신
+  ['weather', 'school', 'sandwich', 'login'].forEach(k => {
+    const card = document.getElementById(`preset-card-${k}`);
+    if (card) {
+      if (k === key) {
+        card.className = "p-3.5 rounded-2xl border-2 border-violet-500 bg-violet-50/60 cursor-pointer transition hover:shadow-xs space-y-1 relative";
+      } else {
+        card.className = "p-3.5 rounded-2xl border-2 border-slate-200 hover:border-violet-300 bg-white cursor-pointer transition hover:shadow-xs space-y-1 relative";
+      }
+    }
+  });
+
+  // 폼 입력 필드 채우기
+  const elGoal = document.getElementById('pres-inp-goal');
+  const elVars = document.getElementById('pres-inp-variables');
+
+  if (elGoal) elGoal.value = data.goal;
+  if (elVars) elVars.value = data.variables;
+
+  // 다단계 단계 배열 깊은 복사 후 렌더링
+  currentPrescriptionSteps = JSON.parse(JSON.stringify(data.steps || []));
+  renderPrescriptionSteps();
+}
+
+function applyPrescriptionDraft() {
+  const goal = (document.getElementById('pres-inp-goal')?.value || "목표 상태 달성").trim();
+  const vars = (document.getElementById('pres-inp-variables')?.value || "입력 데이터").trim();
+
+  // 1. 상단 재료 바구니 (badge-tray) 칩 갱신
+  const tray = document.getElementById('abstraction-badge-tray');
+  if (tray) {
+    tray.innerHTML = `
+      <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-violet-100 text-violet-800 border border-violet-200">
+        <i class="fa-solid fa-flag-checkered text-[9px]"></i> 목표: ${goal}
+      </span>
+      <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-blue-100 text-blue-800 border border-blue-200">
+        <i class="fa-solid fa-database text-[9px]"></i> 변수: ${vars}
+      </span>
+      <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-200">
+        <i class="fa-solid fa-list-check text-[9px]"></i> 단계: ${currentPrescriptionSteps.length}단계 레시피
+      </span>
+    `;
+  }
+
+  // 2. 좌측 자연어 기획서 카드 채우기 (다단계 알고리즘 100% 반영!)
+  if (currentPrescriptionSteps && currentPrescriptionSteps.length > 0) {
+    nlCards = currentPrescriptionSteps.map((s, idx) => {
+      const id = `nl-${Date.now()}-${idx}`;
+      if (s.type === 'seq') {
+        return { id, type: 'seq', text: s.text || '명령 실행' };
+      } else if (s.type === 'sel') {
+        return {
+          id,
+          type: 'sel',
+          condition: s.condition || '조건 검사',
+          yesAction: s.yesAction || '예 실행',
+          noAction: s.noAction || '아니오 실행'
+        };
+      } else if (s.type === 'loop') {
+        return {
+          id,
+          type: 'loop',
+          condition: s.condition || '반복 조건',
+          loopAction: s.loopAction || '반복 실행'
+        };
+      }
+      return { id, type: 'seq', text: s.text || '실행' };
+    });
+  } else {
+    nlCards = [
+      { id: `nl-${Date.now()}-1`, type: "seq", text: `[${vars}] 자료를 준비한다.` },
+      { id: `nl-${Date.now()}-2`, type: "seq", text: `${goal} 완료!` }
+    ];
+  }
+  renderNlCards();
+
+  // 3. 우측 자유 캔버스는 완성본 대신, 기본 [시작]과 [종료] 단말 기호만 배치!
+  // 학생이 직접 좌측 레시피를 보면서 기호를 꺼내 조립할 수 있도록 학습 주도성 보장!
+  const canvas = document.getElementById('free-flowchart-canvas');
+  const stage = document.getElementById('free-flowchart-stage') || canvas;
+  const canvasWidth = stage ? stage.clientWidth : 600;
+  const centerX = Math.max(30, Math.floor((canvasWidth - 210) / 2));
+
+  freeBlocks = [
+    { id: "blk-start", shape: "terminal", type: "terminal", text: "시작", x: centerX, y: 35 },
+    { id: "blk-end", shape: "terminal", type: "terminal", text: "종료", x: centerX, y: 480 }
+  ];
+  freeConnections = [];
+
+  renderFreeCanvas();
+  closePrescriptionModal();
+
+  if (typeof playSfx === 'function') playSfx('success');
+
+  // 학생 가이드 알림 토스트
+  alert(`🎉 자연어 알고리즘 기획서가 완성되었습니다!\n\n좌측의 ${nlCards.length}단계 레시피 순서를 보면서, 가운데 기호 보관함에서 필요한 기호(단말, 입출력, 처리, 판단)를 꺼내 캔버스에 나만의 순서도를 직접 완성해 보세요!`);
+}
+
+// 하위 호환성 유지 래퍼
+function importAbstractionPrescription() {
+  openPrescriptionModal();
+}
+
+// --------------------------------------------------
+// 자유 캔버스 & 스마트 유도등(Port Glow) 엔진
+// --------------------------------------------------
+function renderFreeCanvas() {
+  const canvas = document.getElementById('free-flowchart-canvas');
+  const stage = document.getElementById('free-flowchart-stage') || canvas;
+  if (!canvas || !stage) return;
+
+  if (freeBlocks.length === 0) {
+    const stageWidth = stage.clientWidth || 600;
+    const centerX = Math.max(30, Math.floor((stageWidth - 190) / 2));
+    // 기본 시작/종료 블록 초기 배치 (캔버스 중앙 정렬)
+    freeBlocks = [
+      { id: "blk-start", shape: "terminal", type: "terminal", text: "시작", x: centerX, y: 40 },
+      { id: "blk-p1", shape: "process", type: "process", text: "알고리즘 명령 실행", x: centerX, y: 160 },
+      { id: "blk-end", shape: "terminal", type: "terminal", text: "종료", x: centerX, y: 300 }
+    ];
+    freeConnections = [
+      { from: "blk-start", fromPort: "out", to: "blk-p1", toPort: "in" },
+      { from: "blk-p1", fromPort: "out", to: "blk-end", toPort: "in" }
+    ];
+  }
+
+  // 1. 기존 블록 요소들 제거
+  stage.querySelectorAll('.free-block').forEach(b => b.remove());
+
+  // 2. 블록들 렌더링
+  freeBlocks.forEach(b => {
+    const el = createFreeBlockDOM(b);
+    stage.appendChild(el);
+  });
+
+  // 3. SVG 연결선 렌더링
+  renderFreeConnections();
+}
+
+// draw.io 스타일 4방향(Top, Bottom, Left, Right) 자석 연결점 생성 함수
+function getBlockPortsHTML(b) {
+  const isStart = b.id === 'blk-start' || b.text === '시작';
+  const isEnd = b.id === 'blk-end' || b.text === '종료';
+  const isDecision = b.shape === 'decision';
+
+  let ports = [];
+
+  // 1. 상단 연결점 (시작 기호 제외)
+  if (!isStart) {
+    ports.push(`
+      <div id="port-in-${b.id}" class="flow-port port-top" 
+           data-block-id="${b.id}" data-port-type="in"
+           title="상단 연결점" 
+           onmousedown="startConnecting('${b.id}', 'in', event)"
+           onmouseup="handlePortMouseUp('${b.id}', 'in')"></div>
+    `);
+  }
+
+  // 2. 하단 연결점 (종료 기호 제외)
+  if (!isEnd) {
+    const pName = isDecision ? 'yes' : 'out';
+    ports.push(`
+      <div id="port-${pName}-${b.id}" class="flow-port port-bottom ${isDecision ? '!bg-emerald-600' : ''}" 
+           data-block-id="${b.id}" data-port-type="${pName}"
+           title="${isDecision ? '[예] 분기점 (하단)' : '하단 연결점'}" 
+           onmousedown="startConnecting('${b.id}', '${pName}', event)"
+           onmouseup="handlePortMouseUp('${b.id}', '${pName}')"></div>
+    `);
+  }
+
+  // 3. 좌측 연결점
+  const leftName = 'left';
+  ports.push(`
+    <div id="port-${leftName}-${b.id}" class="flow-port port-left ${isDecision ? '!bg-amber-500' : ''}" 
+         data-block-id="${b.id}" data-port-type="${leftName}"
+         title="${isDecision ? '[분기선] (좌측)' : '좌측 연결점'}" 
+         onmousedown="startConnecting('${b.id}', '${leftName}', event)"
+         onmouseup="handlePortMouseUp('${b.id}', '${leftName}')"></div>
+  `);
+
+  // 4. 우측 연결점
+  const rightName = isDecision ? 'no' : 'right';
+  ports.push(`
+    <div id="port-${rightName}-${b.id}" class="flow-port port-right ${isDecision ? '!bg-amber-500' : ''}" 
+         data-block-id="${b.id}" data-port-type="${rightName}"
+         title="${isDecision ? '[아니오] 분기점 (우측)' : '우측 연결점'}" 
+         onmousedown="startConnecting('${b.id}', '${rightName}', event)"
+         onmouseup="handlePortMouseUp('${b.id}', '${rightName}')"></div>
+  `);
+
+  return ports.join('');
+}
+
+let selectedBlockId = null;
+
+function selectCanvasBlock(blockId) {
+  selectedBlockId = blockId;
+  document.querySelectorAll('.free-block').forEach(el => {
+    el.classList.toggle('selected-block', el.id === `free-blk-${blockId}`);
+  });
+}
+
+function deselectCanvasBlock() {
+  selectedBlockId = null;
+  document.querySelectorAll('.free-block').forEach(el => {
+    el.classList.remove('selected-block');
+  });
+}
+
+// draw.io 스타일 전역 키보드 단축키 (Delete / Backspace 키로 선택 블록 삭제)
+if (!window._flowchartKeydownAttached) {
+  window._flowchartKeydownAttached = true;
+  window.addEventListener('keydown', (e) => {
+    // 텍스트 입력 중일 때는 블록 삭제 차단
+    if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName) || document.activeElement?.isContentEditable) {
+      return;
+    }
+    if ((e.key === 'Delete' || e.key === 'Backspace') && selectedBlockId) {
+      e.preventDefault();
+      if (selectedBlockId === 'blk-start' || selectedBlockId === 'blk-end') {
+        alert("시작 및 종료 단말 기호는 삭제할 수 없습니다.");
+        return;
+      }
+      removeCanvasBlock(selectedBlockId);
+      deselectCanvasBlock();
+    }
+  });
+
+  // 캔버스 빈 영역 클릭 시 블록 선택 해제
+  document.addEventListener('click', (e) => {
+    if (e.target.id === 'free-flowchart-canvas' || e.target.id === 'free-flowchart-svg' || e.target.id === 'free-flowchart-stage') {
+      deselectCanvasBlock();
+    }
+  });
+}
+
+function createFreeBlockDOM(b) {
+  const div = document.createElement('div');
+  div.id = `free-blk-${b.id}`;
+
+  const isTerminal = b.shape === "terminal";
+  const isIO = b.shape === "io";
+  const isDecision = b.shape === "decision";
+  const isDeletable = b.id !== 'blk-start' && b.id !== 'blk-end';
+
+  const portsHtml = getBlockPortsHTML(b);
+
+  if (isDecision) {
+    // 4. 판단 (Decision) : 완벽한 45도 다이아몬드 마름모 블록
+    div.className = "free-block shape-decision-block select-none";
+    div.style.left = `${b.x}px`;
+    div.style.top = `${b.y}px`;
+
+    const deleteBtn = isDeletable 
+      ? `<button onclick="removeCanvasBlock('${b.id}', event)" class="text-amber-500/60 hover:text-rose-600 transition pointer-events-auto ml-1" title="블록 삭제"><i class="fa-solid fa-xmark text-[10px]"></i></button>`
+      : '';
+
+    div.innerHTML = `
+      <svg class="decision-svg-bg" viewBox="0 0 220 120" preserveAspectRatio="none">
+        <polygon points="110,4 216,60 110,116 4,60" />
+      </svg>
+      ${portsHtml}
+      <div class="decision-content">
+        <div class="w-full flex items-center justify-between text-[11px] text-amber-800/80 mb-0.5 pointer-events-none">
+          <span class="font-extrabold">◇ 판단</span>
+          <div class="flex items-center gap-1">
+            <i class="fa-solid fa-pen text-[8px] opacity-60"></i>
+            ${deleteBtn}
+          </div>
+        </div>
+        <div class="block-text-label w-full px-1.5 py-0.5 cursor-text text-center text-xs sm:text-sm font-black text-amber-950 focus:outline-none leading-snug" 
+             contenteditable="true" 
+             onblur="handleBlockTextChange('${b.id}', this.innerText)"
+             onkeydown="if(event.key==='Enter'){event.preventDefault(); this.blur();}">
+          ${b.text}
+        </div>
+      </div>
+    `;
+  } else {
+    // 1. 단말(⬭), 2. 입출력(▱), 3. 처리(▭)
+    let shapeClass = "shape-process";
+    let badgeText = "▭ 처리";
+    let badgeColor = "text-blue-600/80";
+    let roundClass = "rounded-xl";
+
+    if (isTerminal) {
+      shapeClass = "shape-terminal";
+      badgeText = "⬭ 단말";
+      badgeColor = "text-purple-700/80";
+      roundClass = "rounded-full px-7";
+    } else if (isIO) {
+      shapeClass = "shape-io";
+      badgeText = "▱ 입출력";
+      badgeColor = "text-emerald-800/80";
+      roundClass = "rounded-xl px-6";
+    } else {
+      roundClass = "rounded-xl px-5";
+    }
+
+    div.className = `free-block ${shapeClass} ${roundClass} py-3 text-sm sm:text-base font-black shadow-md flex flex-col items-center justify-center text-center select-none`;
+    div.style.left = `${b.x}px`;
+    div.style.top = `${b.y}px`;
+    div.style.minWidth = isTerminal ? "200px" : (isIO ? "220px" : "210px");
+    div.style.maxWidth = "280px";
+
+    const deleteBtn = isDeletable 
+      ? `<button onclick="removeCanvasBlock('${b.id}', event)" class="text-slate-300 hover:text-rose-500 transition ml-1 pointer-events-auto" title="블록 삭제"><i class="fa-solid fa-xmark text-[10px]"></i></button>`
+      : '';
+
+    let innerContent = `
+      <div class="w-full flex items-center justify-between text-[11px] ${badgeColor} mb-0.5 pointer-events-none">
+        <span class="font-extrabold">${badgeText}</span>
+        <div class="flex items-center gap-1">
+          <i class="fa-solid fa-pen text-[8px] opacity-60"></i>
+          ${deleteBtn}
+        </div>
+      </div>
+      <div class="block-text-label w-full px-1.5 py-0.5 cursor-text text-center focus:outline-none leading-snug font-black" 
+           contenteditable="true" 
+           onblur="handleBlockTextChange('${b.id}', this.innerText)"
+           onkeydown="if(event.key==='Enter'){event.preventDefault(); this.blur();}">
+        ${b.text}
+      </div>
+    `;
+
+    if (isIO) {
+      innerContent = `<div class="shape-io-inner w-full flex flex-col items-center">${innerContent}</div>`;
+    }
+
+    div.innerHTML = `
+      ${portsHtml}
+      ${innerContent}
+    `;
+  }
+
+  // 블록 클릭 시 선택 상태 활성화
+  div.addEventListener('click', (e) => {
+    if (e.target.classList.contains('flow-port') || e.target.isContentEditable) return;
+    selectCanvasBlock(b.id);
+  });
+
+  // 블록 드래그 이동 핸들러
+  div.addEventListener('mousedown', (e) => handleBlockMouseDown(b.id, e));
+
+  return div;
+}
+
+function removeCanvasBlock(blockId, e) {
+  if (e) e.stopPropagation();
+  if (blockId === 'blk-start' || blockId === 'blk-end') {
+    alert("시작 및 종료 단말 블록은 삭제할 수 없습니다.");
+    return;
+  }
+
+  freeBlocks = freeBlocks.filter(b => b.id !== blockId);
+  freeConnections = freeConnections.filter(c => c.from !== blockId && c.to !== blockId);
+
+  renderFreeCanvas();
+  if (typeof playSfx === 'function') playSfx('step');
+}
+
+function handleBlockTextChange(blockId, newText) {
+  const b = freeBlocks.find(x => x.id === blockId);
+  if (b) {
+    b.text = newText.trim() || "내용 입력";
+    renderFreeConnections();
+  }
+}
+
+let draggedPaletteShape = null;
+
+function handlePaletteDragStart(e, shape) {
+  draggedPaletteShape = shape;
+  if (e.dataTransfer) {
+    e.dataTransfer.setData('text/plain', shape);
+    e.dataTransfer.effectAllowed = 'copy';
+  }
+}
+
+function handleCanvasDragOver(e) {
+  e.preventDefault();
+  if (e.dataTransfer) {
+    e.dataTransfer.dropEffect = 'copy';
+  }
+}
+
+function handleCanvasDrop(e) {
+  e.preventDefault();
+  const shape = (e.dataTransfer && e.dataTransfer.getData('text/plain')) || draggedPaletteShape;
+  if (!shape) return;
+
+  const canvas = document.getElementById('free-flowchart-canvas');
+  if (!canvas) return;
+  const cRect = canvas.getBoundingClientRect();
+  const dropX = Math.max(20, Math.round((e.clientX - cRect.left - 90) / 20) * 20);
+  const dropY = Math.max(20, Math.round((e.clientY - cRect.top - 30) / 20) * 20);
+
+  addCanvasBlockAtPosition(shape, dropX, dropY);
+  draggedPaletteShape = null;
+}
+
+function handleTrashDragOver(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  const zone = document.getElementById('entry-trash-zone');
+  if (zone) zone.classList.add('trash-active');
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+}
+
+function handleTrashDragLeave(e) {
+  const zone = document.getElementById('entry-trash-zone');
+  if (zone) zone.classList.remove('trash-active');
+}
+
+function handleTrashDrop(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  const zone = document.getElementById('entry-trash-zone');
+  if (zone) zone.classList.remove('trash-active');
+
+  if (selectedBlockId && selectedBlockId !== 'blk-start' && selectedBlockId !== 'blk-end') {
+    removeCanvasBlock(selectedBlockId);
+    deselectCanvasBlock();
+    if (typeof playSfx === 'function') playSfx('pop');
+  }
+}
+
+function handleTrashClick() {
+  if (selectedBlockId && selectedBlockId !== 'blk-start' && selectedBlockId !== 'blk-end') {
+    removeCanvasBlock(selectedBlockId);
+    deselectCanvasBlock();
+    if (typeof playSfx === 'function') playSfx('pop');
+  } else {
+    alert("삭제할 블록을 먼저 클릭하여 선택한 후 휴지통을 누르거나, 블록을 휴지통으로 끌어다 놓으세요.");
+  }
+}
+
+function addCanvasBlockAtPosition(shapeType, x, y) {
+  const canvas = document.getElementById('free-flowchart-canvas');
+  const stage = document.getElementById('free-flowchart-stage') || canvas;
+  if (!canvas || !stage) return;
+
+  const id = `blk-${Date.now()}`;
+  const defaultLabels = {
+    terminal: freeBlocks.some(b => b.shape === 'terminal' && b.text.includes('시작')) ? "종료" : "시작",
+    io: "데이터 입출력",
+    process: "연산 처리 실행",
+    decision: "조건 검사 ◇"
+  };
+
+  const newBlock = {
+    id: id,
+    shape: shapeType,
+    type: shapeType,
+    text: defaultLabels[shapeType] || "블록 내용",
+    x: Math.max(10, x),
+    y: Math.max(10, y)
+  };
+
+  freeBlocks.push(newBlock);
+  const el = createFreeBlockDOM(newBlock);
+  stage.appendChild(el);
+  selectCanvasBlock(id);
+
+  if (typeof playSfx === 'function') playSfx('snap');
+}
+
+function addCanvasBlock(shapeType) {
+  const canvas = document.getElementById('free-flowchart-canvas');
+  const stage = document.getElementById('free-flowchart-stage') || canvas;
+  const stageWidth = stage ? (stage.clientWidth || 600) : 600;
+  const x = Math.max(30, Math.floor((stageWidth - 190) / 2) + Math.floor(Math.random() * 40 - 20));
+  const y = 80 + (freeBlocks.length % 6) * 65;
+  addCanvasBlockAtPosition(shapeType, x, y);
+}
+
+// --------------------------------------------------
+// 블록 마우스 드래그 이동 처리 (캔버스 줌 배율 완벽 동기화)
+// --------------------------------------------------
+function handleBlockMouseDown(blockId, e) {
+  if (e.target.classList.contains('flow-port') || e.target.isContentEditable) return;
+
+  const b = freeBlocks.find(x => x.id === blockId);
+  if (!b) return;
+
+  const canvas = document.getElementById('free-flowchart-canvas');
+  const stage = document.getElementById('free-flowchart-stage') || canvas;
+  if (!canvas || !stage) return;
+
+  isDraggingBlock = true;
+  draggedBlockObj = b;
+
+  const el = document.getElementById(`free-blk-${b.id}`);
+  if (el) el.classList.add('selected');
+
+  const zoom = currentCanvasZoom || 1.0;
+  const cRect = canvas.getBoundingClientRect();
+  const startMouseX = (e.clientX - cRect.left) / zoom;
+  const startMouseY = (e.clientY - cRect.top) / zoom;
+  const startBlockX = b.x;
+  const startBlockY = b.y;
+
+  const onMouseMove = (moveEvent) => {
+    if (!isDraggingBlock || !draggedBlockObj) return;
+
+    const curMouseX = (moveEvent.clientX - cRect.left) / zoom;
+    const curMouseY = (moveEvent.clientY - cRect.top) / zoom;
+
+    let nx = Math.round(startBlockX + (curMouseX - startMouseX));
+    let ny = Math.round(startBlockY + (curMouseY - startMouseY));
+
+    const maxW = stage.clientWidth || 800;
+    const maxH = stage.clientHeight || 1400;
+
+    nx = Math.max(10, Math.min(maxW - 190, nx));
+    ny = Math.max(10, Math.min(maxH - 80, ny));
+
+    draggedBlockObj.x = nx;
+    draggedBlockObj.y = ny;
+
+    if (el) {
+      el.style.left = `${nx}px`;
+      el.style.top = `${ny}px`;
+    }
+
+    // 엔트리 캔버스 휴지통 호버 감지
+    const trashZone = document.getElementById('entry-trash-zone');
+    if (trashZone && draggedBlockObj.id !== 'blk-start' && draggedBlockObj.id !== 'blk-end') {
+      const tRect = trashZone.getBoundingClientRect();
+      const isOverTrash = (
+        moveEvent.clientX >= tRect.left &&
+        moveEvent.clientX <= tRect.right &&
+        moveEvent.clientY >= tRect.top &&
+        moveEvent.clientY <= tRect.bottom
+      );
+      trashZone.classList.toggle('trash-active', isOverTrash);
+    }
+
+    renderFreeConnections();
+  };
+
+  const onMouseUp = (upEvent) => {
+    isDraggingBlock = false;
+    const blockToDelete = draggedBlockObj;
+    draggedBlockObj = null;
+    if (el) el.classList.remove('selected');
+
+    // 휴지통에 드롭 시 삭제 처리
+    const trashZone = document.getElementById('entry-trash-zone');
+    let droppedInTrash = false;
+    if (trashZone && trashZone.classList.contains('trash-active')) {
+      trashZone.classList.remove('trash-active');
+      droppedInTrash = true;
+    }
+
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup', onMouseUp);
+
+    if (droppedInTrash && blockToDelete && blockToDelete.id !== 'blk-start' && blockToDelete.id !== 'blk-end') {
+      removeCanvasBlock(blockToDelete.id);
+      if (typeof playSfx === 'function') playSfx('pop');
+    }
+  };
+
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseup', onMouseUp);
+}
+
+// --------------------------------------------------
+// draw.io 스타일 교과서 표준 Manhattan Orthogonal Routing 함수
+// --------------------------------------------------
+function generateManhattanPath(x1, y1, fromPort, x2, y2, toPort) {
+  // 방향 정규화: 'top', 'bottom', 'left', 'right'
+  const getDir = (p) => {
+    if (p === 'in' || p === 'top') return 'top';
+    if (p === 'out' || p === 'yes' || p === 'bottom') return 'bottom';
+    if (p === 'left') return 'left';
+    if (p === 'right' || p === 'no') return 'right';
+    return 'bottom';
+  };
+
+  const fDir = getDir(fromPort);
+  const tDir = getDir(toPort || 'in');
+  const isLoopback = (y2 <= y1 + 14);
+
+  // 1. 하단(bottom) 포트에서 출발
+  if (fDir === 'bottom') {
+    if (tDir === 'top') {
+      if (isLoopback) {
+        // 역방향 루프백: 목표가 좌측이면 좌측 우회, 우측이면 우측 우회
+        if (x2 < x1 - 30) {
+          const loopX = Math.min(x1 - 40, x2 - 55);
+          const entryY = y2 - 20;
+          return `M ${x1} ${y1} V ${y1 + 16} H ${loopX} V ${entryY} H ${x2} V ${y2}`;
+        } else {
+          const loopX = Math.max(x1 + 40, x2 + 55);
+          const entryY = y2 - 20;
+          return `M ${x1} ${y1} V ${y1 + 16} H ${loopX} V ${entryY} H ${x2} V ${y2}`;
+        }
+      } else {
+        // 순방향 하강
+        if (Math.abs(x1 - x2) < 8) {
+          return `M ${x1} ${y1} L ${x2} ${y2}`;
+        }
+        const midY = (y1 + y2) / 2;
+        return `M ${x1} ${y1} V ${midY} H ${x2} V ${y2}`;
+      }
+    } else if (tDir === 'left') {
+      if (x2 < x1) {
+        const midY = (y1 + y2) / 2;
+        return `M ${x1} ${y1} V ${midY} H ${x2 - 25} V ${y2} H ${x2}`;
+      } else {
+        return `M ${x1} ${y1} V ${y2} H ${x2}`;
+      }
+    } else if (tDir === 'right') {
+      if (x2 > x1) {
+        const midY = (y1 + y2) / 2;
+        return `M ${x1} ${y1} V ${midY} H ${x2 + 25} V ${y2} H ${x2}`;
+      } else {
+        return `M ${x1} ${y1} V ${y2} H ${x2}`;
+      }
+    } else {
+      // bottom -> bottom
+      const maxY = Math.max(y1, y2) + 25;
+      return `M ${x1} ${y1} V ${maxY} H ${x2} V ${y2}`;
+    }
+  }
+
+  // 2. 우측(right) 포트에서 출발 ([아니오] 등)
+  if (fDir === 'right') {
+    if (tDir === 'top') {
+      if (isLoopback) {
+        if (x2 < x1 - 25) {
+          // 목표가 좌측에 있을 때: 우측으로 살짝 나간 뒤 두 블록 위로 올라가서 좌측 타겟 상단으로 진입
+          const topY = Math.min(y1, y2) - 22;
+          return `M ${x1} ${y1} H ${x1 + 22} V ${topY} H ${x2} V ${y2}`;
+        } else {
+          // 우측으로 나와서 위쪽으로 올라간 뒤 타겟 상단 포트로 수직 진입
+          const loopX = Math.max(x1 + 35, x2 + 55);
+          const entryY = y2 - 20;
+          return `M ${x1} ${y1} H ${loopX} V ${entryY} H ${x2} V ${y2}`;
+        }
+      } else {
+        if (x2 > x1 + 25) {
+          return `M ${x1} ${y1} H ${x2} V ${y2}`;
+        } else {
+          const turnX = Math.max(x1 + 35, x2 + 45);
+          const midY = (y1 + y2) / 2;
+          return `M ${x1} ${y1} H ${turnX} V ${midY} H ${x2} V ${y2}`;
+        }
+      }
+    } else if (tDir === 'left') {
+      if (x2 > x1 + 25) {
+        const midX = (x1 + x2) / 2;
+        return `M ${x1} ${y1} H ${midX} V ${y2} H ${x2}`;
+      } else {
+        const loopX = x1 + 35;
+        const midY = (y1 + y2) / 2;
+        return `M ${x1} ${y1} H ${loopX} V ${midY} H ${x2 - 25} V ${y2} H ${x2}`;
+      }
+    } else if (tDir === 'right') {
+      const loopX = Math.max(x1, x2) + 45;
+      return `M ${x1} ${y1} H ${loopX} V ${y2} H ${x2}`;
+    } else {
+      return `M ${x1} ${y1} H ${x2} V ${y2}`;
+    }
+  }
+
+  // 3. 좌측(left) 포트에서 출발 ([분기] 등)
+  if (fDir === 'left') {
+    if (tDir === 'top') {
+      if (isLoopback) {
+        if (x2 > x1 + 25) {
+          // 목표가 우측에 있을 때: 좌측으로 살짝 나간 뒤 두 블록 위로 올라가서 우측 타겟 상단으로 진입
+          const topY = Math.min(y1, y2) - 22;
+          return `M ${x1} ${y1} H ${x1 - 22} V ${topY} H ${x2} V ${y2}`;
+        } else {
+          const loopX = Math.min(x1 - 35, x2 - 55);
+          const entryY = y2 - 20;
+          return `M ${x1} ${y1} H ${loopX} V ${entryY} H ${x2} V ${y2}`;
+        }
+      } else {
+        if (x2 < x1 - 25) {
+          return `M ${x1} ${y1} H ${x2} V ${y2}`;
+        } else {
+          const turnX = Math.min(x1 - 35, x2 - 45);
+          const midY = (y1 + y2) / 2;
+          return `M ${x1} ${y1} H ${turnX} V ${midY} H ${x2} V ${y2}`;
+        }
+      }
+    } else if (tDir === 'right') {
+      if (x2 < x1 - 25) {
+        const midX = (x1 + x2) / 2;
+        return `M ${x1} ${y1} H ${midX} V ${y2} H ${x2}`;
+      } else {
+        const loopX = x1 - 35;
+        const midY = (y1 + y2) / 2;
+        return `M ${x1} ${y1} H ${loopX} V ${midY} H ${x2 + 25} V ${y2} H ${x2}`;
+      }
+    } else if (tDir === 'left') {
+      const loopX = Math.min(x1, x2) - 45;
+      return `M ${x1} ${y1} H ${loopX} V ${y2} H ${x2}`;
+    } else {
+      return `M ${x1} ${y1} H ${x2} V ${y2}`;
+    }
+  }
+
+  // 4. 상단(top) 포트에서 출발
+  if (fDir === 'top') {
+    const exitY = y1 - 20;
+    if (tDir === 'top') {
+      const minY = Math.min(y1, y2) - 25;
+      return `M ${x1} ${y1} V ${minY} H ${x2} V ${y2}`;
+    } else {
+      const midX = (x1 + x2) / 2;
+      return `M ${x1} ${y1} V ${exitY} H ${midX} V ${y2} H ${x2}`;
+    }
+  }
+
+  return `M ${x1} ${y1} L ${x2} ${y2}`;
+}
+
+// --------------------------------------------------
+// draw.io 스타일 자석 연결점(Port Glow) & 28px Magnet Snap 화살표 연결 엔진
+// --------------------------------------------------
+let hoveredTargetPort = null;
+
+function startConnecting(blockId, portType, e) {
+  e.stopPropagation();
+  isConnecting = true;
+  connectionSource = { blockId, portType };
+  hoveredTargetPort = null;
+
+  const sourceBlock = freeBlocks.find(x => x.id === blockId);
+  if (!sourceBlock) return;
+
+  // 타겟 포트 유도등 활성화
+  highlightValidPorts(sourceBlock, portType);
+
+  const canvas = document.getElementById('free-flowchart-canvas');
+  const svg = document.getElementById('free-flowchart-svg');
+  if (!canvas || !svg) return;
+
+  const zoom = currentCanvasZoom || 1.0;
+  const cRect = canvas.getBoundingClientRect();
+
+  // 실시간 가이드 화살표 패스
+  const tempPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  tempPath.id = "temp-draw-line";
+  tempPath.setAttribute("stroke", "#3b82f6");
+  tempPath.setAttribute("stroke-width", "2.5");
+  tempPath.setAttribute("stroke-dasharray", "6, 4");
+  tempPath.setAttribute("fill", "none");
+  tempPath.setAttribute("marker-end", "url(#free-arrowhead)");
+  svg.appendChild(tempPath);
+
+  const sourcePortEl = document.getElementById(`port-${portType}-${blockId}`);
+  let startX = sourceBlock.x + 80;
+  let startY = sourceBlock.y + 50;
+  if (sourcePortEl) {
+    const sRect = sourcePortEl.getBoundingClientRect();
+    startX = (sRect.left + sRect.width / 2 - cRect.left) / zoom;
+    startY = (sRect.top + sRect.height / 2 - cRect.top) / zoom;
+  }
+
+  const onMouseMove = (moveEvent) => {
+    if (!isConnecting) return;
+
+    let targetX = (moveEvent.clientX - cRect.left) / zoom;
+    let targetY = (moveEvent.clientY - cRect.top) / zoom;
+    let targetPortType = 'in';
+
+    // ★ 28px draw.io 자석 스냅(Magnet Snap) 감지
+    let closestPort = null;
+    let minDistance = 32;
+
+    document.querySelectorAll('.flow-port.port-valid-glow').forEach(portEl => {
+      const pRect = portEl.getBoundingClientRect();
+      const pCenterX = pRect.left + pRect.width / 2;
+      const pCenterY = pRect.top + pRect.height / 2;
+      const dist = Math.hypot(moveEvent.clientX - pCenterX, moveEvent.clientY - pCenterY);
+      if (dist < minDistance) {
+        minDistance = dist;
+        closestPort = {
+          el: portEl,
+          blockId: portEl.dataset.blockId,
+          portType: portEl.dataset.portType,
+          x: (pCenterX - cRect.left) / zoom,
+          y: (pCenterY - cRect.top) / zoom
+        };
+      }
+    });
+
+    // 모든 포트의 port-active 해제
+    document.querySelectorAll('.flow-port.port-active').forEach(p => p.classList.remove('port-active'));
+
+    if (closestPort) {
+      targetX = closestPort.x;
+      targetY = closestPort.y;
+      targetPortType = closestPort.portType;
+      closestPort.el.classList.add('port-active');
+      hoveredTargetPort = { blockId: closestPort.blockId, portType: closestPort.portType };
+    } else {
+      hoveredTargetPort = null;
+    }
+
+    const d = generateManhattanPath(startX, startY, portType, targetX, targetY, targetPortType);
+    tempPath.setAttribute("d", d);
+  };
+
+  const onMouseUp = () => {
+    isConnecting = false;
+    tempPath.remove();
+    clearPortGlows();
+
+    // 자석 감지된 타겟 포트가 있다면 즉시 연결 완료!
+    if (hoveredTargetPort) {
+      handlePortMouseUp(hoveredTargetPort.blockId, hoveredTargetPort.portType);
+    }
+    hoveredTargetPort = null;
+    connectionSource = null;
+
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup', onMouseUp);
+  };
+
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseup', onMouseUp);
+}
+
+function highlightValidPorts(sourceBlock, portType) {
+  freeBlocks.forEach(b => {
+    if (b.id === sourceBlock.id) return;
+
+    ['in', 'out', 'yes', 'left', 'right', 'no'].forEach(pType => {
+      const portEl = document.getElementById(`port-${pType}-${b.id}`);
+      if (!portEl) return;
+
+      // 이미 동일한 연결이 존재하는지 검사
+      const alreadyConnected = freeConnections.some(c => 
+        c.from === sourceBlock.id && c.fromPort === portType && c.to === b.id && c.toPort === pType
+      );
+
+      if (alreadyConnected || sourceBlock.id === 'blk-end') {
+        portEl.classList.add('port-disabled');
+      } else {
+        portEl.classList.add('port-valid-glow');
+      }
+    });
+  });
+}
+
+function clearPortGlows() {
+  document.querySelectorAll('.flow-port').forEach(p => {
+    p.classList.remove('port-valid-glow', 'port-disabled', 'port-active');
+  });
+}
+
+function handlePortMouseUp(targetBlockId, targetPortType) {
+  if (!connectionSource) return;
+
+  const source = connectionSource;
+  const sourceBlock = freeBlocks.find(x => x.id === source.blockId);
+  const targetBlock = freeBlocks.find(x => x.id === targetBlockId);
+
+  if (!sourceBlock || !targetBlock) return;
+  if (source.blockId === targetBlockId) return;
+
+  // 종료 단말 기호에서 나가는 연결 차단
+  if (sourceBlock.id === 'blk-end') {
+    if (typeof playSfx === 'function') playSfx('error');
+    alert("종료 단말 기호에서는 다른 기호로 나가는 연결을 만들 수 없습니다.");
+    return;
+  }
+
+  // 중복 연결 방지
+  const alreadyConnected = freeConnections.some(c => 
+    c.from === source.blockId && c.fromPort === source.portType && c.to === targetBlockId && c.toPort === targetPortType
+  );
+  if (alreadyConnected) {
+    if (typeof playSfx === 'function') playSfx('error');
+    return;
+  }
+
+  // 연결 등록
+  freeConnections.push({
+    from: source.blockId,
+    fromPort: source.portType,
+    to: targetBlockId,
+    toPort: targetPortType
+  });
+
+  if (typeof playSfx === 'function') playSfx('snap');
+  renderFreeConnections();
+}
+
+function renderFreeConnections() {
+  const canvas = document.getElementById('free-flowchart-canvas');
+  const svg = document.getElementById('free-flowchart-svg');
+  if (!canvas || !svg) return;
+
+  svg.innerHTML = `
+    <defs>
+      <marker id="free-arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+        <polygon points="0 0, 10 3.5, 0 7" fill="#475569" />
+      </marker>
+      <marker id="free-arrowhead-yes" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+        <polygon points="0 0, 10 3.5, 0 7" fill="#10b981" />
+      </marker>
+      <marker id="free-arrowhead-no" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+        <polygon points="0 0, 10 3.5, 0 7" fill="#f59e0b" />
+      </marker>
+      <marker id="free-arrowhead-left" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+        <polygon points="0 0, 10 3.5, 0 7" fill="#f59e0b" />
+      </marker>
+    </defs>
+  `;
+
+  const cRect = canvas.getBoundingClientRect();
+  const zoom = currentCanvasZoom || 1.0;
+
+  freeConnections.forEach((conn, idx) => {
+    const fromEl = document.getElementById(`free-blk-${conn.from}`);
+    const toEl = document.getElementById(`free-blk-${conn.to}`);
+    if (!fromEl || !toEl) return;
+
+    const fromPortEl = document.getElementById(`port-${conn.fromPort}-${conn.from}`);
+    const toPortEl = document.getElementById(`port-${conn.toPort}-${conn.to}`);
+
+    const fRect = fromPortEl ? fromPortEl.getBoundingClientRect() : fromEl.getBoundingClientRect();
+    const tRect = toPortEl ? toPortEl.getBoundingClientRect() : toEl.getBoundingClientRect();
+
+    const x1 = (fRect.left + fRect.width / 2 - cRect.left) / zoom;
+    const y1 = (fRect.top + fRect.height / 2 - cRect.top) / zoom;
+    const x2 = (tRect.left + tRect.width / 2 - cRect.left) / zoom;
+    const y2 = (tRect.top + tRect.height / 2 - cRect.top) / zoom;
+
+    let markerId = "free-arrowhead";
+    let lineClass = "flow-line";
+    let strokeColor = "#475569";
+    let badgeText = "";
+    let labelPos = { x: (x1 + x2) / 2, y: (y1 + y2) / 2 };
+
+    if (conn.fromPort === 'yes') {
+      markerId = "free-arrowhead-yes";
+      lineClass = "flow-line flow-line-decision-yes";
+      strokeColor = "#10b981";
+      badgeText = "예";
+      labelPos = { x: x1 + 14, y: y1 + 16 };
+    } else if (conn.fromPort === 'no') {
+      markerId = "free-arrowhead-no";
+      lineClass = "flow-line flow-line-decision-no";
+      strokeColor = "#f59e0b";
+      badgeText = "아니오";
+      labelPos = { x: x1 + 22, y: y1 - 10 };
+    } else if (conn.fromPort === 'left') {
+      markerId = "free-arrowhead-left";
+      lineClass = "flow-line flow-line-decision-no";
+      strokeColor = "#f59e0b";
+      badgeText = "분기";
+      labelPos = { x: x1 - 22, y: y1 - 10 };
+    }
+
+    // Manhattan 직각 라우팅 생성
+    const d = generateManhattanPath(x1, y1, conn.fromPort, x2, y2, conn.toPort || 'in');
+
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("class", "flow-connection-group");
+
+    // 클릭 편의를 위한 투명한 굵은 타겟 패스 (18px)
+    const hitPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    hitPath.setAttribute("d", d);
+    hitPath.setAttribute("stroke", "transparent");
+    hitPath.setAttribute("stroke-width", "18");
+    hitPath.setAttribute("fill", "none");
+    hitPath.style.cursor = "pointer";
+
+    // 실제 화면에 보이는 화살표 패스
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", d);
+    path.setAttribute("class", lineClass);
+    path.setAttribute("marker-end", `url(#${markerId})`);
+    path.style.cursor = "pointer";
+
+    const deleteHandler = (e) => {
+      e.stopPropagation();
+      if (confirm("이 연결 화살표를 삭제하시겠습니까?")) {
+        freeConnections.splice(idx, 1);
+        renderFreeConnections();
+        if (typeof playSfx === 'function') playSfx('step');
+      }
+    };
+
+    hitPath.onclick = deleteHandler;
+    path.onclick = deleteHandler;
+
+    g.appendChild(hitPath);
+    g.appendChild(path);
+
+    // [예], [아니오], [분기] 교과서형 텍스트 배지 렌더링
+    if (badgeText) {
+      const labelGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      labelGroup.setAttribute("class", "cursor-pointer");
+      labelGroup.onclick = deleteHandler;
+
+      const badgeWidth = badgeText.length > 2 ? 42 : 30;
+      const badgeHeight = 18;
+
+      const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      rect.setAttribute("x", labelPos.x - badgeWidth / 2);
+      rect.setAttribute("y", labelPos.y - badgeHeight / 2);
+      rect.setAttribute("width", badgeWidth);
+      rect.setAttribute("height", badgeHeight);
+      rect.setAttribute("rx", 4);
+      rect.setAttribute("fill", strokeColor);
+
+      const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      text.setAttribute("x", labelPos.x);
+      text.setAttribute("y", labelPos.y + 4);
+      text.setAttribute("text-anchor", "middle");
+      text.setAttribute("fill", "#ffffff");
+      text.setAttribute("font-size", "10px");
+      text.setAttribute("font-weight", "900");
+      text.textContent = badgeText;
+
+      labelGroup.appendChild(rect);
+      labelGroup.appendChild(text);
+      g.appendChild(labelGroup);
+    }
+
+    svg.appendChild(g);
+  });
+}
+
+function clearFreeCanvas() {
+  if (confirm("캔버스의 모든 블록과 연결선을 초기화하시겠습니까?")) {
+    freeBlocks = [];
+    freeConnections = [];
+    renderFreeCanvas();
+    if (typeof playSfx === 'function') playSfx('step');
+  }
+}
+
+function autoAlignCanvas() {
+  const canvas = document.getElementById('free-flowchart-canvas');
+  const stage = document.getElementById('free-flowchart-stage') || canvas;
+  if (!canvas || !stage || freeBlocks.length === 0) return;
+
+  const startX = Math.floor((stage.clientWidth - 190) / 2);
+  let curY = 35;
+
+  freeBlocks.forEach(b => {
+    b.x = startX;
+    b.y = curY;
+    const spacing = b.shape === 'decision' ? 125 : 80;
+    curY += spacing;
+  });
+
+  renderFreeCanvas();
+  if (typeof playSfx === 'function') playSfx('snap');
+}
+
+/**
+ * 엔트리 스타일 캔버스 줌 컨트롤 (축소 / 100% / 확대)
+ */
+let currentCanvasZoom = 1.0;
+
+function zoomCanvas(direction) {
+  const canvas = document.getElementById('free-flowchart-canvas');
+  const stage = document.getElementById('free-flowchart-stage') || canvas;
+  const display = document.getElementById('entry-zoom-display');
+  if (!canvas || !stage) return;
+
+  if (direction === 'in') {
+    currentCanvasZoom = Math.min(1.4, Math.round((currentCanvasZoom + 0.1) * 10) / 10);
+  } else if (direction === 'out') {
+    currentCanvasZoom = Math.max(0.6, Math.round((currentCanvasZoom - 0.1) * 10) / 10);
+  } else if (direction === 'reset') {
+    currentCanvasZoom = 1.0;
+  }
+
+  if (display) {
+    display.textContent = `${Math.round(currentCanvasZoom * 100)}%`;
+  }
+
+  const bgSize = Math.round(20 * currentCanvasZoom);
+  canvas.style.backgroundSize = `${bgSize}px ${bgSize}px`;
+
+  // 단일 Stage 컨테이너 전체에만 scale 적용 (내부 블록과 SVG가 동일한 로컬 좌표계 유지!)
+  stage.style.transform = currentCanvasZoom === 1.0 ? '' : `scale(${currentCanvasZoom})`;
+  stage.style.transformOrigin = '0 0';
+
+  // 연결선 위치 재계산
+  renderFreeConnections();
+
+  if (typeof playSfx === 'function') playSfx('snap');
+}
+
+/**
+ * 엔트리 스타일 순서도 가상 실행 시뮬레이션
+ */
+async function playFreeFlowchartSimulation() {
+  if (freeBlocks.length === 0) {
+    alert("실행할 순서도 블록이 없습니다. 기호 블록을 추가해 보세요!");
+    return;
+  }
+  if (typeof playSfx === 'function') playSfx('step');
+
+  const startBlock = freeBlocks.find(b => b.shape === 'terminal' && b.text.includes('시작')) || freeBlocks[0];
+  let current = startBlock;
+  const visited = new Set();
+
+  while (current && !visited.has(current.id)) {
+    visited.add(current.id);
+    const el = document.getElementById(current.id);
+    if (el) {
+      el.style.transition = "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)";
+      el.style.transform = "scale(1.08)";
+      el.style.boxShadow = "0 0 24px rgba(0, 184, 148, 0.75)";
+      el.style.borderColor = "#00b894";
+    }
+    if (typeof playSfx === 'function') playSfx('step');
+    await new Promise(r => setTimeout(r, 450));
+
+    if (el) {
+      el.style.transform = "scale(1)";
+      el.style.boxShadow = "";
+      el.style.borderColor = "";
+    }
+
+    const nextConn = freeConnections.find(c => c.from === current.id);
+    if (!nextConn) break;
+    current = freeBlocks.find(b => b.id === nextConn.to);
+  }
+
+  if (typeof playSfx === 'function') playSfx('success');
+}
+
+// --------------------------------------------------
+// Solar AI 자유 알고리즘 실시간 감수
+// --------------------------------------------------
+async function diagnoseFreeAlgorithmWithSolarAI() {
+  const card = document.getElementById('free-ai-feedback-card');
+  const text = document.getElementById('free-ai-feedback-text');
+  if (!card || !text) return;
+
+  card.classList.remove('hidden');
+  card.className = "p-3.5 rounded-xl border border-indigo-200 bg-indigo-50/90 text-xs sm:text-sm space-y-1.5 transition-all max-h-[170px] overflow-y-auto custom-scroll";
+  text.innerHTML = `
+    <div class="font-bold text-indigo-800 flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-indigo-600 animate-ping"></span>
+      <span>Solar AI가 자연어와 순서도의 일치도를 분석 중입니다...</span>
+    </div>
+  `;
+
+  const nlSummary = nlCards.map((c, i) => {
+    if (c.type === 'seq') return `${i+1}단계(순차): ${c.text || '내용 없음'}`;
+    if (c.type === 'sel') return `${i+1}단계(선택): 만약 [${c.condition || '조건'}] -> 참: ${c.yesAction || '실행'} / 거짓: ${c.noAction || '실행'}`;
+    if (c.type === 'loop') return `${i+1}단계(반복): [${c.condition || '조건'}] 동안 -> (${c.loopAction || '행동'}) 반복`;
+  }).join('\n');
+
+  const blockSummary = freeBlocks.map(b => `- [${b.shape}] "${b.text}"`).join('\n');
+
+  // 자연어 친화적 연결선 맵 (포트 방향 및 루프백 판별 포함)
+  const connSummary = freeConnections.map(c => {
+    const fromB = freeBlocks.find(x => x.id === c.from);
+    const toB = freeBlocks.find(x => x.id === c.to);
+    if (!fromB || !toB) return `(${c.from} -> ${c.to})`;
+    const fromText = fromB.text ? `"${fromB.text}"` : fromB.shape;
+    const toText = toB.text ? `"${toB.text}"` : toB.shape;
+
+    let portLabel = "진행선";
+    if (c.fromPort === 'yes') portLabel = "[예] 참 분기선";
+    else if (c.fromPort === 'no') portLabel = "[아니오] 거짓 분기선";
+    else if (c.fromPort === 'right') portLabel = "[우측 포트]";
+    else if (c.fromPort === 'left') portLabel = "[좌측 포트]";
+    else if (c.fromPort === 'bottom' || c.fromPort === 'out') portLabel = "[하단 포트]";
+
+    const isBack = toB.y <= fromB.y + 15;
+    const backLabel = isBack ? " ➔ 상위 판단/조건으로 되돌아가는 루프백(반복 구조 연결)" : "";
+    return `- [${fromB.shape}: ${fromText}]의 ${portLabel} ➔ [${toB.shape}: ${toText}]${backLabel}`;
+  }).join('\n');
+
+  const prompt = `당신은 대한민국 중학교 2학년 정보 교과 '알고리즘과 순서도' 단원의 친절한 AI 지도교사입니다.
+학생이 작성한 [자연어 기획서]와 [순서도 캔버스 블록 및 화살표]의 논리적 일치성을 검토해 주세요.
+
+[자연어 알고리즘 단계]:
+${nlSummary || "작성된 단계 없음"}
+
+[순서도 캔버스 블록 목록]:
+${blockSummary || "배치된 블록 없음"}
+
+[화살표 연결 흐름]:
+${connSummary || "연결선 없음"}
+
+[평가 및 피드백 지침]:
+1. 학생의 자연어 기획서와 순서도 기호(단말/입출력/처리/판단) 및 화살표 흐름이 잘 어울리는지 칭찬 1문장.
+2. 순서도에서 처리(Process) 블록의 아래쪽뿐만 아니라 우측이나 좌측 포트에서 판단(Decision) 블록으로 되돌아가는 화살표도 완벽하고 정당한 반복(Loopback) 구조로 간주하고 칭찬해 주세요. 화살표가 연결되어 있다면 절대 "화살표가 분리되었다"거나 "연결되지 않았다"고 오판하지 마세요.
+3. 중2 학생 눈높이에 맞게 다정하고 격려하는 어조로 총 3문장 이내(200자 내외)로 간결하게 요약 작성하세요.`;
+
+  try {
+    const res = await fetch("https://api.upstage.ai/v1/solar/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${UPSTAGE_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: typeof SOLAR_MODEL !== 'undefined' ? SOLAR_MODEL : "solar-pro4",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.5
+      })
+    });
+
+    if (!res.ok) throw new Error("API Error");
+    const data = await res.json();
+    const feedback = data.choices[0].message.content;
+
+    card.className = "p-3.5 rounded-xl border border-emerald-200 bg-emerald-50 text-xs sm:text-sm space-y-1.5 max-h-[170px] overflow-y-auto custom-scroll";
+    text.innerHTML = `
+      <div class="font-bold text-emerald-800 flex items-center gap-1.5">
+        <i class="fa-solid fa-medal text-emerald-600"></i>
+        <span>Solar AI의 알고리즘 감수 총평</span>
+      </div>
+      <div class="text-slate-800 leading-relaxed font-medium">${feedback.replace(/\n/g, '<br>')}</div>
+    `;
+    if (typeof playSfx === 'function') playSfx('success');
+
+  } catch (err) {
+    card.className = "p-3.5 rounded-xl border border-slate-200 bg-slate-50 text-xs sm:text-sm space-y-1.5 max-h-[170px] overflow-y-auto custom-scroll";
+    text.innerHTML = `
+      <div class="font-bold text-slate-800">💡 훌륭한 시도입니다!</div>
+      <div class="text-slate-600">자연어 기획서와 순서도 블록이 단계별로 일관되게 잘 구성되어 있습니다. 완성 후 [띵커보드 제출]을 진행해 보세요!</div>
+    `;
+  }
+}
+
+
+// ==========================================
+// 5. 띵커보드(ThinkerBoard) 원클릭 제출 파이프라인
+// ==========================================
+function openThinkerSubmissionModal() {
+  const modal = document.getElementById('thinker-submission-modal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+
+  updateThinkerCardPreview();
+  if (typeof playSfx === 'function') playSfx('step');
+}
+
+function closeThinkerSubmissionModal() {
+  const modal = document.getElementById('thinker-submission-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function updateThinkerCardPreview() {
+  const studentNum = document.getElementById('thinker-student-num') ? document.getElementById('thinker-student-num').value.trim() : "20315";
+  const studentName = document.getElementById('thinker-student-name') ? document.getElementById('thinker-student-name').value.trim() : "홍길동";
+
+  const preview = document.getElementById('thinker-card-preview');
+  if (!preview) return;
+
+  const pres = window.latestAbstractionPrescription || (window.defaultAbstractionPresets ? window.defaultAbstractionPresets[0] : null);
+
+  const nlListHtml = nlCards.map((c, i) => {
+    if (c.type === 'seq') return `<div><strong>${i+1}. [순차]</strong> ${c.text || '내용 없음'}</div>`;
+    if (c.type === 'sel') return `<div><strong>${i+1}. [선택]</strong> 만약 [${c.condition}] -> (예: ${c.yesAction} / 아니오: ${c.noAction})</div>`;
+    if (c.type === 'loop') return `<div><strong>${i+1}. [반복]</strong> [${c.condition}] 일 때까지 -> (${c.loopAction}) 반복</div>`;
+  }).join('');
+
+  const blocksHtml = freeBlocks.map(b => `<span class="px-2 py-0.5 bg-slate-100 border border-slate-300 rounded text-[11px] font-bold">[${b.shape}] ${b.text}</span>`).join(' ➔ ');
+
+  preview.innerHTML = `
+    <div class="space-y-3.5 text-xs sm:text-sm text-slate-800">
+      <!-- 1. 헤더 배너 -->
+      <div class="bg-gradient-to-r from-indigo-600 to-violet-600 text-white p-4 rounded-2xl flex items-center justify-between shadow-xs">
+        <div>
+          <div class="text-[11px] font-bold text-indigo-200">ALGORITHM LAB PORTFOLIO</div>
+          <h3 class="text-base sm:text-lg font-black tracking-tight">나만의 알고리즘 순서도 마스터 리포트</h3>
+        </div>
+        <div class="text-right">
+          <span class="text-xs sm:text-sm font-black bg-white/20 px-3 py-1.5 rounded-xl backdrop-blur-xs border border-white/20">
+            ${studentNum || '학번'} ${studentName || '이름'}
+          </span>
+        </div>
+      </div>
+
+      <!-- 2. 추상화 분석 결과 -->
+      <div class="p-3.5 bg-violet-50/70 border border-violet-200 rounded-2xl space-y-1.5">
+        <h4 class="font-black text-violet-900 text-xs flex items-center gap-1.5">
+          <i class="fa-solid fa-lightbulb text-violet-600"></i> 1. 문제 분석 및 추상화
+        </h4>
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div><span class="text-slate-400">현재 상태:</span> <strong>${pres ? pres.currentStatus : '등교 준비 지연'}</strong></div>
+          <div><span class="text-slate-400">목표 상태:</span> <strong>${pres ? pres.goalStatus : '지각 없이 등교 성공'}</strong></div>
+        </div>
+        <div class="text-xs pt-1 border-t border-violet-100">
+          <span class="text-slate-400">핵심 변수 & 조건:</span> 
+          <strong class="text-violet-800">${pres && pres.coreVariables ? pres.coreVariables.join(', ') : '현재 시각, 알람 소리'}</strong>
+        </div>
+      </div>
+
+      <!-- 3. 자연어 알고리즘 기획서 -->
+      <div class="p-3.5 bg-blue-50/70 border border-blue-200 rounded-2xl space-y-1.5">
+        <h4 class="font-black text-blue-900 text-xs flex items-center gap-1.5">
+          <i class="fa-solid fa-file-lines text-blue-600"></i> 2. 자연어 알고리즘 설계
+        </h4>
+        <div class="space-y-1 text-xs text-slate-700 leading-relaxed font-medium">
+          ${nlListHtml || '<div class="text-slate-400 italic">작성된 자연어 카드가 없습니다.</div>'}
+        </div>
+      </div>
+
+      <!-- 4. 순서도 시각 구조 -->
+      <div class="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-2xl space-y-1.5">
+        <h4 class="font-black text-emerald-900 text-xs flex items-center gap-1.5">
+          <i class="fa-solid fa-diagram-project text-emerald-600"></i> 3. 완성된 순서도 흐름
+        </h4>
+        <div class="flex flex-wrap items-center gap-1.5 text-xs text-slate-700 leading-relaxed py-1">
+          ${blocksHtml || '<div class="text-slate-400 italic">배치된 순서도 블록이 없습니다.</div>'}
+        </div>
+      </div>
+
+      <!-- 5. 합격 스탬프 -->
+      <div class="p-3 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between text-xs">
+        <div class="flex items-center gap-2 text-slate-600 font-bold">
+          <span class="text-base">🤖</span>
+          <span>Solar AI 검증: 논리적 제어 구조 설계 완료</span>
+        </div>
+        <span class="px-2.5 py-1 bg-indigo-100 text-indigo-700 font-black rounded-lg text-xs">
+          💮 검증 완료
+        </span>
+      </div>
+    </div>
+  `;
+}
+
+// --------------------------------------------------
+// HTML5 Canvas 기반 초정밀 이미지 생성 및 클립보드 복사
+// --------------------------------------------------
+async function copyThinkerImageToClipboard() {
+  const studentNum = document.getElementById('thinker-student-num') ? document.getElementById('thinker-student-num').value.trim() : "20315";
+  const studentName = document.getElementById('thinker-student-name') ? document.getElementById('thinker-student-name').value.trim() : "홍길동";
+
+  const btn = document.getElementById('btn-thinker-copy');
+  if (btn) btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> 이미지 생성 중...`;
+
+  try {
+    const canvas = await generatePortfolioCanvas(studentNum, studentName);
+    
+    canvas.toBlob(async (blob) => {
+      try {
+        if (!navigator.clipboard || !window.ClipboardItem) {
+          throw new Error("클립보드 API 미지원");
+        }
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': blob })
+        ]);
+
+        if (typeof playSfx === 'function') playSfx('success');
+        if (btn) btn.innerHTML = `<i class="fa-solid fa-check"></i> 복사 완료!`;
+
+        alert(`🎉 포트폴리오 이미지가 클립보드에 복사되었습니다!\n\n선생님이 칠판에 띄워주신 띵커보드 화면에서 [Ctrl + V]를 눌러 붙여넣으세요!`);
+        closeThinkerSubmissionModal();
+
+      } catch (clipErr) {
+        // 클립보드 차단 시 자동 다운로드 백업
+        downloadCanvasImage(canvas, `${studentNum}_${studentName}_알고리즘_포트폴리오.png`);
+        alert(`클립보드 직접 쓰기가 차단된 환경이어서 이미지 파일이 자동으로 다운로드되었습니다!\n띵커보드 창으로 다운로드된 파일을 끌어다 놓으세요.`);
+        closeThinkerSubmissionModal();
+      } finally {
+        if (btn) btn.innerHTML = `<i class="fa-solid fa-copy"></i> 띵커보드 제출용 이미지 복사 (Ctrl+V)`;
+      }
+    }, 'image/png');
+
+  } catch (err) {
+    alert("이미지 생성 중 오류가 발생했습니다. 아래 [다운로드] 버튼을 이용해 주세요.");
+    if (btn) btn.innerHTML = `<i class="fa-solid fa-copy"></i> 띵커보드 제출용 이미지 복사 (Ctrl+V)`;
+  }
+}
+
+async function downloadThinkerImage() {
+  const studentNum = document.getElementById('thinker-student-num') ? document.getElementById('thinker-student-num').value.trim() : "20315";
+  const studentName = document.getElementById('thinker-student-name') ? document.getElementById('thinker-student-name').value.trim() : "홍길동";
+
+  const canvas = await generatePortfolioCanvas(studentNum, studentName);
+  downloadCanvasImage(canvas, `${studentNum}_${studentName}_알고리즘_포트폴리오.png`);
+  if (typeof playSfx === 'function') playSfx('success');
+}
+
+function downloadCanvasImage(canvas, filename) {
+  const a = document.createElement('a');
+  a.download = filename;
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+}
+
+function generatePortfolioCanvas(studentNum, studentName) {
+  return new Promise((resolve) => {
+    const W = 840;
+    const H = 960;
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    // 배경 흰색
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, W, H);
+
+    // 테두리
+    ctx.strokeStyle = "#e2e8f0";
+    ctx.lineWidth = 4;
+    ctx.strokeRect(10, 10, W - 20, H - 20);
+
+    // 헤더 그라디언트 배너
+    const grad = ctx.createLinearGradient(30, 30, W - 60, 110);
+    grad.addColorStop(0, "#4f46e5");
+    grad.addColorStop(1, "#7c3aed");
+    ctx.fillStyle = grad;
+    roundRect(ctx, 30, 30, W - 60, 90, 16, true, false);
+
+    ctx.fillStyle = "#c7d2fe";
+    ctx.font = "bold 13px 'Pretendard', sans-serif";
+    ctx.fillText("ALGORITHM LAB • COMPREHENSIVE PORTFOLIO", 50, 60);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "900 24px 'Pretendard', sans-serif";
+    ctx.fillText("나만의 알고리즘 & 순서도 설계 보고서", 50, 95);
+
+    // 학생 정보 뱃지
+    ctx.fillStyle = "rgba(255, 255, 255, 0.25)";
+    roundRect(ctx, W - 240, 50, 190, 48, 12, true, false);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 16px 'Pretendard', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(`${studentNum} ${studentName}`, W - 145, 80);
+    ctx.textAlign = "left";
+
+    let curY = 150;
+
+    // 섹션 1: 추상화 문제 정의
+    const pres = window.latestAbstractionPrescription || (window.defaultAbstractionPresets ? window.defaultAbstractionPresets[0] : null);
+    ctx.fillStyle = "#faf5ff";
+    ctx.strokeStyle = "#e9d5ff";
+    roundRect(ctx, 30, curY, W - 60, 110, 16, true, true);
+
+    ctx.fillStyle = "#6b21a8";
+    ctx.font = "bold 15px 'Pretendard', sans-serif";
+    ctx.fillText("💡 1. 문제 분석 및 생각 다이어트 (추상화)", 50, curY + 30);
+
+    ctx.fillStyle = "#334155";
+    ctx.font = "14px 'Pretendard', sans-serif";
+    ctx.fillText(`• 현재 상태: ${pres ? pres.currentStatus : '등교 준비 지연'}`, 50, curY + 58);
+    ctx.fillText(`• 목표 상태: ${pres ? pres.goalStatus : '지각 없이 정시 등교 성공!'}`, 50, curY + 80);
+    ctx.fillText(`• 핵심 변수: ${pres && pres.coreVariables ? pres.coreVariables.join(', ') : '현재 시각, 알람 소리'}`, 440, curY + 58);
+
+    curY += 130;
+
+    // 섹션 2: 자연어 알고리즘
+    ctx.fillStyle = "#eff6ff";
+    ctx.strokeStyle = "#bfdbfe";
+    roundRect(ctx, 30, curY, W - 60, 190, 16, true, true);
+
+    ctx.fillStyle = "#1e40af";
+    ctx.font = "bold 15px 'Pretendard', sans-serif";
+    ctx.fillText("📝 2. 자연어 알고리즘 기획서 (3대 제어 구조)", 50, curY + 30);
+
+    ctx.fillStyle = "#1e293b";
+    ctx.font = "bold 13px 'Pretendard', sans-serif";
+    nlCards.slice(0, 5).forEach((c, idx) => {
+      let t = "";
+      if (c.type === 'seq') t = `${idx+1}. [순차] ${c.text || '행동 실행'}`;
+      else if (c.type === 'sel') t = `${idx+1}. [선택] 만약 [${c.condition || '조건'}] -> 예: ${c.yesAction || '실행'} / 아니오: ${c.noAction || '실행'}`;
+      else if (c.type === 'loop') t = `${idx+1}. [반복] [${c.condition || '조건'}] 동안 -> ${c.loopAction || '행동'} 반복`;
+      ctx.fillText(t, 50, curY + 60 + (idx * 25));
+    });
+
+    curY += 210;
+
+    // 섹션 3: 순서도 다이어그램
+    ctx.fillStyle = "#ecfdf5";
+    ctx.strokeStyle = "#a7f3d0";
+    roundRect(ctx, 30, curY, W - 60, 340, 16, true, true);
+
+    ctx.fillStyle = "#065f46";
+    ctx.font = "bold 15px 'Pretendard', sans-serif";
+    ctx.fillText("📐 3. 완성된 순서도 다이어그램", 50, curY + 30);
+
+    // 블록 그리기
+    const canvasCenterX = W / 2;
+    let bY = curY + 50;
+    freeBlocks.slice(0, 5).forEach((b, i) => {
+      ctx.lineWidth = 2.5;
+      const bw = 240;
+      const bh = 42;
+      const bx = canvasCenterX - bw / 2;
+
+      if (b.shape === 'terminal') {
+        // 완전 타원 알약형
+        ctx.fillStyle = "#faf5ff";
+        ctx.strokeStyle = "#a855f7";
+        roundRect(ctx, bx, bY, bw, bh, 21, true, true);
+        ctx.fillStyle = "#581c87";
+        ctx.font = "bold 13px 'Pretendard', sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(`⬭ ${b.text}`, canvasCenterX, bY + 26);
+      } else if (b.shape === 'io') {
+        // 평행사변형
+        ctx.fillStyle = "#ecfdf5";
+        ctx.strokeStyle = "#10b981";
+        const skew = 14;
+        ctx.beginPath();
+        ctx.moveTo(bx + skew, bY);
+        ctx.lineTo(bx + bw, bY);
+        ctx.lineTo(bx + bw - skew, bY + bh);
+        ctx.lineTo(bx, bY + bh);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#064e3b";
+        ctx.font = "bold 13px 'Pretendard', sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(`▱ ${b.text}`, canvasCenterX, bY + 26);
+      } else if (b.shape === 'decision') {
+        // 마름모 다이아몬드
+        ctx.fillStyle = "#fffbeb";
+        ctx.strokeStyle = "#f59e0b";
+        ctx.beginPath();
+        ctx.moveTo(canvasCenterX, bY);
+        ctx.lineTo(bx + bw, bY + bh / 2);
+        ctx.lineTo(canvasCenterX, bY + bh);
+        ctx.lineTo(bx, bY + bh / 2);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#78350f";
+        ctx.font = "bold 12px 'Pretendard', sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(`◇ ${b.text}`, canvasCenterX, bY + 26);
+      } else {
+        // 처리 (직사각형)
+        ctx.fillStyle = "#eff6ff";
+        ctx.strokeStyle = "#3b82f6";
+        roundRect(ctx, bx, bY, bw, bh, 6, true, true);
+        ctx.fillStyle = "#1e3a8a";
+        ctx.font = "bold 13px 'Pretendard', sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(`▭ ${b.text}`, canvasCenterX, bY + 26);
+      }
+      ctx.textAlign = "left";
+
+      if (i < Math.min(freeBlocks.length - 1, 4)) {
+        ctx.strokeStyle = "#64748b";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(canvasCenterX, bY + bh);
+        ctx.lineTo(canvasCenterX, bY + bh + 16);
+        ctx.stroke();
+      }
+      bY += 58;
+    });
+
+    curY += 360;
+
+    // 섹션 4: 총평 및 합격 스탬프
+    ctx.fillStyle = "#f8fafc";
+    ctx.strokeStyle = "#cbd5e1";
+    roundRect(ctx, 30, curY, W - 60, 70, 14, true, true);
+
+    ctx.fillStyle = "#475569";
+    ctx.font = "bold 13px 'Pretendard', sans-serif";
+    ctx.fillText("🤖 Solar AI 감수: 일상 문제를 컴퓨터적 제어 구조(순차·선택·반복)로 완벽히 설계함.", 50, curY + 40);
+
+    ctx.fillStyle = "#4f46e5";
+    ctx.font = "black 14px 'Pretendard', sans-serif";
+    ctx.fillText("💮 합격 인증", W - 140, curY + 40);
+
+    resolve(canvas);
+  });
+}
+
+function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+  if (fill) ctx.fill();
+  if (stroke) ctx.stroke();
+}
+
+/**
+ * ------------------------------------------------------------------------------
+ * 📐 [좌측 기획서 패널 접기/펼치기 토글 및 캔버스 Full-bleed 확장]
+ * ------------------------------------------------------------------------------
+ */
+let isNlPanelCollapsed = false;
+
+function toggleNlPanel(forcedState = null) {
+  if (forcedState !== null) {
+    isNlPanelCollapsed = forcedState;
+  } else {
+    isNlPanelCollapsed = !isNlPanelCollapsed;
+  }
+
+  try {
+    sessionStorage.setItem('flowchart_panel_collapsed', isNlPanelCollapsed ? '1' : '0');
+  } catch (e) {}
+
+  const studioL3 = document.querySelector('.entry-studio-container');
+  const studioL2 = document.querySelector('.entry-studio-l2-container');
+
+  if (studioL3) {
+    studioL3.classList.toggle('panel-collapsed', isNlPanelCollapsed);
+  }
+  if (studioL2) {
+    studioL2.classList.toggle('panel-collapsed', isNlPanelCollapsed);
+  }
+
+  // 연결선 SVG 위치 재계산
+  setTimeout(() => {
+    if (typeof renderFreeConnections === 'function') {
+      renderFreeConnections();
+    }
+  }, 260);
+}
+
+// 초기 패널 접힘 상태 복원
+(function initPanelState() {
+  try {
+    if (sessionStorage.getItem('flowchart_panel_collapsed') === '1') {
+      setTimeout(() => toggleNlPanel(true), 100);
+    }
+  } catch (e) {}
+})();
+
+window.toggleNlPanel = toggleNlPanel;
+

@@ -1,0 +1,143 @@
+/* ==========================================
+   알고리즘 랩 공통 스타일 (Common CSS)
+   ========================================== */
+@import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800;900&display=swap');
+
+* {
+  font-family: 'Pretendard', sans-serif;
+  box-sizing: border-box;
+}
+
+/* 🖥️ 학교 컴퓨터실 및 대화면 디스플레이 가시성 향상 폰트 스케일링 */
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (min-width: 1024px) {
+  html {
+    font-size: 16.5px;
+  }
+}
+
+@media (min-width: 1440px) {
+  html {
+    font-size: 17px;
+  }
+}
+
+@media (min-width: 1700px) {
+  html {
+    font-size: 17.5px;
+  }
+}
+
+.svg-anim { transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.35s ease; }
+.knife-move { transition: transform 0.45s cubic-bezier(0.25, 1, 0.5, 1); }
+
+@keyframes shake-box {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+.shake-error, .shake { animation: shake-box 0.4s ease-in-out; }
+
+@keyframes mic-wave {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  50% { transform: scale(1.06); box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+}
+.mic-on { animation: mic-wave 1.2s infinite; }
+
+.fade-enter { animation: fadeIn 0.25s ease-out forwards; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.chatbot-enter { animation: chatPop 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+@keyframes chatPop {
+  from { opacity: 0; transform: scale(0.9) translateY(20px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ==========================================
+   추상화 워크북 3D 버튼 & 스크롤 스타일
+   ========================================== */
+.btn-3d {
+  transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 0 0 #4c1d95;
+}
+.btn-3d:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 0 0 #4c1d95;
+}
+.btn-3d:active {
+  transform: translateY(4px);
+  box-shadow: 0 0 0 0 #4c1d95;
+}
+
+.btn-3d-emerald {
+  transition: all 0.1s;
+  box-shadow: 0 4px 0 0 #065f46;
+}
+.btn-3d-emerald:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 0 0 #065f46;
+}
+.btn-3d-emerald:active {
+  transform: translateY(4px);
+  box-shadow: 0 0 0 0 #065f46;
+}
+
+.chat-scroll::-webkit-scrollbar,
+.custom-scroll::-webkit-scrollbar { width: 8px; }
+.chat-scroll::-webkit-scrollbar-thumb,
+.custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; }
+.chat-scroll::-webkit-scrollbar-track,
+.custom-scroll::-webkit-scrollbar-track { background: #f8fafc; }
+
+/* ==========================================
+   넥슨 게임 포털 스타일 메가 드롭다운 메뉴 (Mega Menu)
+   ========================================== */
+#mega-menu-dropdown {
+  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1), transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.22s;
+  max-height: calc(100vh - 70px);
+  overflow-y: auto;
+}
+
+.mega-menu-hidden {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transform: translateY(-8px) !important;
+}
+
+.mega-menu-visible {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  transform: translateY(0) !important;
+}
+
+#mega-menu-backdrop {
+  transition: opacity 0.2s ease, visibility 0.2s;
+}
+
+.backdrop-hidden {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.backdrop-visible {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+/* 메가메뉴 회전 셰브론 */
+.chevron-rotated {
+  transform: rotate(180deg);
+}
+

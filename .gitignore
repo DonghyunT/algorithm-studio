@@ -1,0 +1,22 @@
+# PDF 교과서/지도서 (용량 초과 방지)
+*.pdf
+
+# 백업 폴더 (원본 보존용, 배포 불필요)
+백업용/
+
+# 임시 파일
+temp_results.txt
+
+# 스크린샷 (개발용)
+screenshot_*.png
+step5_*.png
+
+# OS/IDE 관련
+.DS_Store
+Thumbs.db
+.vscode/
+*.swp
+*.swo
+
+# Antigravity AI 작업 폴더
+.gemini/
