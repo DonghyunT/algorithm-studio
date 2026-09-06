@@ -712,5 +712,115 @@
   transform: translateY(-2px);
 }
 
+/* ========================================== */
+/* ⚡ 순서도 인터랙티브 가상 실행 검증 스타일 */
+/* ========================================== */
+.flowchart-block-simulating {
+  transform: scale(1.08) !important;
+  box-shadow: 0 0 28px rgba(16, 185, 129, 0.9), 0 0 10px rgba(59, 130, 246, 0.8) !important;
+  border-color: #10b981 !important;
+  z-index: 30 !important;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  animation: simBlockPulse 0.8s infinite alternate ease-in-out !important;
+}
 
+@keyframes simBlockPulse {
+  from {
+    filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.7));
+  }
+  to {
+    filter: drop-shadow(0 0 16px rgba(59, 130, 246, 0.95));
+  }
+}
+
+/* 실행 검증 시 빛나는 연결 화살표 */
+.flowchart-path-simulating {
+  stroke: #10b981 !important;
+  stroke-width: 5px !important;
+  filter: drop-shadow(0 0 10px #10b981) drop-shadow(0 0 4px #34d399) !important;
+  stroke-dasharray: 8, 4;
+  animation: simFlowLine 0.5s linear infinite !important;
+}
+
+@keyframes simFlowLine {
+  to {
+    stroke-dashoffset: -12;
+  }
+}
+
+/* 입출력 값 표시 말풍선 */
+.sim-value-badge {
+  position: absolute;
+  top: -26px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.5);
+  animation: simBadgePop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  z-index: 35;
+}
+
+/* 판단 블록 분기 인터랙션 팝업 (가로형 와이드 알약 배너) */
+.sim-choice-overlay {
+  position: absolute !important;
+  top: -46px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  background: #ffffff !important;
+  border: 2.5px solid #f59e0b !important;
+  border-radius: 9999px !important;
+  padding: 6px 14px !important;
+  box-shadow: 0 10px 25px -3px rgba(245, 158, 11, 0.45), 0 4px 10px rgba(0, 0, 0, 0.1) !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  white-space: nowrap !important;
+  min-width: 270px !important;
+  width: max-content !important;
+  z-index: 50 !important;
+  animation: simBadgePop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  pointer-events: auto !important;
+}
+
+.sim-choice-overlay span,
+.sim-choice-overlay button {
+  white-space: nowrap !important;
+}
+
+/* ========================================== */
+/* 🤖 우측 엣지 쇽 튀어나오는 피커부 챗봇 탭 */
+/* ========================================== */
+.chatbot-peek-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #2563eb, #4f46e5);
+  color: #ffffff;
+  padding: 10px 18px 10px 14px;
+  border-top-left-radius: 9999px;
+  border-bottom-left-radius: 9999px;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border: 2.5px solid rgba(255, 255, 255, 0.45);
+  border-right: none;
+  box-shadow: -4px 6px 20px rgba(37, 99, 235, 0.38);
+  cursor: pointer;
+  transform: translateX(52%);
+  transition: transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
+  user-select: none;
+}
+
+.chatbot-peek-tab:hover,
+.chatbot-peek-tab.chat-open {
+  transform: translateX(0) !important;
+  box-shadow: -6px 8px 26px rgba(37, 99, 235, 0.5);
+}
 

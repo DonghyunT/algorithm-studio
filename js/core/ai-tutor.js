@@ -13,11 +13,17 @@
       isTutorOpen = !isTutorOpen;
       if (isTutorOpen) {
         win.classList.remove('hidden');
-        fab.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+        if (fab) {
+          fab.classList.add('chat-open');
+          fab.innerHTML = '<i class="fa-solid fa-xmark text-lg"></i> <span class="text-xs font-black tracking-tight select-none">닫기</span>';
+        }
         document.getElementById('tutor-input').focus();
       } else {
         win.classList.add('hidden');
-        fab.innerHTML = '<i class="fa-solid fa-comment-dots"></i>';
+        if (fab) {
+          fab.classList.remove('chat-open');
+          fab.innerHTML = '<i class="fa-solid fa-comment-dots text-lg"></i> <span class="text-xs font-black tracking-tight select-none">AI 튜터</span>';
+        }
       }
     }
 

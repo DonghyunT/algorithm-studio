@@ -987,6 +987,10 @@ let freeBlocks = [];
 let freeConnections = [];
 let nextBlockId = 1;
 
+// AI 감수 통과 및 시뮬레이션 완주 상태 플래그
+window.isFlowchartAiPassed = false;
+window.isFlowchartSimValidated = false;
+
 // 캔버스 드래그 및 선 잇기 상태
 let isDraggingBlock = false;
 let draggedBlockObj = null;
@@ -1161,6 +1165,7 @@ function addNlCard(type) {
   } else if (type === 'loop') {
     nlCards.push({ id: newId, type: 'loop', condition: '', loopAction: '' });
   }
+  window.isFlowchartAiPassed = false;
   renderNlCards();
   if (typeof playSfx === 'function') playSfx('snap');
 
@@ -1173,6 +1178,7 @@ function addNlCard(type) {
 
 function removeNlCard(cardId) {
   nlCards = nlCards.filter(c => c.id !== cardId);
+  window.isFlowchartAiPassed = false;
   renderNlCards();
   if (typeof playSfx === 'function') playSfx('step');
 }
@@ -1933,6 +1939,9 @@ function removeCanvasBlock(blockId, e) {
   freeBlocks = freeBlocks.filter(b => b.id !== blockId);
   freeConnections = freeConnections.filter(c => c.from !== blockId && c.to !== blockId);
 
+  window.isFlowchartAiPassed = false;
+  window.isFlowchartSimValidated = false;
+
   renderFreeCanvas();
   if (typeof playSfx === 'function') playSfx('step');
 }
@@ -2036,6 +2045,8 @@ function addCanvasBlockAtPosition(shapeType, x, y) {
   };
 
   freeBlocks.push(newBlock);
+  window.isFlowchartAiPassed = false;
+  window.isFlowchartSimValidated = false;
   const el = createFreeBlockDOM(newBlock);
   stage.appendChild(el);
   selectCanvasBlock(id);
@@ -2468,6 +2479,9 @@ function handlePortMouseUp(targetBlockId, targetPortType) {
     toPort: targetPortType
   });
 
+  window.isFlowchartAiPassed = false;
+  window.isFlowchartSimValidated = false;
+
   if (typeof playSfx === 'function') playSfx('snap');
   renderFreeConnections();
 }
@@ -2557,6 +2571,7 @@ function renderFreeConnections() {
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
     path.setAttribute("d", d);
     path.setAttribute("class", lineClass);
+    path.setAttribute("id", `conn-path-${conn.from}-${conn.to}`);
     path.setAttribute("marker-end", `url(#${markerId})`);
     path.style.cursor = "pointer";
 
@@ -2564,6 +2579,8 @@ function renderFreeConnections() {
       e.stopPropagation();
       if (confirm("이 연결 화살표를 삭제하시겠습니까?")) {
         freeConnections.splice(idx, 1);
+        window.isFlowchartAiPassed = false;
+        window.isFlowchartSimValidated = false;
         renderFreeConnections();
         if (typeof playSfx === 'function') playSfx('step');
       }
@@ -2614,6 +2631,8 @@ function clearFreeCanvas() {
   if (confirm("캔버스의 모든 블록과 연결선을 초기화하시겠습니까?")) {
     freeBlocks = [];
     freeConnections = [];
+    window.isFlowchartAiPassed = false;
+    window.isFlowchartSimValidated = false;
     renderFreeCanvas();
     if (typeof playSfx === 'function') playSfx('step');
   }
@@ -2677,59 +2696,447 @@ function zoomCanvas(direction) {
 /**
  * 엔트리 스타일 순서도 가상 실행 시뮬레이션
  */
-async function playFreeFlowchartSimulation() {
+// ==========================================
+// ⚡ 순서도 인터랙티브 가상 실행 검증 엔진
+// ==========================================
+let isSimulatingFlowchart = false;
+let pendingSimIoBlocks = [];
+
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/**
+ * 캔버스의 입출력(io) 블록을 스캔하여 입력값 설정 모달을 띄우거나 바로 실행
+ */
+function playFreeFlowchartSimulation() {
+  if (isSimulatingFlowchart) return;
+
   if (freeBlocks.length === 0) {
-    alert("실행할 순서도 블록이 없습니다. 기호 블록을 추가해 보세요!");
+    alert("실행할 순서도 블록이 없습니다. 가운데 기호 보관함에서 기호 블록을 캔버스에 추가해 보세요!");
     return;
   }
+
+  // 1. 연결선 존재 여부 검사
+  if (freeConnections.length === 0) {
+    if (typeof playSfx === 'function') playSfx('warning');
+    alert("⚠️ [연결선 없음] '시작' 기호의 파란 연결점을 드래그하여 다음 기호로 화살표를 연결해 보세요!");
+    return;
+  }
+
+  // 2. 시작 단말 블록 존재 여부
+  const startBlock = freeBlocks.find(b => b.shape === 'terminal' && (b.text || '').includes('시작')) || freeBlocks.find(b => b.id === 'blk-start');
+  if (!startBlock) {
+    if (typeof playSfx === 'function') playSfx('warning');
+    alert("⚠️ [시작 기호 없음] 순서도에 '시작' 단말 기호가 없습니다. 기호 보관함에서 단말 기호를 추가해 주세요!");
+    return;
+  }
+
+  // 3. 시작 블록에서 나가는 연결선 검사
+  if (!freeConnections.some(c => c.from === startBlock.id)) {
+    if (typeof playSfx === 'function') playSfx('warning');
+    alert("⚠️ [시작 기호 미연결] '시작' 기호에서 출발하는 화살표가 없습니다.\n시작 기호의 연결점(파란 점)을 드래그해 다음 기호로 연결해 보세요!");
+    return;
+  }
+
+  // 4. 종료 단말 블록 존재 여부
+  const endBlock = freeBlocks.find(b => b.shape === 'terminal' && (b.text || '').includes('종료')) || freeBlocks.find(b => b.id === 'blk-end');
+  if (!endBlock) {
+    if (typeof playSfx === 'function') playSfx('warning');
+    alert("⚠️ [종료 기호 없음] 순서도의 끝을 나타내는 '종료' 단말 기호가 없습니다!");
+    return;
+  }
+
+  // 자료(입출력) 블록 탐색
+  const ioBlocks = freeBlocks.filter(b => b.shape === 'io');
+  if (ioBlocks.length > 0) {
+    openSimInputModal(ioBlocks);
+  } else {
+    runInteractiveSimulation({});
+  }
+}
+
+/**
+ * 입출력 블록 값 설정 모달 열기
+ */
+function openSimInputModal(ioBlocks) {
+  pendingSimIoBlocks = ioBlocks;
+  const modal = document.getElementById('flowchart-sim-input-modal');
+  const container = document.getElementById('sim-input-fields');
+  if (!modal || !container) {
+    runInteractiveSimulation({});
+    return;
+  }
+
+  // 기본 예시값 스마트 추천
+  const sampleValues = {
+    "투입": "1,000",
+    "금액": "1,000",
+    "비밀번호": "7777",
+    "나이": "15",
+    "이름": "홍길동",
+    "점수": "95",
+    "온도": "24",
+    "선택": "사이다"
+  };
+
+  container.innerHTML = ioBlocks.map((b, idx) => {
+    let defVal = "100";
+    for (const [k, v] of Object.entries(sampleValues)) {
+      if ((b.text || '').includes(k)) {
+        defVal = v;
+        break;
+      }
+    }
+    return `
+      <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 space-y-1.5">
+        <label class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+          <span class="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] font-black">${idx + 1}</span>
+          <span>${escapeHtml(b.text || '입출력 데이터')}</span>
+        </label>
+        <div class="relative">
+          <input type="text" id="sim-input-${b.id}" value="${defVal}" 
+                 class="w-full px-3.5 py-2 text-xs font-bold text-slate-800 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-400 focus:outline-none transition" 
+                 placeholder="입력할 데이터 값 (예: 1000)" />
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  modal.classList.remove('hidden');
   if (typeof playSfx === 'function') playSfx('step');
+}
 
-  const startBlock = freeBlocks.find(b => b.shape === 'terminal' && b.text.includes('시작')) || freeBlocks[0];
+/**
+ * 모달 닫기
+ */
+function closeSimInputModal() {
+  const modal = document.getElementById('flowchart-sim-input-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+/**
+ * 모달에서 입력값을 수집하여 시뮬레이션 시작
+ */
+function startSimulationWithInputs() {
+  const simInputs = {};
+  if (pendingSimIoBlocks && pendingSimIoBlocks.length > 0) {
+    pendingSimIoBlocks.forEach(b => {
+      const inputEl = document.getElementById(`sim-input-${b.id}`);
+      simInputs[b.id] = inputEl ? inputEl.value.trim() : "데이터값";
+    });
+  }
+  closeSimInputModal();
+  runInteractiveSimulation(simInputs);
+}
+
+/**
+ * 인터랙티브 시뮬레이션 본체 (네온 하이라이트 + 화살표 애니메이션 + 판단 블록 인터랙션 + 엄격한 완주 검증)
+ */
+async function runInteractiveSimulation(simInputs = {}) {
+  if (isSimulatingFlowchart) return;
+  isSimulatingFlowchart = true;
+
+  // 기존 뱃지 및 하이라이트 잔여물 정리
+  document.querySelectorAll('.sim-value-badge, .sim-choice-overlay').forEach(el => el.remove());
+  document.querySelectorAll('.flowchart-block-simulating').forEach(el => el.classList.remove('flowchart-block-simulating'));
+  document.querySelectorAll('.flowchart-path-simulating').forEach(el => el.classList.remove('flowchart-path-simulating'));
+
+  const startBlock = freeBlocks.find(b => b.shape === 'terminal' && (b.text || '').includes('시작')) || freeBlocks.find(b => b.id === 'blk-start') || freeBlocks[0];
+  const endBlock = freeBlocks.find(b => b.shape === 'terminal' && (b.text || '').includes('종료')) || freeBlocks.find(b => b.id === 'blk-end');
+
   let current = startBlock;
-  const visited = new Set();
+  const visitedCount = {};
+  let totalSteps = 0;
+  let intermediateSteps = 0;
+  const MAX_STEPS = 35; // 무한루프 방지 안전장치
+  let stoppedBlock = null;
 
-  while (current && !visited.has(current.id)) {
-    visited.add(current.id);
-    const el = document.getElementById(current.id);
-    if (el) {
-      el.style.transition = "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)";
-      el.style.transform = "scale(1.08)";
-      el.style.boxShadow = "0 0 24px rgba(0, 184, 148, 0.75)";
-      el.style.borderColor = "#00b894";
+  while (current && totalSteps < MAX_STEPS) {
+    totalSteps++;
+    visitedCount[current.id] = (visitedCount[current.id] || 0) + 1;
+    if (visitedCount[current.id] > 10) {
+      alert("⚠️ 순서도 내에서 10회 이상 반복(무한 루프)되었습니다. 안전을 위해 실행을 일시 중지합니다.");
+      stoppedBlock = current;
+      break;
     }
+
+    if (current !== startBlock && current !== endBlock) {
+      intermediateSteps++;
+    }
+
+    const blockEl = document.getElementById(`free-blk-${current.id}`) || document.getElementById(current.id);
+    if (blockEl) {
+      blockEl.classList.add('flowchart-block-simulating');
+
+      // 입출력 블록이면 입력값 말풍선 띄우기
+      if (current.shape === 'io' && simInputs && simInputs[current.id]) {
+        const valBadge = document.createElement('div');
+        valBadge.className = 'sim-value-badge';
+        valBadge.innerHTML = `📥 입력: ${escapeHtml(simInputs[current.id])}`;
+        blockEl.appendChild(valBadge);
+      }
+    }
+
     if (typeof playSfx === 'function') playSfx('step');
-    await new Promise(r => setTimeout(r, 450));
+    await new Promise(r => setTimeout(r, 600));
 
-    if (el) {
-      el.style.transform = "scale(1)";
-      el.style.boxShadow = "";
-      el.style.borderColor = "";
+    // 종료 블록에 도달하면 완주 성공!
+    if (current === endBlock) {
+      break;
     }
 
-    const nextConn = freeConnections.find(c => c.from === current.id);
-    if (!nextConn) break;
+    // 나가는 연결선 탐색
+    const outgoingConns = freeConnections.filter(c => c.from === current.id);
+    if (outgoingConns.length === 0) {
+      // 종료 블록이 아닌데 나가는 선이 없음 (중간 끊김)
+      stoppedBlock = current;
+      break;
+    }
+
+    let nextConn = outgoingConns[0];
+
+    // 판단(decision) 블록인 경우: 참/거짓 분기 인터랙션
+    if (current.shape === 'decision' && outgoingConns.length > 1) {
+      const yesConn = outgoingConns.find(c => c.fromPort === 'yes') || outgoingConns[0];
+      const noConn = outgoingConns.find(c => c.fromPort === 'no' || c.fromPort === 'right' || c.fromPort === 'left') || outgoingConns[1];
+
+      if (blockEl) {
+        // 미니 분기 선택 팝업 오버레이 띄우기 (가로형 알약 배너)
+        const overlay = document.createElement('div');
+        overlay.className = 'sim-choice-overlay';
+        overlay.innerHTML = `
+          <span class="text-xs font-black text-amber-950 flex items-center gap-1.5 shrink-0">
+            <i class="fa-solid fa-code-branch text-amber-600"></i>
+            <span>조건 판단:</span>
+          </span>
+          <button id="sim-btn-yes" class="px-3 py-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-full text-xs font-black shadow-xs transition active:scale-95 flex items-center gap-1 shrink-0">
+            <span>✓ 참 (예)</span>
+          </button>
+          <button id="sim-btn-no" class="px-3 py-1 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white rounded-full text-xs font-black shadow-xs transition active:scale-95 flex items-center gap-1 shrink-0">
+            <span>✗ 거짓 (아니오)</span>
+          </button>
+        `;
+        blockEl.appendChild(overlay);
+
+        const chosenConn = await new Promise(resolve => {
+          const yesBtn = overlay.querySelector('#sim-btn-yes');
+          const noBtn = overlay.querySelector('#sim-btn-no');
+          yesBtn.onclick = (e) => {
+            e.stopPropagation();
+            resolve(yesConn);
+          };
+          noBtn.onclick = (e) => {
+            e.stopPropagation();
+            resolve(noConn);
+          };
+        });
+
+        overlay.remove();
+        nextConn = chosenConn;
+      }
+    }
+
+    // 다음 연결 화살표 선 하이라이트 애니메이션
+    const pathEl = document.getElementById(`conn-path-${nextConn.from}-${nextConn.to}`);
+    if (pathEl) {
+      pathEl.classList.add('flowchart-path-simulating');
+      await new Promise(r => setTimeout(r, 450));
+      pathEl.classList.remove('flowchart-path-simulating');
+    } else {
+      await new Promise(r => setTimeout(r, 300));
+    }
+
+    // 이전 블록 하이라이트 해제
+    if (blockEl) {
+      blockEl.classList.remove('flowchart-block-simulating');
+    }
+
+    // 다음 블록으로 이동
     current = freeBlocks.find(b => b.id === nextConn.to);
   }
 
-  if (typeof playSfx === 'function') playSfx('success');
+  // 최종 도달 블록 하이라이트 유지
+  if (current) {
+    const lastEl = document.getElementById(`free-blk-${current.id}`) || document.getElementById(current.id);
+    if (lastEl) {
+      lastEl.classList.add('flowchart-block-simulating');
+    }
+  }
+
+  const reachedEnd = (current === endBlock);
+
+  // 결과 검증 판정
+  if (reachedEnd && intermediateSteps >= 1) {
+    window.isFlowchartSimValidated = true;
+    if (typeof playSfx === 'function') playSfx('success');
+    setTimeout(() => {
+      alert(`🎉 [실행 검증 성공] 시작부터 종료까지 중간 ${intermediateSteps}개 명령을 거쳐 완벽하게 실행되었습니다!`);
+      setTimeout(() => {
+        document.querySelectorAll('.flowchart-block-simulating').forEach(el => el.classList.remove('flowchart-block-simulating'));
+        document.querySelectorAll('.sim-value-badge').forEach(el => el.remove());
+      }, 1500);
+      isSimulatingFlowchart = false;
+    }, 300);
+  } else if (reachedEnd && intermediateSteps === 0) {
+    if (typeof playSfx === 'function') playSfx('warning');
+    setTimeout(() => {
+      alert("⚠️ [명령 블록 없음] '시작'에서 아무런 명령 블록 없이 곧바로 '종료'로 이어졌습니다.\n중간에 자료(입출력), 판단(조건), 처리(명령) 기호를 넣어 알고리즘을 설계해 보세요!");
+      setTimeout(() => {
+        document.querySelectorAll('.flowchart-block-simulating').forEach(el => el.classList.remove('flowchart-block-simulating'));
+        document.querySelectorAll('.sim-value-badge').forEach(el => el.remove());
+      }, 1500);
+      isSimulatingFlowchart = false;
+    }, 300);
+  } else {
+    // 끊김
+    if (typeof playSfx === 'function') playSfx('warning');
+    const stoppedName = (stoppedBlock && stoppedBlock.text) ? `[${stoppedBlock.text}]` : '중간 기호';
+    setTimeout(() => {
+      alert(`⚠️ [실행 검증 중단] 순서도가 '종료'까지 이어지지 않고 ${stoppedName}에서 멈췄습니다!\n화살표를 끝까지 연결해 보세요.`);
+      setTimeout(() => {
+        document.querySelectorAll('.flowchart-block-simulating').forEach(el => el.classList.remove('flowchart-block-simulating'));
+        document.querySelectorAll('.sim-value-badge').forEach(el => el.remove());
+      }, 1500);
+      isSimulatingFlowchart = false;
+    }, 300);
+  }
 }
 
 // --------------------------------------------------
-// Solar AI 자유 알고리즘 실시간 감수
+// 🔍 정량적 알고리즘 대조 엔진 (자연어 기획서 vs 캔버스)
 // --------------------------------------------------
-async function diagnoseFreeAlgorithmWithSolarAI() {
-  const card = document.getElementById('free-ai-feedback-card');
-  const text = document.getElementById('free-ai-feedback-text');
-  if (!card || !text) return;
+function analyzeAlgorithmConsistency() {
+  const seqCards = nlCards.filter(c => c.type === 'seq');
+  const selCards = nlCards.filter(c => c.type === 'sel');
+  const loopCards = nlCards.filter(c => c.type === 'loop');
 
-  card.classList.remove('hidden');
-  card.className = "p-3.5 rounded-xl border border-indigo-200 bg-indigo-50/90 text-xs sm:text-sm space-y-1.5 transition-all max-h-[170px] overflow-y-auto custom-scroll";
-  text.innerHTML = `
-    <div class="font-bold text-indigo-800 flex items-center gap-2">
-      <span class="w-2 h-2 rounded-full bg-indigo-600 animate-ping"></span>
-      <span>Solar AI가 자연어와 순서도의 일치도를 분석 중입니다...</span>
+  const startBlock = freeBlocks.find(b => b.shape === 'terminal' && (b.text || '').includes('시작'));
+  const endBlock = freeBlocks.find(b => b.shape === 'terminal' && (b.text || '').includes('종료'));
+  const processBlocks = freeBlocks.filter(b => b.shape === 'process');
+  const decisionBlocks = freeBlocks.filter(b => b.shape === 'decision');
+  const ioBlocks = freeBlocks.filter(b => b.shape === 'io');
+
+  // 루프백 연결선 (아래에서 위로 되돌아가는 연결선)
+  const loopbackConns = freeConnections.filter(c => {
+    const fromB = freeBlocks.find(x => x.id === c.from);
+    const toB = freeBlocks.find(x => x.id === c.to);
+    return fromB && toB && toB.y <= fromB.y + 15;
+  });
+
+  const issues = [];
+  const compliments = [];
+
+  // 1. 시작/종료 단말 검사
+  if (!startBlock) issues.push("시작 기호(보라색 단말)가 캔버스에 없습니다. 알고리즘의 출발점을 만들어 주세요.");
+  if (!endBlock) issues.push("종료 기호(보라색 단말)가 캔버스에 없습니다. 알고리즘의 마무리 끝점을 지정해 주세요.");
+
+  // 2. 선택(조건 분기) 구조 대조
+  if (selCards.length > 0 && decisionBlocks.length === 0) {
+    issues.push(`자연어 기획서에 '선택(만약 ~라면)' 단계가 ${selCards.length}개 있으나, 캔버스에 마름모(판단) 블록이 0개입니다.`);
+  } else if (selCards.length > 0 && decisionBlocks.length < selCards.length) {
+    issues.push(`자연어 기획서의 선택 단계(${selCards.length}개)에 비해 캔버스의 판단 블록(${decisionBlocks.length}개)이 부족합니다.`);
+  }
+
+  // 3. 반복(루프백) 구조 대조
+  if (loopCards.length > 0 && loopbackConns.length === 0 && decisionBlocks.length === 0) {
+    issues.push(`자연어 기획서에 '반복' 단계가 있으나, 캔버스에 조건을 검사하는 판단 기호나 상위로 되돌아가는 반복선이 없습니다.`);
+  }
+
+  // 4. 처리 블록 수량 대조 (순차 행동 수에 비해 처리 블록이 지나치게 부족한지 체크)
+  if (seqCards.length >= 2 && processBlocks.length < Math.floor(seqCards.length * 0.6)) {
+    issues.push(`자연어 기획서의 행동 단계(${seqCards.length}개)에 비해 캔버스의 파란색 처리 블록(${processBlocks.length}개)이 부족합니다. 중간 명령을 더 채워 넣어 보세요.`);
+  }
+
+  // 5. 고립 블록 검사
+  const orphanBlocks = freeBlocks.filter(b => {
+    const hasOutgoing = freeConnections.some(c => c.from === b.id);
+    const hasIncoming = freeConnections.some(c => c.to === b.id);
+    if (b === startBlock) return !hasOutgoing;
+    if (b === endBlock) return !hasIncoming;
+    return !hasOutgoing && !hasIncoming;
+  });
+  if (orphanBlocks.length > 0) {
+    issues.push(`화살표가 연결되지 않은 고립된 기호 블록이 ${orphanBlocks.length}개 있습니다.`);
+  }
+
+  // 칭찬 요소
+  if (startBlock && endBlock) compliments.push("시작과 종료 단말 기호가 바르게 배치되어 있습니다.");
+  if (decisionBlocks.length > 0 && selCards.length > 0) compliments.push("자연어 기획서의 조건 분기를 주황색 마름모(판단) 기호로 잘 대응시켰습니다.");
+  if (loopbackConns.length > 0) compliments.push("상위 블록으로 되돌아가는 완벽한 반복(루프백) 화살표를 갖추고 있습니다.");
+
+  return {
+    isConsistent: issues.length === 0,
+    issues,
+    compliments,
+    stats: {
+      nlTotal: nlCards.length,
+      seqCards: seqCards.length,
+      selCards: selCards.length,
+      loopCards: loopCards.length,
+      blocksTotal: freeBlocks.length,
+      process: processBlocks.length,
+      decision: decisionBlocks.length,
+      io: ioBlocks.length,
+      connections: freeConnections.length,
+      loopbacks: loopbackConns.length
+    }
+  };
+}
+
+/**
+ * --------------------------------------------------
+ * 🤖 Solar AI 알고리즘 감수 모달 (전용 팝업 리포트)
+ * --------------------------------------------------
+ */
+function openAiAuditModal() {
+  const modal = document.getElementById('flowchart-ai-audit-modal');
+  if (modal) modal.classList.remove('hidden');
+  if (typeof playSfx === 'function') playSfx('step');
+}
+
+function closeAiAuditModal() {
+  const modal = document.getElementById('flowchart-ai-audit-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+async function diagnoseFreeAlgorithmWithSolarAI() {
+  const modal = document.getElementById('flowchart-ai-audit-modal');
+  const content = document.getElementById('flowchart-ai-audit-content');
+  const actions = document.getElementById('flowchart-ai-audit-actions');
+  if (!modal || !content) return;
+
+  openAiAuditModal();
+
+  // 로딩 상태 표시
+  content.innerHTML = `
+    <div class="py-12 flex flex-col items-center justify-center gap-3 text-center">
+      <div class="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center text-2xl animate-spin shadow-sm">
+        <i class="fa-solid fa-spinner"></i>
+      </div>
+      <div>
+        <div class="text-sm font-black text-slate-800">Solar AI가 자연어와 순서도를 정밀 대조 중입니다...</div>
+        <div class="text-xs text-slate-400 mt-1">2022 개정 정보 교육과정 기준: 순차, 선택, 반복 논리 구조 일치성 분석</div>
+      </div>
     </div>
   `;
+
+  if (actions) {
+    actions.innerHTML = `
+      <button onclick="closeAiAuditModal()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs transition">
+        닫기
+      </button>
+    `;
+  }
+
+  // 1. JS 룰 엔진을 통한 정량적 사전 대조 수행
+  const consistency = analyzeAlgorithmConsistency();
 
   const nlSummary = nlCards.map((c, i) => {
     if (c.type === 'seq') return `${i+1}단계(순차): ${c.text || '내용 없음'}`;
@@ -2737,7 +3144,8 @@ async function diagnoseFreeAlgorithmWithSolarAI() {
     if (c.type === 'loop') return `${i+1}단계(반복): [${c.condition || '조건'}] 동안 -> (${c.loopAction || '행동'}) 반복`;
   }).join('\n');
 
-  const blockSummary = freeBlocks.map(b => `- [${b.shape}] "${b.text}"`).join('\n');
+  const orderedBlocksForAI = getFlowchartOrderedBlocks();
+  const blockSummary = orderedBlocksForAI.map(b => `- [${b.shape}] "${b.text}"`).join('\n');
 
   // 자연어 친화적 연결선 맵 (포트 방향 및 루프백 판별 포함)
   const connSummary = freeConnections.map(c => {
@@ -2759,7 +3167,15 @@ async function diagnoseFreeAlgorithmWithSolarAI() {
     return `- [${fromB.shape}: ${fromText}]의 ${portLabel} ➔ [${toB.shape}: ${toText}]${backLabel}`;
   }).join('\n');
 
-  const prompt = `당신은 대한민국 중학교 2학년 정보 교과 '알고리즘과 순서도' 단원의 친절한 AI 지도교사입니다.
+  const issuesText = consistency.issues.length > 0 
+    ? consistency.issues.map((iss, idx) => `  ${idx+1}) ${iss}`).join('\n')
+    : "  - 특이한 결손이나 누락 없이 자연어와 순서도 블록이 균형 있게 구성됨.";
+
+  const complimentsText = consistency.compliments.length > 0
+    ? consistency.compliments.map(cmp => `  - ${cmp}`).join('\n')
+    : "  - 알고리즘 완성을 위해 노력 중.";
+
+  const prompt = `당신은 대한민국 중학교 2학년 정보 교과 '알고리즘과 순서도' 단원의 친절하고 명확한 AI 지도교사입니다.
 학생이 작성한 [자연어 기획서]와 [순서도 캔버스 블록 및 화살표]의 논리적 일치성을 검토해 주세요.
 
 [자연어 알고리즘 단계]:
@@ -2771,11 +3187,20 @@ ${blockSummary || "배치된 블록 없음"}
 [화살표 연결 흐름]:
 ${connSummary || "연결선 없음"}
 
-[평가 및 피드백 지침]:
-1. 학생의 자연어 기획서와 순서도 기호(단말/입출력/처리/판단) 및 화살표 흐름이 잘 어울리는지 칭찬 1문장.
-2. 순서도에서 처리(Process) 블록의 아래쪽뿐만 아니라 우측이나 좌측 포트에서 판단(Decision) 블록으로 되돌아가는 화살표도 완벽하고 정당한 반복(Loopback) 구조로 간주하고 칭찬해 주세요. 화살표가 연결되어 있다면 절대 "화살표가 분리되었다"거나 "연결되지 않았다"고 오판하지 마세요.
-3. 중2 학생 눈높이에 맞게 다정하고 격려하는 어조로 총 3문장 이내(200자 내외)로 간결하게 요약 작성하세요.`;
+[시스템 사전 정량 분석 결과]:
+* 일치 상태: ${consistency.isConsistent ? '논리적 일치' : '⚠️ 보완 및 블록 추가 필요'}
+* 발견된 결손/누락 문제:
+${issuesText}
+* 칭찬할 만한 점:
+${complimentsText}
 
+[평가 및 피드백 지침 - 매우 중요!]:
+1. ⚠️ 절대 주의: 캔버스에 누락된 블록이 있거나 정량 분석에서 '보완 필요' 판정이 난 경우, 절대 무조건적인 칭찬을 남발하지 마세요!
+2. 만약 결손 문제(예: 판단 블록 누락, 처리 블록 부족, 시작/종료 누락 등)가 있다면, 잘된 점은 짧게 1문장만 언급하고, 학생이 어떤 기호(마름모 판단, 직사각형 처리 등)를 더 꺼내어 자연어의 몇 번 단계를 채워 넣어야 하는지 중2 학생의 눈높이에서 다정하고 구체적으로 지도해 주세요.
+3. 순서도에서 처리(Process) 블록의 아래쪽뿐만 아니라 우측이나 좌측 포트에서 판단(Decision) 블록으로 되돌아가는 화살표는 완벽한 반복(Loopback) 구조로 간주합니다.
+4. 중2 학생 눈높이에 맞게 다정하고 격려하는 어조로 총 3문장 이내(220자 내외)로 간결하게 요약 작성하세요.`;
+
+  let aiFeedbackText = "";
   try {
     const res = await fetch("https://api.upstage.ai/v1/solar/chat/completions", {
       method: "POST",
@@ -2786,41 +3211,251 @@ ${connSummary || "연결선 없음"}
       body: JSON.stringify({
         model: typeof SOLAR_MODEL !== 'undefined' ? SOLAR_MODEL : "solar-pro4",
         messages: [{ role: "user", content: prompt }],
-        temperature: 0.5
+        temperature: 0.4
       })
     });
 
     if (!res.ok) throw new Error("API Error");
     const data = await res.json();
-    const feedback = data.choices[0].message.content;
-
-    card.className = "p-3.5 rounded-xl border border-emerald-200 bg-emerald-50 text-xs sm:text-sm space-y-1.5 max-h-[170px] overflow-y-auto custom-scroll";
-    text.innerHTML = `
-      <div class="font-bold text-emerald-800 flex items-center gap-1.5">
-        <i class="fa-solid fa-medal text-emerald-600"></i>
-        <span>Solar AI의 알고리즘 감수 총평</span>
-      </div>
-      <div class="text-slate-800 leading-relaxed font-medium">${feedback.replace(/\n/g, '<br>')}</div>
-    `;
-    if (typeof playSfx === 'function') playSfx('success');
-
+    aiFeedbackText = data.choices[0].message.content;
   } catch (err) {
-    card.className = "p-3.5 rounded-xl border border-slate-200 bg-slate-50 text-xs sm:text-sm space-y-1.5 max-h-[170px] overflow-y-auto custom-scroll";
-    text.innerHTML = `
-      <div class="font-bold text-slate-800">💡 훌륭한 시도입니다!</div>
-      <div class="text-slate-600">자연어 기획서와 순서도 블록이 단계별로 일관되게 잘 구성되어 있습니다. 완성 후 [띵커보드 제출]을 진행해 보세요!</div>
-    `;
+    aiFeedbackText = consistency.issues.length > 0
+      ? `자연어 기획서와 비교했을 때 보완할 점이 있어요: ${consistency.issues[0]} 기호 보관함에서 필요한 기호를 추가해 보세요!`
+      : `자연어 기획서와 순서도 블록이 단계별로 일관되게 잘 구성되어 있습니다. 완성 후 [띵커보드 제출]을 진행해 보세요!`;
   }
+
+  const isGood = consistency.isConsistent;
+  window.isFlowchartAiPassed = isGood;
+
+  // 헤더 배너
+  const headerHtml = isGood ? `
+    <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between shadow-xs">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-2xl bg-emerald-500 text-white flex items-center justify-center text-xl font-black shadow-md shadow-emerald-500/20">💮</div>
+        <div>
+          <div class="text-sm font-black text-emerald-950 flex items-center gap-1.5">
+            <span>Solar AI 정식 감수 통과!</span>
+            <span class="px-2 py-0.5 bg-emerald-200/80 text-emerald-800 text-[10px] rounded-md font-bold">2022 개정 정보 표준</span>
+          </div>
+          <div class="text-xs text-emerald-700 font-medium mt-0.5">자연어 기획서와 순서도 캔버스가 완벽하게 일치합니다.</div>
+        </div>
+      </div>
+      <span class="hidden sm:inline-flex px-3 py-1.5 bg-emerald-600 text-white font-black rounded-xl text-xs shadow-sm">
+        공식 합격 인증
+      </span>
+    </div>
+  ` : `
+    <div class="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-between shadow-xs">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-2xl bg-amber-500 text-white flex items-center justify-center text-xl font-black shadow-md shadow-amber-500/20">🛠️</div>
+        <div>
+          <div class="text-sm font-black text-amber-950 flex items-center gap-1.5">
+            <span>알고리즘 보완 권장</span>
+            <span class="px-2 py-0.5 bg-amber-200/80 text-amber-800 text-[10px] rounded-md font-bold">기호 보완 필요</span>
+          </div>
+          <div class="text-xs text-amber-700 font-medium mt-0.5">기획서의 단계에 비해 순서도 캔버스에 누락된 기호가 있습니다.</div>
+        </div>
+      </div>
+      <span class="hidden sm:inline-flex px-3 py-1.5 bg-amber-500 text-white font-black rounded-xl text-xs shadow-sm">
+        보완 필요
+      </span>
+    </div>
+  `;
+
+  // 정량 대조표 카드
+  const stats = consistency.stats;
+  const quantGridHtml = `
+    <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2.5">
+      <div class="flex items-center justify-between text-xs font-black text-slate-700">
+        <span class="flex items-center gap-1.5"><i class="fa-solid fa-chart-pie text-indigo-500"></i> 📊 기획서 vs 순서도 기호 대조표</span>
+        <span class="text-[11px] text-slate-400 font-normal">총 ${stats.nlTotal}단계 ➔ ${stats.blocksTotal}개 블록</span>
+      </div>
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <div class="p-2.5 bg-white rounded-xl border border-slate-200 space-y-1">
+          <div class="font-bold text-slate-600 flex items-center justify-between">
+            <span>📝 자연어 기획서</span>
+            <span class="text-indigo-600 font-black">${stats.nlTotal}단계</span>
+          </div>
+          <div class="text-[11px] text-slate-500 space-y-0.5">
+            <div>• 순차: <strong class="text-slate-700">${stats.seqCards}개</strong></div>
+            <div>• 선택: <strong class="text-slate-700">${stats.selCards}개</strong></div>
+            <div>• 반복: <strong class="text-slate-700">${stats.loopCards}개</strong></div>
+          </div>
+        </div>
+        <div class="p-2.5 bg-white rounded-xl border border-slate-200 space-y-1">
+          <div class="font-bold text-slate-600 flex items-center justify-between">
+            <span>📐 캔버스 순서도</span>
+            <span class="text-emerald-600 font-black">${stats.blocksTotal}블록</span>
+          </div>
+          <div class="text-[11px] text-slate-500 space-y-0.5">
+            <div>• 처리: <strong class="text-slate-700">${stats.process}개</strong> / 입출력: <strong class="text-slate-700">${stats.io}개</strong></div>
+            <div>• 판단: <strong class="text-slate-700">${stats.decision}개</strong></div>
+            <div>• 연결선: <strong class="text-slate-700">${stats.connections}개</strong> (루프백 ${stats.loopbacks}개)</div>
+          </div>
+        </div>
+      </div>
+      ${consistency.issues.length > 0 ? `
+        <div class="p-2.5 bg-rose-50 border border-rose-200 rounded-xl space-y-1">
+          <div class="text-[11px] font-black text-rose-700 flex items-center gap-1">
+            <i class="fa-solid fa-triangle-exclamation"></i> <span>발견된 결손 및 보완 과제:</span>
+          </div>
+          <ul class="text-[11px] text-rose-600 space-y-0.5 list-disc list-inside font-medium">
+            ${consistency.issues.map(iss => `<li>${escapeHtml(iss)}</li>`).join('')}
+          </ul>
+        </div>
+      ` : `
+        <div class="p-2 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] font-bold text-emerald-800 flex items-center gap-1.5">
+          <i class="fa-solid fa-circle-check text-emerald-600"></i>
+          <span>자연어와 순서도 기호가 빠짐없이 완벽하게 대응되었습니다.</span>
+        </div>
+      `}
+    </div>
+  `;
+
+  // AI 총평 카드
+  const adviceBorder = isGood ? "border-emerald-200 bg-emerald-50/70" : "border-indigo-200 bg-indigo-50/70";
+  const adviceTitle = isGood ? "Solar AI의 알고리즘 감수 총평" : "Solar AI의 맞춤형 보완 가이드";
+  const adviceColor = isGood ? "text-emerald-950" : "text-indigo-950";
+  const adviceIcon = isGood ? "fa-medal text-emerald-600" : "fa-lightbulb text-indigo-600";
+
+  const adviceHtml = `
+    <div class="p-4 ${adviceBorder} border rounded-2xl space-y-2">
+      <div class="flex items-center gap-2 font-black text-xs ${adviceColor}">
+        <i class="fa-solid ${adviceIcon}"></i>
+        <span>${adviceTitle}</span>
+      </div>
+      <div class="text-xs sm:text-sm text-slate-800 leading-relaxed font-medium">
+        ${aiFeedbackText.replace(/\n/g, '<br>')}
+      </div>
+    </div>
+  `;
+
+  content.innerHTML = `
+    ${headerHtml}
+    ${quantGridHtml}
+    ${adviceHtml}
+  `;
+
+  if (actions) {
+    if (isGood) {
+      actions.innerHTML = `
+        <button onclick="closeAiAuditModal()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition">
+          캔버스 확인
+        </button>
+        <button onclick="closeAiAuditModal(); openThinkerSubmissionModal();" class="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black rounded-xl text-xs shadow-md shadow-emerald-500/20 flex items-center gap-1.5 transition active:scale-95">
+          <i class="fa-solid fa-clipboard-check"></i>
+          <span>합격 도장 찍고 띵커보드 제출하기</span>
+        </button>
+      `;
+    } else {
+      actions.innerHTML = `
+        <button onclick="closeAiAuditModal()" class="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black rounded-xl text-xs shadow-md shadow-amber-500/20 flex items-center gap-1.5 transition active:scale-95">
+          <i class="fa-solid fa-screwdriver-wrench"></i>
+          <span>캔버스로 돌아가 기호 보완하기</span>
+        </button>
+      `;
+    }
+  }
+
+  if (typeof playSfx === 'function') playSfx(isGood ? 'success' : 'step');
 }
 
 
 // ==========================================
 // 5. 띵커보드(ThinkerBoard) 원클릭 제출 파이프라인
 // ==========================================
+
+/**
+ * 순서도 블록들을 실제 실행 흐름(화살표 연결 순서)에 맞춰 정렬
+ * (시작 ➔ 연결선 경로 순차 탐색 ➔ 미연결 블록 ➔ 종료 단말 맨 마지막)
+ */
+function getFlowchartOrderedBlocks() {
+  if (!freeBlocks || freeBlocks.length === 0) return [];
+
+  const startBlock = freeBlocks.find(b => b.shape === 'terminal' && (b.text || '').includes('시작'))
+    || freeBlocks.find(b => b.id === 'blk-start')
+    || freeBlocks[0];
+
+  const endBlock = freeBlocks.find(b => b.shape === 'terminal' && ((b.text || '').includes('종료') || b.id === 'blk-end'))
+    || freeBlocks.filter(b => b.shape === 'terminal' && b !== startBlock)[0];
+
+  const ordered = [];
+  const visited = new Set();
+
+  if (startBlock) {
+    ordered.push(startBlock);
+    visited.add(startBlock.id);
+  }
+
+  // 연결선을 타고 다음 블록들을 순차 탐색 (BFS)
+  const queue = startBlock ? [startBlock] : [];
+  while (queue.length > 0) {
+    const cur = queue.shift();
+    const outConns = (freeConnections || []).filter(c => c.from === cur.id);
+    for (const c of outConns) {
+      const targetB = freeBlocks.find(b => b.id === c.to);
+      if (targetB && !visited.has(targetB.id)) {
+        // 종료 블록은 바로 넣지 않고 맨 마지막에 넣기 위해 예약
+        if (targetB !== endBlock) {
+          visited.add(targetB.id);
+          ordered.push(targetB);
+          queue.push(targetB);
+        }
+      }
+    }
+  }
+
+  // 연결선에 잡히지 않은 나머지 중간 블록들 (y좌표 순으로 위에서 아래로 정렬하여 추가)
+  const remaining = freeBlocks
+    .filter(b => !visited.has(b.id) && b !== endBlock)
+    .sort((a, b) => (a.y || 0) - (b.y || 0));
+
+  remaining.forEach(b => {
+    visited.add(b.id);
+    ordered.push(b);
+  });
+
+  // 종료 단말 블록을 무조건 맨 마지막에 추가!
+  if (endBlock && !ordered.includes(endBlock)) {
+    ordered.push(endBlock);
+  }
+
+  return ordered;
+}
+
 function openThinkerSubmissionModal() {
   const modal = document.getElementById('thinker-submission-modal');
   if (!modal) return;
   modal.classList.remove('hidden');
+
+  // 현재 상태 / 목표 상태 인풋 스마트 기본값 채우기
+  const curInput = document.getElementById('thinker-cur-status');
+  const goalInput = document.getElementById('thinker-goal-status');
+  const pres = window.latestAbstractionPrescription;
+
+  if (curInput && goalInput) {
+    if (pres) {
+      if (!curInput.value) curInput.value = pres.currentStatus || "";
+      if (!goalInput.value) goalInput.value = pres.goalStatus || "";
+    } else {
+      if (!curInput.value) {
+        const firstCard = nlCards[0];
+        curInput.value = firstCard && firstCard.text 
+          ? `[${firstCard.text}] 시작 전 상태` 
+          : "알고리즘 문제 발생 및 초기 상태";
+      }
+      if (!goalInput.value) {
+        const lastCard = nlCards[nlCards.length - 1];
+        let lastText = "알고리즘 최종 문제 해결 및 완료!";
+        if (lastCard) {
+          if (lastCard.type === 'seq') lastText = lastCard.text || lastText;
+          else if (lastCard.type === 'sel') lastText = `${lastCard.yesAction || '조건 처리'} 성공 및 완료`;
+          else if (lastCard.type === 'loop') lastText = `${lastCard.loopAction || '반복 동작'} 완수`;
+        }
+        goalInput.value = lastText;
+      }
+    }
+  }
 
   updateThinkerCardPreview();
   if (typeof playSfx === 'function') playSfx('step');
@@ -2838,15 +3473,22 @@ function updateThinkerCardPreview() {
   const preview = document.getElementById('thinker-card-preview');
   if (!preview) return;
 
-  const pres = window.latestAbstractionPrescription || (window.defaultAbstractionPresets ? window.defaultAbstractionPresets[0] : null);
+  const pres = window.latestAbstractionPrescription;
+  const curStatus = (document.getElementById('thinker-cur-status')?.value || '').trim() 
+    || (pres ? pres.currentStatus : '알고리즘 시작 전 상태');
+  const goalStatus = (document.getElementById('thinker-goal-status')?.value || '').trim() 
+    || (pres ? pres.goalStatus : '알고리즘 수행 후 목표 달성!');
+  const coreVars = pres && pres.coreVariables ? pres.coreVariables.join(', ') : '핵심 입력 변수 및 조건';
 
   const nlListHtml = nlCards.map((c, i) => {
-    if (c.type === 'seq') return `<div><strong>${i+1}. [순차]</strong> ${c.text || '내용 없음'}</div>`;
-    if (c.type === 'sel') return `<div><strong>${i+1}. [선택]</strong> 만약 [${c.condition}] -> (예: ${c.yesAction} / 아니오: ${c.noAction})</div>`;
-    if (c.type === 'loop') return `<div><strong>${i+1}. [반복]</strong> [${c.condition}] 일 때까지 -> (${c.loopAction}) 반복</div>`;
+    if (c.type === 'seq') return `<div><strong>${i+1}. [순차]</strong> ${escapeHtml(c.text || '내용 없음')}</div>`;
+    if (c.type === 'sel') return `<div><strong>${i+1}. [선택]</strong> 만약 [${escapeHtml(c.condition || '조건')}] -> (예: ${escapeHtml(c.yesAction || '실행')} / 아니오: ${escapeHtml(c.noAction || '실행')})</div>`;
+    if (c.type === 'loop') return `<div><strong>${i+1}. [반복]</strong> [${escapeHtml(c.condition || '조건')}] 일 때까지 -> (${escapeHtml(c.loopAction || '행동')}) 반복</div>`;
   }).join('');
 
-  const blocksHtml = freeBlocks.map(b => `<span class="px-2 py-0.5 bg-slate-100 border border-slate-300 rounded text-[11px] font-bold">[${b.shape}] ${b.text}</span>`).join(' ➔ ');
+  // 실제 실행 순서(토폴로지)대로 정렬된 블록들 가져오기
+  const orderedBlocks = getFlowchartOrderedBlocks();
+  const blocksHtml = orderedBlocks.map(b => `<span class="px-2 py-0.5 bg-slate-100 border border-slate-300 rounded text-[11px] font-bold">[${b.shape}] ${escapeHtml(b.text)}</span>`).join(' ➔ ');
 
   preview.innerHTML = `
     <div class="space-y-3.5 text-xs sm:text-sm text-slate-800">
@@ -2858,7 +3500,7 @@ function updateThinkerCardPreview() {
         </div>
         <div class="text-right">
           <span class="text-xs sm:text-sm font-black bg-white/20 px-3 py-1.5 rounded-xl backdrop-blur-xs border border-white/20">
-            ${studentNum || '학번'} ${studentName || '이름'}
+            ${escapeHtml(studentNum) || '학번'} ${escapeHtml(studentName) || '이름'}
           </span>
         </div>
       </div>
@@ -2869,12 +3511,12 @@ function updateThinkerCardPreview() {
           <i class="fa-solid fa-lightbulb text-violet-600"></i> 1. 문제 분석 및 추상화
         </h4>
         <div class="grid grid-cols-2 gap-2 text-xs">
-          <div><span class="text-slate-400">현재 상태:</span> <strong>${pres ? pres.currentStatus : '등교 준비 지연'}</strong></div>
-          <div><span class="text-slate-400">목표 상태:</span> <strong>${pres ? pres.goalStatus : '지각 없이 등교 성공'}</strong></div>
+          <div><span class="text-slate-400">현재 상태:</span> <strong>${escapeHtml(curStatus)}</strong></div>
+          <div><span class="text-slate-400">목표 상태:</span> <strong>${escapeHtml(goalStatus)}</strong></div>
         </div>
         <div class="text-xs pt-1 border-t border-violet-100">
           <span class="text-slate-400">핵심 변수 & 조건:</span> 
-          <strong class="text-violet-800">${pres && pres.coreVariables ? pres.coreVariables.join(', ') : '현재 시각, 알람 소리'}</strong>
+          <strong class="text-violet-800">${escapeHtml(coreVars)}</strong>
         </div>
       </div>
 
@@ -2891,23 +3533,44 @@ function updateThinkerCardPreview() {
       <!-- 4. 순서도 시각 구조 -->
       <div class="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-2xl space-y-1.5">
         <h4 class="font-black text-emerald-900 text-xs flex items-center gap-1.5">
-          <i class="fa-solid fa-diagram-project text-emerald-600"></i> 3. 완성된 순서도 흐름
+          <i class="fa-solid fa-diagram-project text-emerald-600"></i> 3. 완성된 순서도 흐름 (실제 실행 순서)
         </h4>
         <div class="flex flex-wrap items-center gap-1.5 text-xs text-slate-700 leading-relaxed py-1">
           ${blocksHtml || '<div class="text-slate-400 italic">배치된 순서도 블록이 없습니다.</div>'}
         </div>
       </div>
 
-      <!-- 5. 합격 스탬프 -->
-      <div class="p-3 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between text-xs">
-        <div class="flex items-center gap-2 text-slate-600 font-bold">
-          <span class="text-base">🤖</span>
-          <span>Solar AI 검증: 논리적 제어 구조 설계 완료</span>
+      <!-- 5. 합격 스탬프 (조건부: AI 감수 통과 시에만 공식 합격 인증 마크 부여) -->
+      ${window.isFlowchartAiPassed ? `
+        <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between text-xs shadow-xs">
+          <div class="flex items-center gap-2 text-emerald-950 font-bold">
+            <span class="text-base">💮</span>
+            <div>
+              <span class="font-black text-emerald-900">Solar AI 정식 감수 합격</span>
+              <span class="text-[11px] text-emerald-700 block sm:inline sm:ml-1">자연어 기획서와 순서도가 완벽히 일치합니다.</span>
+            </div>
+          </div>
+          <span class="px-3 py-1 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-black rounded-xl text-xs shadow-xs shrink-0">
+            공식 합격 인증
+          </span>
         </div>
-        <span class="px-2.5 py-1 bg-indigo-100 text-indigo-700 font-black rounded-lg text-xs">
-          💮 검증 완료
-        </span>
-      </div>
+      ` : `
+        <div class="p-3 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+          <div class="flex items-center gap-2 text-amber-950">
+            <span class="text-base shrink-0">⏳</span>
+            <div>
+              <span class="font-black text-amber-900">AI 감수 미완료</span>
+              <span class="text-[11px] text-amber-700 block sm:inline sm:ml-1">AI 감수를 통과하면 이곳에 공식 합격 도장이 찍힙니다!</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+            <button onclick="closeThinkerSubmissionModal(); diagnoseFreeAlgorithmWithSolarAI();" class="px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-black rounded-xl text-xs shadow-xs flex items-center gap-1 transition active:scale-95">
+              <i class="fa-solid fa-wand-magic-sparkles text-[10px]"></i>
+              <span>지금 AI 감수 받기</span>
+            </button>
+          </div>
+        </div>
+      `}
     </div>
   `;
 }
@@ -3006,18 +3669,32 @@ function generatePortfolioCanvas(studentNum, studentName) {
     ctx.fillText("나만의 알고리즘 & 순서도 설계 보고서", 50, 95);
 
     // 학생 정보 뱃지
+    const sNum = (studentNum || document.getElementById('thinker-student-num')?.value || '').trim() || "20315";
+    const sName = (studentName || document.getElementById('thinker-student-name')?.value || '').trim() || "홍길동";
     ctx.fillStyle = "rgba(255, 255, 255, 0.25)";
     roundRect(ctx, W - 240, 50, 190, 48, 12, true, false);
     ctx.fillStyle = "#ffffff";
     ctx.font = "bold 16px 'Pretendard', sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText(`${studentNum} ${studentName}`, W - 145, 80);
+    ctx.fillText(`${sNum} ${sName}`, W - 145, 80);
     ctx.textAlign = "left";
 
     let curY = 150;
 
     // 섹션 1: 추상화 문제 정의
-    const pres = window.latestAbstractionPrescription || (window.defaultAbstractionPresets ? window.defaultAbstractionPresets[0] : null);
+    const pres = window.latestAbstractionPrescription;
+    const curStatus = (document.getElementById('thinker-cur-status')?.value || '').trim()
+      || (pres ? pres.currentStatus : '')
+      || (nlCards[0]?.text ? `[${nlCards[0].text}] 시작 전 상태` : '알고리즘 문제 초기 상태');
+
+    const goalStatus = (document.getElementById('thinker-goal-status')?.value || '').trim()
+      || (pres ? pres.goalStatus : '')
+      || (nlCards[nlCards.length - 1]?.text ? `[${nlCards[nlCards.length - 1].text}] 완수 및 목표 달성` : '알고리즘 문제 최종 해결!');
+
+    const coreVars = (pres && pres.coreVariables && pres.coreVariables.length > 0)
+      ? pres.coreVariables.join(', ')
+      : '입력 조건 및 핵심 제어 변수';
+
     ctx.fillStyle = "#faf5ff";
     ctx.strokeStyle = "#e9d5ff";
     roundRect(ctx, 30, curY, W - 60, 110, 16, true, true);
@@ -3028,9 +3705,9 @@ function generatePortfolioCanvas(studentNum, studentName) {
 
     ctx.fillStyle = "#334155";
     ctx.font = "14px 'Pretendard', sans-serif";
-    ctx.fillText(`• 현재 상태: ${pres ? pres.currentStatus : '등교 준비 지연'}`, 50, curY + 58);
-    ctx.fillText(`• 목표 상태: ${pres ? pres.goalStatus : '지각 없이 정시 등교 성공!'}`, 50, curY + 80);
-    ctx.fillText(`• 핵심 변수: ${pres && pres.coreVariables ? pres.coreVariables.join(', ') : '현재 시각, 알람 소리'}`, 440, curY + 58);
+    ctx.fillText(`• 현재 상태: ${curStatus}`, 50, curY + 58);
+    ctx.fillText(`• 목표 상태: ${goalStatus}`, 50, curY + 80);
+    ctx.fillText(`• 핵심 변수: ${coreVars}`, 440, curY + 58);
 
     curY += 130;
 
@@ -3064,14 +3741,31 @@ function generatePortfolioCanvas(studentNum, studentName) {
     ctx.font = "bold 15px 'Pretendard', sans-serif";
     ctx.fillText("📐 3. 완성된 순서도 다이어그램", 50, curY + 30);
 
-    // 블록 그리기
+    // 블록 그리기 (실제 실행 순서 보장: 시작 ➔ 중간 블록들 ➔ 종료)
     const canvasCenterX = W / 2;
     let bY = curY + 50;
-    freeBlocks.slice(0, 5).forEach((b, i) => {
+
+    const orderedBlocks = getFlowchartOrderedBlocks();
+    let displayBlocks = [];
+    if (orderedBlocks.length <= 5) {
+      displayBlocks = orderedBlocks;
+    } else {
+      const start = orderedBlocks[0];
+      const end = orderedBlocks[orderedBlocks.length - 1];
+      const middle = orderedBlocks.slice(1, orderedBlocks.length - 1);
+      displayBlocks = [start, ...middle.slice(0, 3), end];
+    }
+
+    displayBlocks.forEach((b, i) => {
       ctx.lineWidth = 2.5;
       const bw = 240;
       const bh = 42;
       const bx = canvasCenterX - bw / 2;
+
+      let displayText = b.text || '';
+      if (displayText.length > 18) {
+        displayText = displayText.substring(0, 17) + '…';
+      }
 
       if (b.shape === 'terminal') {
         // 완전 타원 알약형
@@ -3081,7 +3775,7 @@ function generatePortfolioCanvas(studentNum, studentName) {
         ctx.fillStyle = "#581c87";
         ctx.font = "bold 13px 'Pretendard', sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText(`⬭ ${b.text}`, canvasCenterX, bY + 26);
+        ctx.fillText(`⬭ ${displayText}`, canvasCenterX, bY + 26);
       } else if (b.shape === 'io') {
         // 평행사변형
         ctx.fillStyle = "#ecfdf5";
@@ -3098,7 +3792,7 @@ function generatePortfolioCanvas(studentNum, studentName) {
         ctx.fillStyle = "#064e3b";
         ctx.font = "bold 13px 'Pretendard', sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText(`▱ ${b.text}`, canvasCenterX, bY + 26);
+        ctx.fillText(`▱ ${displayText}`, canvasCenterX, bY + 26);
       } else if (b.shape === 'decision') {
         // 마름모 다이아몬드
         ctx.fillStyle = "#fffbeb";
@@ -3114,7 +3808,7 @@ function generatePortfolioCanvas(studentNum, studentName) {
         ctx.fillStyle = "#78350f";
         ctx.font = "bold 12px 'Pretendard', sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText(`◇ ${b.text}`, canvasCenterX, bY + 26);
+        ctx.fillText(`◇ ${displayText}`, canvasCenterX, bY + 26);
       } else {
         // 처리 (직사각형)
         ctx.fillStyle = "#eff6ff";
@@ -3123,11 +3817,11 @@ function generatePortfolioCanvas(studentNum, studentName) {
         ctx.fillStyle = "#1e3a8a";
         ctx.font = "bold 13px 'Pretendard', sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText(`▭ ${b.text}`, canvasCenterX, bY + 26);
+        ctx.fillText(`▭ ${displayText}`, canvasCenterX, bY + 26);
       }
       ctx.textAlign = "left";
 
-      if (i < Math.min(freeBlocks.length - 1, 4)) {
+      if (i < displayBlocks.length - 1) {
         ctx.strokeStyle = "#64748b";
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -3140,18 +3834,33 @@ function generatePortfolioCanvas(studentNum, studentName) {
 
     curY += 360;
 
-    // 섹션 4: 총평 및 합격 스탬프
-    ctx.fillStyle = "#f8fafc";
-    ctx.strokeStyle = "#cbd5e1";
-    roundRect(ctx, 30, curY, W - 60, 70, 14, true, true);
+    // 섹션 4: 총평 및 조건부 합격 스탬프
+    const isAiPassed = !!window.isFlowchartAiPassed;
+    if (isAiPassed) {
+      ctx.fillStyle = "#ecfdf5";
+      ctx.strokeStyle = "#a7f3d0";
+      roundRect(ctx, 30, curY, W - 60, 70, 14, true, true);
 
-    ctx.fillStyle = "#475569";
-    ctx.font = "bold 13px 'Pretendard', sans-serif";
-    ctx.fillText("🤖 Solar AI 감수: 일상 문제를 컴퓨터적 제어 구조(순차·선택·반복)로 완벽히 설계함.", 50, curY + 40);
+      ctx.fillStyle = "#064e3b";
+      ctx.font = "bold 13px 'Pretendard', sans-serif";
+      ctx.fillText("🤖 Solar AI 감수: 일상 문제를 컴퓨터적 제어 구조(순차·선택·반복)로 완벽히 설계함.", 50, curY + 40);
 
-    ctx.fillStyle = "#4f46e5";
-    ctx.font = "black 14px 'Pretendard', sans-serif";
-    ctx.fillText("💮 합격 인증", W - 140, curY + 40);
+      ctx.fillStyle = "#059669";
+      ctx.font = "900 15px 'Pretendard', sans-serif";
+      ctx.fillText("💮 공식 합격 인증", W - 150, curY + 40);
+    } else {
+      ctx.fillStyle = "#fffbeb";
+      ctx.strokeStyle = "#fde68a";
+      roundRect(ctx, 30, curY, W - 60, 70, 14, true, true);
+
+      ctx.fillStyle = "#78350f";
+      ctx.font = "bold 13px 'Pretendard', sans-serif";
+      ctx.fillText("🤖 Solar AI 감수: 현재 알고리즘 설계 및 순서도 보완 실습 진행 중.", 50, curY + 40);
+
+      ctx.fillStyle = "#d97706";
+      ctx.font = "bold 14px 'Pretendard', sans-serif";
+      ctx.fillText("⏳ 감수 미완료 (실습 중)", W - 180, curY + 40);
+    }
 
     resolve(canvas);
   });

@@ -1900,17 +1900,11 @@
                   <!-- 동적 렌더링 -->
                 </div>
 
-                <!-- AI 감수 진단 카드 & 버튼 -->
-                <div class="pt-2 border-t border-slate-100 space-y-2 shrink-0">
-                  <button onclick="diagnoseFreeAlgorithmWithSolarAI()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-xs">
+                <!-- AI 감수 버튼 (결과는 전용 모달 팝업으로 띄워 자연어 영역 공간 100% 보존) -->
+                <div class="pt-2 border-t border-slate-100 shrink-0">
+                  <button id="btn-free-ai-diagnose" onclick="diagnoseFreeAlgorithmWithSolarAI()" class="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-black rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-xs active:scale-98">
                     <i class="fa-solid fa-wand-magic-sparkles text-[11px]"></i> <span>Solar AI 알고리즘 감수</span>
                   </button>
-                  <div id="free-ai-feedback-card" class="hidden p-3 rounded-xl border border-slate-200 bg-slate-50 text-xs space-y-1 transition-all max-h-[140px] overflow-y-auto">
-                    <div class="font-bold text-slate-800 flex items-center gap-1.5">
-                      <span>🤖</span> <span>AI 감수 결과</span>
-                    </div>
-                    <div id="free-ai-feedback-text" class="text-slate-700 leading-relaxed font-medium"></div>
-                  </div>
                 </div>
               </div>
 
@@ -2062,12 +2056,12 @@
   </footer>
 
 <!-- ========================================== -->
-  <!-- 🤖 [전체 페이지 상주] 실시간 AI 학습 도우미 챗봇 -->
+  <!-- 🤖 [전체 페이지 상주] 실시간 AI 학습 도우미 챗봇 (우측 벽면 쇽 튀어나오는 피커부) -->
   <!-- ========================================== -->
-  <div class="fixed bottom-24 right-5 sm:bottom-24 sm:right-6 z-40 flex flex-col items-end">
+  <div id="tutor-chat-container" class="fixed bottom-7 right-0 z-40 flex flex-col items-end pointer-events-none">
     
     <!-- 챗봇 팝업 윈도우 -->
-    <div id="tutor-chat-window" class="hidden mb-3 w-[320px] sm:w-[380px] h-[480px] bg-white rounded-3xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden chatbot-enter">
+    <div id="tutor-chat-window" class="hidden mb-3 mr-3 w-[320px] sm:w-[380px] h-[480px] bg-white rounded-3xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden chatbot-enter pointer-events-auto">
       
       <!-- 챗봇 헤더 -->
       <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white flex items-center justify-between shadow-xs">
@@ -2118,9 +2112,10 @@
 
     </div>
 
-    <!-- 챗봇 플로팅 토글 버튼 (FAB) -->
-    <button onclick="toggleTutorChat()" id="tutor-fab-btn" class="w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-2xl flex items-center justify-center text-2xl transition-transform hover:scale-105 active:scale-95" title="AI 학습 도우미 열기">
-      <i class="fa-solid fa-comment-dots"></i>
+    <!-- 챗봇 피커부 탭 토글 버튼 (우측 벽면 반숨김 ➔ 호버/클릭 시 쇽 튀어나옴) -->
+    <button onclick="toggleTutorChat()" id="tutor-fab-btn" class="chatbot-peek-tab pointer-events-auto" title="AI 학습 도우미 열기">
+      <i class="fa-solid fa-comment-dots text-lg"></i>
+      <span class="text-xs font-black tracking-tight select-none">AI 튜터</span>
     </button>
 
   </div>
@@ -2137,7 +2132,7 @@
               <h3 class="text-lg md:text-xl font-black text-slate-900" id="modal-sandwich-title">샌드위치 완성!</h3>
               <span class="text-xs font-bold px-2.5 py-0.5 rounded-full" id="modal-success-badge">완성</span>
             </div>
-            <p class="text-xs text-slate-400 mt-0.5">패들렛 과제 제출을 위한 학생 알고리즘 기록입니다.</p>
+            <p class="text-xs text-slate-400">패들렛 과제 제출을 위한 학생 알고리즘 기록입니다.</p>
           </div>
         </div>
         <button onclick="closeSummaryModal()" class="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-base transition">
@@ -2153,22 +2148,20 @@
           <span class="text-xs sm:text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
             <i class="fa-solid fa-code text-blue-600"></i> &lt;학생이 작성한 알고리즘 순서도&gt;
           </span>
-          <span class="text-xs text-slate-400 font-mono" id="modal-step-count">총 0단계 실행됨</span>
+          <span class="text-xs text-slate-400">우측 상단 복사 버튼을 눌러보세요.</span>
         </div>
-        
-        <div id="modal-algorithm-steps" class="flex-1 bg-slate-900 text-slate-100 p-5 rounded-2xl font-mono overflow-y-auto space-y-3 border border-slate-800 shadow-inner max-h-[380px]">
+        <div class="flex-1 bg-slate-900 rounded-2xl p-4 overflow-y-auto border border-slate-800 font-mono text-xs sm:text-sm text-emerald-400 select-all" id="modal-algorithm-code">
         </div>
       </div>
 
-      <div class="flex gap-3 pt-3 border-t border-slate-100">
-        <button onclick="copyAlgorithmToClipboard()" id="copy-btn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-2xl text-xs sm:text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-blue-600/25">
-          <i class="fa-solid fa-copy"></i> 패들렛 제출용 전체 텍스트 복사하기
+      <div class="flex flex-col sm:flex-row gap-3 pt-2">
+        <button onclick="copyPadletFormat()" class="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-sm transition-all shadow-md shadow-blue-500/20 flex items-center justify-center gap-2">
+          <i class="fa-solid fa-clipboard"></i> 띵커보드 제출 양식 복사하기
         </button>
-        <button onclick="closeSummaryModal()" class="px-6 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 rounded-2xl text-xs sm:text-sm transition">
+        <button onclick="closeSummaryModal()" class="py-3 px-6 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-2xl text-sm transition">
           닫기
         </button>
       </div>
-
     </div>
   </div>
 
@@ -2203,6 +2196,75 @@
   <script src="js/app.js"></script>
 
   <!-- ========================================== -->
+  <!-- ⚡ [순서도 가상 실행 검증 입력 모달] 입출력 값 사전 수집기 -->
+  <!-- ========================================== -->
+  <div id="flowchart-sim-input-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 fade-enter">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-lg font-black">📥</div>
+          <div>
+            <h3 class="text-base font-black text-slate-900">순서도 실행 검증: 입력값 설정</h3>
+            <p class="text-xs text-slate-400">순서도에 배치된 입출력 블록의 가상 값을 넣어주세요.</p>
+          </div>
+        </div>
+        <button onclick="closeSimInputModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-xs transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- 동적으로 생성되는 입력 필드 영역 -->
+      <div id="sim-input-fields" class="space-y-3 max-h-[260px] overflow-y-auto custom-scroll pr-1">
+        <!-- JS에서 렌더링 -->
+      </div>
+
+      <div class="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+        <button onclick="closeSimInputModal()" class="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition">
+          취소
+        </button>
+        <button onclick="startSimulationWithInputs()" class="px-5 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 rounded-xl shadow-md shadow-emerald-500/20 flex items-center gap-1.5 transition active:scale-95">
+          <i class="fa-solid fa-play text-[10px]"></i>
+          <span>▶ 실행 검증 시작</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 🤖 [Solar AI 알고리즘 감수 모달] 정량 대조 & 맞춤 처방 진단서 (방안 A) -->
+  <!-- ========================================== -->
+  <div id="flowchart-ai-audit-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-xl w-full p-5 sm:p-6 space-y-4 max-h-[90vh] overflow-y-auto custom-scroll fade-enter">
+      
+      <!-- 헤더 -->
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-xl font-black">🤖</div>
+          <div>
+            <h3 class="text-base font-black text-slate-900">Solar AI 알고리즘 정밀 감수 리포트</h3>
+            <p class="text-xs text-slate-400">자연어 기획서와 순서도 캔버스를 2단계로 정밀 대조 진단합니다.</p>
+          </div>
+        </div>
+        <button onclick="closeAiAuditModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-xs transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- 동적 감수 결과 컨텐츠 영역 -->
+      <div id="flowchart-ai-audit-content" class="space-y-3.5 text-xs sm:text-sm">
+        <!-- JS에서 동적 주입 -->
+      </div>
+
+      <!-- 하단 액션 버튼 -->
+      <div id="flowchart-ai-audit-actions" class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+        <button onclick="closeAiAuditModal()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition">
+          순서도로 돌아가기
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
   <!-- 🎓 [띵커보드 제출 모달] 원클릭 이미지 복사 & 제출기 -->
   <!-- ========================================== -->
   <div id="thinker-submission-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
@@ -2231,6 +2293,24 @@
         <div>
           <label class="block text-xs font-black text-slate-700 mb-1">이름 (예: 홍길동)</label>
           <input type="text" id="thinker-student-name" value="홍길동" oninput="updateThinkerCardPreview()" placeholder="이름 입력" class="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-800 focus:outline-none focus:border-indigo-500" />
+        </div>
+      </div>
+
+      <!-- 💡 문제 상황 및 목표 상태 입력창 (처방전 연동 또는 10초 직접 작성) -->
+      <div class="p-3.5 bg-violet-50/70 border border-violet-200 rounded-2xl space-y-2">
+        <div class="flex items-center justify-between text-xs font-black text-violet-900">
+          <span class="flex items-center gap-1.5"><i class="fa-solid fa-lightbulb text-violet-600"></i> 1. 문제 분석 및 목표 상태 (10초 점검)</span>
+          <span class="text-[10px] text-violet-500 font-medium">자신이 짠 알고리즘에 맞게 수정해 보세요!</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-0.5">현재 상태 (문제 발생 시점)</label>
+            <input type="text" id="thinker-cur-status" oninput="updateThinkerCardPreview()" placeholder="예: 나이를 아직 확인하지 않은 상태" class="w-full px-3 py-1.5 bg-white border border-violet-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-violet-500" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-0.5">목표 상태 (최종 해결 모습)</label>
+            <input type="text" id="thinker-goal-status" oninput="updateThinkerCardPreview()" placeholder="예: 15세 이상 여부에 맞게 적절한 안내 제공" class="w-full px-3 py-1.5 bg-white border border-violet-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-violet-500" />
+          </div>
         </div>
       </div>
 
