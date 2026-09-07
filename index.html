@@ -1865,7 +1865,7 @@
           <!-- 순서도 3단 스튜디오 (엔트리 스타일 무간격 일체형 프레임) -->
           <div class="entry-studio-container">
             
-            <!-- [1단 좌측] 3대 제어구조 자연어 기획서 & Solar AI 감수 -->
+            <!-- [1단 좌측] 3대 제어구조 자연어 기획서 & Solar AI 설계 검사 -->
             <section class="bg-white p-3 sm:p-3.5 flex flex-col gap-2.5 h-full overflow-hidden relative border-r border-slate-200">
               <!-- 펼침 뷰 -->
               <div class="nl-panel-full-view flex flex-col gap-2.5 h-full overflow-hidden flex-1">
@@ -1896,14 +1896,14 @@
                 </div>
 
                 <!-- 자연어 카드 리스트 (스크롤) -->
-                <div id="nl-cards-container" class="flex flex-col gap-2.5 overflow-y-auto flex-1 pr-1 min-h-[220px]">
+                <div id="nl-cards-container" class="flex flex-col gap-2.5 overflow-y-auto flex-1 pr-1 pb-16 min-h-[220px]">
                   <!-- 동적 렌더링 -->
                 </div>
 
-                <!-- AI 감수 버튼 (결과는 전용 모달 팝업으로 띄워 자연어 영역 공간 100% 보존) -->
+                <!-- AI 설계 검사 버튼 (결과는 전용 모달 팝업으로 띄워 자연어 영역 공간 100% 보존) -->
                 <div class="pt-2 border-t border-slate-100 shrink-0">
                   <button id="btn-free-ai-diagnose" onclick="diagnoseFreeAlgorithmWithSolarAI()" class="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-black rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-xs active:scale-98">
-                    <i class="fa-solid fa-wand-magic-sparkles text-[11px]"></i> <span>Solar AI 알고리즘 감수</span>
+                    <i class="fa-solid fa-wand-magic-sparkles text-[11px]"></i> <span>Solar AI 설계 검사</span>
                   </button>
                 </div>
               </div>
@@ -1992,6 +1992,9 @@
                   <button onclick="openPrescriptionModal()" class="px-2.5 py-1.5 bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-200 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer" title="처방전으로 초안 채우기">
                     <i class="fa-solid fa-wand-magic-sparkles text-[10px]"></i> <span>처방전 채우기</span>
                   </button>
+                  <button onclick="resetCanvasPan()" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer" title="캔버스 화면 중앙으로 정렬">
+                    <i class="fa-solid fa-crosshairs text-[10px] text-slate-500"></i> <span>화면 중앙</span>
+                  </button>
                   <button onclick="autoAlignCanvas()" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer" title="블록 세로 자동 정렬">
                     <i class="fa-solid fa-align-center text-[10px]"></i> <span>정렬</span>
                   </button>
@@ -2003,9 +2006,9 @@
                     <i class="fa-solid fa-play text-[10px]"></i> <span>실행 검증</span>
                   </button>
                   <!-- 띵커보드 원클릭 제출 버튼 -->
-                  <button onclick="openThinkerSubmissionModal()" class="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm cursor-pointer">
-                    <i class="fa-solid fa-paper-plane text-[10px]"></i>
-                    <span>띵커보드 제출</span>
+                  <button id="btn-toolbar-thinker-submit" onclick="openThinkerSubmissionModal()" class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black rounded-xl text-xs transition flex items-center gap-1.5 border border-slate-300 shadow-2xs cursor-pointer" disabled>
+                    <i class="fa-solid fa-lock text-[10px] text-amber-500"></i>
+                    <span>AI 검사 후 제출</span>
                   </button>
                 </div>
               </div>
@@ -2013,14 +2016,14 @@
               <!-- 순서도 자유 캔버스 영역 (화면을 꽉 채우는 도트 모눈 그리드 & D&D 드롭존) -->
               <div id="free-flowchart-canvas" class="w-full flex-1 entry-canvas-grid relative overflow-hidden select-none min-h-[560px]" ondragover="handleCanvasDragOver(event)" ondrop="handleCanvasDrop(event)">
                 <!-- 캔버스 단일 가상 작업대 (Stage Layer, 100% 절대 좌표계) -->
-                <div id="free-flowchart-stage" class="relative w-full h-full min-h-[750px]">
+                <div id="free-flowchart-stage" class="relative w-full h-full min-h-[750px] pointer-events-auto">
                   <svg id="free-flowchart-svg" class="absolute inset-0 w-full h-full pointer-events-auto overflow-visible"></svg>
                 </div>
                 
                 <!-- 하단 좌측 조작 가이드 안내 -->
                 <div class="absolute bottom-3.5 left-3.5 bg-white/90 backdrop-blur-xs border border-slate-200 px-3 py-1.5 rounded-xl text-[11px] text-slate-600 font-medium pointer-events-none shadow-2xs flex items-center gap-2 z-10">
                   <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <span>도형 4방향 파란 점을 드래그해 연결 · Delete 키로 삭제</span>
+                  <span>빈 화면 드래그로 캔버스 이동 · 파란 점 드래그해 연결 · Delete 키로 삭제</span>
                 </div>
 
                 <!-- 캔버스 대형 휴지통 드롭존 (엔트리 스타일) -->
@@ -2231,7 +2234,7 @@
   </div>
 
   <!-- ========================================== -->
-  <!-- 🤖 [Solar AI 알고리즘 감수 모달] 정량 대조 & 맞춤 처방 진단서 (방안 A) -->
+  <!-- 🤖 [Solar AI 알고리즘 설계 검사 모달] 정량 대조 & 맞춤 처방 진단서 (방안 A) -->
   <!-- ========================================== -->
   <div id="flowchart-ai-audit-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-xl w-full p-5 sm:p-6 space-y-4 max-h-[90vh] overflow-y-auto custom-scroll fade-enter">
@@ -2241,8 +2244,8 @@
         <div class="flex items-center gap-2.5">
           <div class="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-xl font-black">🤖</div>
           <div>
-            <h3 class="text-base font-black text-slate-900">Solar AI 알고리즘 정밀 감수 리포트</h3>
-            <p class="text-xs text-slate-400">자연어 기획서와 순서도 캔버스를 2단계로 정밀 대조 진단합니다.</p>
+            <h3 class="text-base font-black text-slate-900">Solar AI 알고리즘 설계 검사 리포트</h3>
+            <p class="text-xs text-slate-400">자연어 기획서와 순서도 캔버스를 2단계로 정밀 대조 검사합니다.</p>
           </div>
         </div>
         <button onclick="closeAiAuditModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-xs transition">
@@ -2250,7 +2253,7 @@
         </button>
       </div>
 
-      <!-- 동적 감수 결과 컨텐츠 영역 -->
+      <!-- 동적 검사 결과 컨텐츠 영역 -->
       <div id="flowchart-ai-audit-content" class="space-y-3.5 text-xs sm:text-sm">
         <!-- JS에서 동적 주입 -->
       </div>
@@ -2547,13 +2550,13 @@
               <label class="text-xs font-black text-slate-700 flex items-center gap-1.5">
                 <span class="text-violet-600">📍</span> <span>현재 상태 (어떤 상황인가요?)</span>
               </label>
-              <input type="text" id="pres-custom-cur" class="w-full text-xs sm:text-sm bg-white border border-slate-300 rounded-xl px-3 py-2 font-bold text-slate-900 focus:outline-none focus:border-violet-500 transition" placeholder="예: 목이 마른데 동전을 쥐고 자판기 앞에 서 있는 상태">
+              <textarea id="pres-custom-cur" rows="2" class="w-full text-xs sm:text-sm bg-white border border-slate-300 rounded-xl px-3 py-2 font-bold text-slate-900 focus:outline-none focus:border-violet-500 resize-none leading-relaxed transition" placeholder="예: 목이 마른데 동전을 쥐고 자판기 앞에 서 있는 상태"></textarea>
             </div>
             <div class="space-y-1">
               <label class="text-xs font-black text-slate-700 flex items-center gap-1.5">
                 <span class="text-emerald-600">🎯</span> <span>목표 상태 (무엇을 이루고 싶나요?)</span>
               </label>
-              <input type="text" id="pres-custom-goal" class="w-full text-xs sm:text-sm bg-white border border-slate-300 rounded-xl px-3 py-2 font-bold text-slate-900 focus:outline-none focus:border-emerald-500 transition" placeholder="예: 동전을 투입하여 원하는 시원한 음료수를 뽑아 마시는 상태">
+              <textarea id="pres-custom-goal" rows="2" class="w-full text-xs sm:text-sm bg-white border border-slate-300 rounded-xl px-3 py-2 font-bold text-slate-900 focus:outline-none focus:border-emerald-500 resize-none leading-relaxed transition" placeholder="예: 동전을 투입하여 원하는 시원한 음료수를 뽑아 마시는 상태"></textarea>
             </div>
           </div>
 
@@ -2583,7 +2586,7 @@
               <span class="w-2 h-2 rounded-full bg-violet-600"></span>
               <span>1. 해결할 문제 상황 (목표)</span>
             </label>
-            <input type="text" id="pres-inp-goal" class="w-full text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 font-bold text-slate-900 focus:outline-none focus:border-violet-500 focus:bg-white transition" placeholder="예: 맛있는 샌드위치 조리">
+            <textarea id="pres-inp-goal" rows="1" class="w-full text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 font-bold text-slate-900 focus:outline-none focus:border-violet-500 focus:bg-white resize-none leading-relaxed transition" placeholder="예: 맛있는 샌드위치 조리"></textarea>
           </div>
 
           <div class="space-y-1">

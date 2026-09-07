@@ -416,11 +416,22 @@
   transform: translateY(1px) scale(0.98);
 }
 
-/* 엔트리 스타일 도트 모눈 캔버스 배경 */
+/* 엔트리 스타일 도트 모눈 캔버스 배경 & 무한 드래그 팬(Pan) */
 .entry-canvas-grid {
   background-color: #f8fafc;
   background-image: radial-gradient(#cbd5e1 1.2px, transparent 1.2px);
   background-size: 20px 20px;
+  cursor: grab;
+}
+.entry-canvas-grid.canvas-panning {
+  cursor: grabbing !important;
+  user-select: none;
+}
+.free-block {
+  cursor: move;
+}
+#free-flowchart-stage {
+  will-change: transform;
 }
 
 /* 엔트리 블록 카테고리 태그 뱃지 */

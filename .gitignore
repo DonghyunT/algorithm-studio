@@ -6,6 +6,7 @@
 
 # 임시 파일
 temp_results.txt
+temp_*.txt
 
 # 스크린샷 (개발용)
 screenshot_*.png

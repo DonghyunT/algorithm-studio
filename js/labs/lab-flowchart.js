@@ -987,9 +987,27 @@ let freeBlocks = [];
 let freeConnections = [];
 let nextBlockId = 1;
 
-// AI 감수 통과 및 시뮬레이션 완주 상태 플래그
+// AI 설계 검사 통과 및 시뮬레이션 완주 상태 플래그
 window.isFlowchartAiPassed = false;
 window.isFlowchartSimValidated = false;
+
+// 상단 툴바 띵커보드 제출 버튼 상태 (AI 검사 통과 시 활성화)
+function updateThinkerToolbarButton() {
+  const btn = document.getElementById('btn-toolbar-thinker-submit');
+  if (!btn) return;
+  if (window.isFlowchartAiPassed) {
+    btn.disabled = false;
+    btn.className = "px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm shadow-emerald-500/25 active:scale-95 cursor-pointer animate-pulse";
+    btn.innerHTML = `<i class="fa-solid fa-paper-plane text-[10px]"></i> <span>띵커보드 제출</span>`;
+    btn.title = "AI 검사를 통과했습니다! 띵커보드에 포트폴리오를 제출하세요.";
+  } else {
+    btn.disabled = false;
+    btn.className = "px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black rounded-xl text-xs transition flex items-center gap-1.5 border border-slate-300 shadow-2xs cursor-pointer";
+    btn.innerHTML = `<i class="fa-solid fa-lock text-[10px] text-amber-500"></i> <span>AI 검사 후 제출</span>`;
+    btn.title = "AI 설계 검사 통과 후 띵커보드에 제출할 수 있습니다";
+  }
+}
+window.updateThinkerToolbarButton = updateThinkerToolbarButton;
 
 // 캔버스 드래그 및 선 잇기 상태
 let isDraggingBlock = false;
@@ -999,10 +1017,94 @@ let dragOffset = { x: 0, y: 0 };
 let isConnecting = false;
 let connectionSource = null; // { blockId, portType }
 
+// 캔버스 엔트리식 무한 드래그 팬(Pan) 상태
+let canvasPanX = 0;
+let canvasPanY = 0;
+let isPanningCanvas = false;
+let panStartMouseX = 0;
+let panStartMouseY = 0;
+let panStartCanvasX = 0;
+let panStartCanvasY = 0;
+
+function applyCanvasPan() {
+  const stage = document.getElementById('free-flowchart-stage');
+  const canvas = document.getElementById('free-flowchart-canvas');
+  if (stage) {
+    stage.style.transform = `translate(${canvasPanX}px, ${canvasPanY}px)`;
+  }
+  if (canvas) {
+    canvas.style.backgroundPosition = `${canvasPanX}px ${canvasPanY}px`;
+  }
+}
+
+function resetCanvasPan() {
+  canvasPanX = 0;
+  canvasPanY = 0;
+  applyCanvasPan();
+  if (typeof playSfx === 'function') playSfx('snap');
+}
+
+function initCanvasPanning() {
+  const canvas = document.getElementById('free-flowchart-canvas');
+  if (!canvas || window._canvasPanningInitialized) return;
+  window._canvasPanningInitialized = true;
+
+  canvas.addEventListener('mousedown', (e) => {
+    // 블록, 포트, 휴지통, 상단 툴바, 폼 입력 요소 클릭 시 팬 모드 제외
+    if (
+      e.target.closest('.free-block') || 
+      e.target.closest('.flow-port') || 
+      e.target.closest('#entry-trash-zone') ||
+      e.target.closest('button') ||
+      e.target.closest('input') ||
+      e.target.closest('textarea')
+    ) {
+      return;
+    }
+
+    isPanningCanvas = true;
+    panStartMouseX = e.clientX;
+    panStartMouseY = e.clientY;
+    panStartCanvasX = canvasPanX;
+    panStartCanvasY = canvasPanY;
+    canvas.classList.add('canvas-panning');
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!isPanningCanvas) return;
+    const dx = e.clientX - panStartMouseX;
+    const dy = e.clientY - panStartMouseY;
+    canvasPanX = panStartCanvasX + dx;
+    canvasPanY = panStartCanvasY + dy;
+    applyCanvasPan();
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (isPanningCanvas) {
+      isPanningCanvas = false;
+      const canvas = document.getElementById('free-flowchart-canvas');
+      if (canvas) canvas.classList.remove('canvas-panning');
+    }
+  });
+}
+
 function initLevel3FreeStudio() {
   renderNlCards();
   renderFreeCanvas();
   renderPresetBadges();
+  initCanvasPanning();
+}
+
+function autoResizePresTextarea(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = Math.max(30, el.scrollHeight) + 'px';
+}
+
+function autoResizeAllPresTextareas() {
+  setTimeout(() => {
+    document.querySelectorAll('.auto-expand-pres-input').forEach(ta => autoResizePresTextarea(ta));
+  }, 30);
 }
 
 // --------------------------------------------------
@@ -1230,61 +1332,62 @@ function applyBadgeToCard(badgeText) {
   }
 }
 
-// --------------------------------------------------
+/// --------------------------------------------------
 // 🩺 스마트 문제 분석 & 다단계 순서도 처방전 팝업 엔진
 // --------------------------------------------------
 const PRESCRIPTION_PRESETS = {
   weather: {
     title: "오늘 날씨별 옷차림 추천",
-    goal: "오늘 날씨에 딱 맞는 옷차림을 결정한다",
+    goal: "오늘 기온에 맞는 옷차림 결정",
     variables: "현재 기온, 옷차림",
     steps: [
-      { type: "seq", text: "기상청 앱을 켜고 오늘의 현재 기온을 확인(입력)한다." },
-      { type: "sel", condition: "현재 기온이 4℃ 이하인가?", yesAction: "두꺼운 롱패딩과 기모 바지를 입는다", noAction: "가벼운 코트나 재킷을 입는다" },
-      { type: "seq", text: "따뜻하고 쾌적하게 등교 외출 준비를 완료한다." }
+      { type: "seq", text: "오늘 현재 기온 확인하기" },
+      { type: "sel", condition: "현재 기온이 4℃ 이하인가?", yesAction: "두꺼운 롱패딩 착용", noAction: "가벼운 외투 착용" },
+      { type: "seq", text: "등교 외출 준비 완료" }
     ]
   },
   school: {
     title: "지각 방지 등교 작전",
-    goal: "8시 10분 등교 버스를 안전하게 탑승한다",
-    variables: "현재 시각, 알람 소리, 준비 시간",
+    goal: "8시 10분 등교 버스 탑승",
+    variables: "현재 시각, 알람 소리",
     steps: [
-      { type: "seq", text: "오전 7시 알람 소리를 듣고 침대에서 기상한다." },
-      { type: "seq", text: "세수를 하고 교복을 단정하게 입는다." },
-      { type: "sel", condition: "현재 시각이 7시 40분 이전인가?", yesAction: "든든하게 아침 식사를 하고 정류장으로 이동한다", noAction: "간단한 간식을 챙겨 서둘러 정류장으로 달린다" },
-      { type: "seq", text: "8시 10분 정류장에 도착하여 등교 버스에 안전하게 탑승한다." }
+      { type: "seq", text: "오전 7시 알람 듣고 기상" },
+      { type: "seq", text: "세수 후 교복 착용" },
+      { type: "sel", condition: "현재 시각이 7시 40분 이전인가?", yesAction: "아침 식사 후 정류장 이동", noAction: "서둘러 정류장으로 이동" },
+      { type: "seq", text: "등교 버스 안전 탑승" }
     ]
   },
   sandwich: {
     title: "통새우 샌드위치 조리",
-    goal: "맛있는 통새우 샌드위치를 완성한다",
-    variables: "식빵 2장, 딸기잼, 통새우, 양상추, 치즈, 토마토",
+    goal: "맛있는 통새우 샌드위치 완성",
+    variables: "식빵, 딸기잼, 통새우, 치즈",
     steps: [
-      { type: "seq", text: "식빵 2장을 토스터기에 넣고 1분간 노릇노릇하게 굽는다." },
-      { type: "seq", text: "구운 식빵 한쪽 면에 달콤한 딸기잼과 버터를 골고루 바른다." },
-      { type: "seq", text: "양상추, 구운 통새우, 체다 치즈, 토마토를 순서대로 차곡차곡 올린다." },
-      { type: "sel", condition: "치즈를 따뜻하게 녹여서 먹을 것인가?", yesAction: "전자레인지에 넣고 20초간 살짝 데운다", noAction: "신선한 상태 그대로 조리를 진행한다" },
-      { type: "seq", text: "나머지 식빵 한 장을 덮고 먹기 좋은 크기로 반을 자른다." }
+      { type: "seq", text: "식빵 2장 굽기" },
+      { type: "seq", text: "식빵에 딸기잼 바르기" },
+      { type: "seq", text: "양상추와 통새우 올리기" },
+      { type: "sel", condition: "치즈를 녹여 먹을 것인가?", yesAction: "전자레인지 20초 데우기", noAction: "신선한 상태로 계속 조리" },
+      { type: "seq", text: "나머지 식빵 덮고 자르기" }
     ]
   },
   login: {
     title: "비밀번호 5회 검증",
-    goal: "비밀번호 검증을 통과하여 시스템에 로그인한다",
-    variables: "입력 아이디, 입력 비밀번호, 시도 횟수",
+    goal: "비밀번호 검증 후 로그인",
+    variables: "입력 아이디, 입력 비밀번호",
     steps: [
-      { type: "seq", text: "로그인 창에 사용자 아이디와 비밀번호를 입력받는다." },
-      { type: "sel", condition: "입력한 비밀번호가 등록된 암호와 일치하는가?", yesAction: "로그인 성공 메시지를 띄우고 메인 화면으로 이동한다", noAction: "비밀번호 오류 알림을 띄우고 재입력을 요청한다" },
-      { type: "seq", text: "안전하게 서비스 메인 화면에 진입한다." }
+      { type: "seq", text: "아이디와 비밀번호 입력" },
+      { type: "sel", condition: "입력한 비밀번호가 일치하는가?", yesAction: "로그인 성공 후 메인 이동", noAction: "오류 안내 후 재입력 요청" },
+      { type: "seq", text: "서비스 메인 화면 진입" }
     ]
   },
   study: {
     title: "25분 집중 뽀모도로 타이머",
-    goal: "25분 집중 공부 후 5분 휴식한다",
+    goal: "25분 집중 공부 후 5분 휴식",
     variables: "공부 시간(분), 타이머 알람",
     steps: [
-      { type: "seq", text: "책상에 바른 자세로 앉아 25분 집중 공부 타이머를 시작한다." },
-      { type: "loop", condition: "공부 시간이 25분에 도달할 때까지", loopAction: "스마트폰을 보지 않고 책과 필기에만 오롯이 집중한다" },
-      { type: "seq", text: "25분 알람이 울리면 자리에서 일어나 5분간 스트레칭하며 휴식한다." }
+      { type: "seq", text: "스마트폰 방해금지 설정" },
+      { type: "seq", text: "25분 집중 타이머 시작" },
+      { type: "loop", condition: "25분에 도달할 때까지", loopAction: "필기와 공부에만 몰입" },
+      { type: "seq", text: "알람 시 5분간 스트레칭 휴식" }
     ]
   }
 };
@@ -1310,13 +1413,13 @@ function renderPrescriptionSteps() {
               <span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
               <span>단계 ${idx + 1}. [순차 실행]</span>
             </span>
-            <button type="button" onclick="removePrescriptionStep(${idx})" class="text-slate-400 hover:text-rose-500 transition px-1" title="단계 삭제">
+            <button type="button" onclick="removePrescriptionStep(${idx})" class="text-slate-400 hover:text-rose-500 transition px-1 cursor-pointer" title="단계 삭제">
               <i class="fa-solid fa-xmark text-xs"></i>
             </button>
           </div>
-          <input type="text" value="${s.text || ''}" onchange="updatePrescriptionStep(${idx}, 'text', this.value)" 
-                 class="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 font-bold text-slate-800 focus:outline-none focus:border-blue-500 focus:bg-white transition" 
-                 placeholder="수행할 동작이나 명령어 입력">
+          <textarea rows="1" oninput="autoResizePresTextarea(this); updatePrescriptionStep(${idx}, 'text', this.value)" 
+                    class="auto-expand-pres-input w-full text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 font-bold text-slate-800 focus:outline-none focus:border-blue-500 focus:bg-white resize-none leading-relaxed transition" 
+                    placeholder="수행할 핵심 단일 동작 입력 (15자 내외)">${escapeHtml(s.text || '')}</textarea>
         </div>
       `;
     } else if (s.type === 'sel') {
@@ -1327,27 +1430,27 @@ function renderPrescriptionSteps() {
               <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
               <span>단계 ${idx + 1}. [조건 분기 - 선택]</span>
             </span>
-            <button type="button" onclick="removePrescriptionStep(${idx})" class="text-amber-400 hover:text-rose-500 transition px-1" title="단계 삭제">
+            <button type="button" onclick="removePrescriptionStep(${idx})" class="text-amber-400 hover:text-rose-500 transition px-1 cursor-pointer" title="단계 삭제">
               <i class="fa-solid fa-xmark text-xs"></i>
             </button>
           </div>
           <div class="space-y-1">
-            <input type="text" value="${s.condition || ''}" onchange="updatePrescriptionStep(${idx}, 'condition', this.value)" 
-                   class="w-full text-xs bg-white border border-amber-300 rounded-lg px-2.5 py-1.5 font-bold text-amber-950 focus:outline-none focus:border-amber-500 transition" 
-                   placeholder="만약 [조건]인가? (◇ 마름모 기준)">
+            <textarea rows="1" oninput="autoResizePresTextarea(this); updatePrescriptionStep(${idx}, 'condition', this.value)" 
+                      class="auto-expand-pres-input w-full text-xs bg-white border border-amber-300 rounded-lg px-2.5 py-1.5 font-bold text-amber-950 focus:outline-none focus:border-amber-500 resize-none leading-relaxed transition" 
+                      placeholder="만약 [조건]인가? (15자 내외)">${escapeHtml(s.condition || '')}</textarea>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
             <div class="flex items-center gap-1">
               <span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-black text-[10px] flex-shrink-0">예</span>
-              <input type="text" value="${s.yesAction || ''}" onchange="updatePrescriptionStep(${idx}, 'yesAction', this.value)" 
-                     class="flex-1 text-xs bg-white border border-emerald-300 rounded-lg px-2 py-1 font-bold text-slate-800 focus:outline-none focus:border-emerald-500" 
-                     placeholder="조건 만족 시 실행">
+              <textarea rows="1" oninput="autoResizePresTextarea(this); updatePrescriptionStep(${idx}, 'yesAction', this.value)" 
+                        class="auto-expand-pres-input flex-1 text-xs bg-white border border-emerald-300 rounded-lg px-2 py-1 font-bold text-slate-800 focus:outline-none focus:border-emerald-500 resize-none leading-relaxed transition" 
+                        placeholder="예 동작 (15자 내외)">${escapeHtml(s.yesAction || '')}</textarea>
             </div>
             <div class="flex items-center gap-1">
               <span class="px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 font-black text-[10px] flex-shrink-0">아니오</span>
-              <input type="text" value="${s.noAction || ''}" onchange="updatePrescriptionStep(${idx}, 'noAction', this.value)" 
-                     class="flex-1 text-xs bg-white border border-rose-300 rounded-lg px-2 py-1 font-bold text-slate-800 focus:outline-none focus:border-rose-500" 
-                     placeholder="조건 불만족 시 실행">
+              <textarea rows="1" oninput="autoResizePresTextarea(this); updatePrescriptionStep(${idx}, 'noAction', this.value)" 
+                        class="auto-expand-pres-input flex-1 text-xs bg-white border border-rose-300 rounded-lg px-2 py-1 font-bold text-slate-800 focus:outline-none focus:border-rose-500 resize-none leading-relaxed transition" 
+                        placeholder="아니오 동작 (15자 내외)">${escapeHtml(s.noAction || '')}</textarea>
             </div>
           </div>
         </div>
@@ -1360,23 +1463,25 @@ function renderPrescriptionSteps() {
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
               <span>단계 ${idx + 1}. [반복 루프]</span>
             </span>
-            <button type="button" onclick="removePrescriptionStep(${idx})" class="text-emerald-400 hover:text-rose-500 transition px-1" title="단계 삭제">
+            <button type="button" onclick="removePrescriptionStep(${idx})" class="text-emerald-400 hover:text-rose-500 transition px-1 cursor-pointer" title="단계 삭제">
               <i class="fa-solid fa-xmark text-xs"></i>
             </button>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
-            <input type="text" value="${s.condition || ''}" onchange="updatePrescriptionStep(${idx}, 'condition', this.value)" 
-                   class="w-full text-xs bg-white border border-emerald-300 rounded-lg px-2 py-1.5 font-bold text-slate-800 focus:outline-none focus:border-emerald-500" 
-                   placeholder="[반복 조건] ~할 때까지">
-            <input type="text" value="${s.loopAction || ''}" onchange="updatePrescriptionStep(${idx}, 'loopAction', this.value)" 
-                   class="w-full text-xs bg-white border border-emerald-300 rounded-lg px-2 py-1.5 font-bold text-slate-800 focus:outline-none focus:border-emerald-500" 
-                   placeholder="반복 수행할 행동">
+            <textarea rows="1" oninput="autoResizePresTextarea(this); updatePrescriptionStep(${idx}, 'condition', this.value)" 
+                      class="auto-expand-pres-input w-full text-xs bg-white border border-emerald-300 rounded-lg px-2 py-1.5 font-bold text-slate-800 focus:outline-none focus:border-emerald-500 resize-none leading-relaxed transition" 
+                      placeholder="[반복 조건] ~할 때까지 (15자 내외)">${escapeHtml(s.condition || '')}</textarea>
+            <textarea rows="1" oninput="autoResizePresTextarea(this); updatePrescriptionStep(${idx}, 'loopAction', this.value)" 
+                      class="auto-expand-pres-input w-full text-xs bg-white border border-emerald-300 rounded-lg px-2 py-1.5 font-bold text-slate-800 focus:outline-none focus:border-emerald-500 resize-none leading-relaxed transition" 
+                      placeholder="반복 수행 동작 (15자 내외)">${escapeHtml(s.loopAction || '')}</textarea>
           </div>
         </div>
       `;
     }
     return '';
   }).join('');
+
+  autoResizeAllPresTextareas();
 }
 
 function addPrescriptionStep(type) {
@@ -1490,19 +1595,25 @@ async function requestSolarPrescription() {
 
   const prompt = `당신은 대한민국 2022 개정 중학교 정보 교과 '알고리즘 설계와 순서도' 단원의 친절한 AI 지도교사입니다.
 학생이 입력한 [현재 상태]에서 [목표 상태]에 도달하기 위한 현실적이고 논리적인 다단계 알고리즘 레시피(순차, 선택, 반복 구조 활용)를 작성해 주세요.
-예를 들어 샌드위치 조리나 라면 끓이기라면 순차적으로 재료를 넣고 굽는 과정과 조건 분기가 포함되어야 합니다.
 
 [현재 상태]: "${cur}"
 [목표 상태]: "${goal}"
 
-[작성 원칙]:
-1. goal: 해결할 문제 상황 한 문장 요약
-2. variables: 핵심 준비물 또는 상태 변수들 (쉼표로 구분)
-3. steps: 학생이 쉽게 이해할 수 있는 3~5개의 단계 배열.
+[★매우 중요한 작성 원칙 - One Action, One Box]:
+1. 중2 학생용 순서도 기호(직사각형, 마름모) 안에 쏙 들어갈 수 있도록, 모든 문장은 반드시 15자 내외(최대 20자)의 단일 핵심 행동/조건으로 아주 짧고 간결하게 작성하세요.
+2. 절대로 여러 행동을 접속사(~하고, ~한 뒤, ~하며)로 길게 엮지 마세요!
+   - ❌ 절대 금지: "책상 위에 공부 자료만 올려두고, 스마트폰은 무음 모드로 설정한 뒤 서랍에 둔다."
+   - ⭕ 바른 작성 예:
+     1단계: "스마트폰 방해금지 설정"
+     2단계: "스마트폰을 서랍에 보관"
+     3단계: "25분 타이머 시작"
+3. goal: 10~15자 내외 문제 한 줄 요약
+4. variables: 핵심 준비물 또는 상태 변수들 (쉼표로 구분)
+5. steps: 학생이 쉽게 이해할 수 있는 3~5개의 단계 배열:
    - type: "seq" (순차 실행), "sel" (조건 선택 분기), "loop" (반복)
-   - seq인 경우: {"type": "seq", "text": "명령 내용"}
-   - sel인 경우: {"type": "sel", "condition": "질문 형식의 조건", "yesAction": "예 동작", "noAction": "아니오 동작"}
-   - loop인 경우: {"type": "loop", "condition": "반복 조건", "loopAction": "반복 수행 동작"}
+   - seq인 경우: {"type": "seq", "text": "15자 이내 핵심 단일 명령"}
+   - sel인 경우: {"type": "sel", "condition": "15자 이내 질문형 조건?", "yesAction": "15자 이내 예 동작", "noAction": "15자 이내 아니오 동작"}
+   - loop인 경우: {"type": "loop", "condition": "15자 이내 ~할 때까지", "loopAction": "15자 이내 반복 행동"}
 
 반드시 아래 JSON 포맷으로만 응답하세요:
 {
@@ -1547,9 +1658,9 @@ async function requestSolarPrescription() {
       } else {
         // 폴백
         currentPrescriptionSteps = [
-          { type: "seq", text: `[${parsed.variables || '데이터'}] 준비 및 확인` },
-          { type: "sel", condition: "조건을 충족하는가?", yesAction: parsed.goal, noAction: "보완 후 다시 시도" },
-          { type: "seq", text: `${parsed.goal} 달성 완료` }
+          { type: "seq", text: `[${parsed.variables || '데이터'}] 확인` },
+          { type: "sel", condition: "조건을 충족하는가?", yesAction: parsed.goal || "성공 처리", noAction: "보완 후 재시도" },
+          { type: "seq", text: `${parsed.goal || '목표'} 달성 완료` }
         ];
       }
       renderPrescriptionSteps();
@@ -1560,12 +1671,12 @@ async function requestSolarPrescription() {
     if (typeof playSfx === 'function') playSfx('success');
   } catch (err) {
     // 안전한 룰 기반 폴백
-    document.getElementById('pres-inp-goal').value = goal;
+    document.getElementById('pres-inp-goal').value = goal.slice(0, 15);
     document.getElementById('pres-inp-variables').value = "상태 데이터, 판정 기준";
     currentPrescriptionSteps = [
-      { type: "seq", text: `${cur.split(' ')[0] || '초기'} 상태를 확인하고 필요한 재료나 정보를 준비한다.` },
-      { type: "sel", condition: `${cur.split(' ')[0] || '목표'} 조건을 충족하는가?`, yesAction: goal, noAction: "문제를 보완하고 다시 시도한다" },
-      { type: "seq", text: `${goal} 완료 및 성공 상태 확인` }
+      { type: "seq", text: "초기 상태 확인 및 데이터 준비" },
+      { type: "sel", condition: "목표 조건 충족하는가?", yesAction: goal.slice(0, 15), noAction: "문제 보완 후 재시도" },
+      { type: "seq", text: "최종 목표 달성 확인" }
     ];
     renderPrescriptionSteps();
     if (typeof playSfx === 'function') playSfx('snap');
@@ -1609,6 +1720,24 @@ function selectPrescriptionPreset(key) {
 function applyPrescriptionDraft() {
   const goal = (document.getElementById('pres-inp-goal')?.value || "목표 상태 달성").trim();
   const vars = (document.getElementById('pres-inp-variables')?.value || "입력 데이터").trim();
+  const customCur = (document.getElementById('pres-custom-cur')?.value || "").trim();
+  const customGoal = (document.getElementById('pres-custom-goal')?.value || "").trim();
+
+  const finalGoal = customGoal || goal || "목표 상태 달성";
+  const finalCur = customCur || (finalGoal ? `[${finalGoal}] 시작 전 상태` : "알고리즘 문제 발생 및 초기 상태");
+
+  // 1. 띵커보드 및 전역 상태 1순위 즉시 동기화 (버그 원천 해결!)
+  window.latestAbstractionPrescription = {
+    currentStatus: finalCur,
+    goalStatus: finalGoal,
+    coreVariables: vars.split(',').map(s => s.trim()).filter(Boolean),
+    conditions: currentPrescriptionSteps.filter(s => s.type === 'sel').map(s => s.condition)
+  };
+
+  const thinkerCur = document.getElementById('thinker-cur-status');
+  const thinkerGoal = document.getElementById('thinker-goal-status');
+  if (thinkerCur) thinkerCur.value = finalCur;
+  if (thinkerGoal) thinkerGoal.value = finalGoal;
 
   // 1. 상단 재료 바구니 (badge-tray) 칩 갱신
   const tray = document.getElementById('abstraction-badge-tray');
@@ -1719,6 +1848,7 @@ function renderFreeCanvas() {
 
   // 3. SVG 연결선 렌더링
   renderFreeConnections();
+  if (typeof updateThinkerToolbarButton === 'function') updateThinkerToolbarButton();
 }
 
 // draw.io 스타일 4방향(Top, Bottom, Left, Right) 자석 연결점 생성 함수
@@ -1801,10 +1931,6 @@ if (!window._flowchartKeydownAttached) {
     }
     if ((e.key === 'Delete' || e.key === 'Backspace') && selectedBlockId) {
       e.preventDefault();
-      if (selectedBlockId === 'blk-start' || selectedBlockId === 'blk-end') {
-        alert("시작 및 종료 단말 기호는 삭제할 수 없습니다.");
-        return;
-      }
       removeCanvasBlock(selectedBlockId);
       deselectCanvasBlock();
     }
@@ -1825,7 +1951,7 @@ function createFreeBlockDOM(b) {
   const isTerminal = b.shape === "terminal";
   const isIO = b.shape === "io";
   const isDecision = b.shape === "decision";
-  const isDeletable = b.id !== 'blk-start' && b.id !== 'blk-end';
+  const isDeletable = true; // 모든 블록(단말 포함) 자유 삭제 허용
 
   const portsHtml = getBlockPortsHTML(b);
 
@@ -1931,10 +2057,6 @@ function createFreeBlockDOM(b) {
 
 function removeCanvasBlock(blockId, e) {
   if (e) e.stopPropagation();
-  if (blockId === 'blk-start' || blockId === 'blk-end') {
-    alert("시작 및 종료 단말 블록은 삭제할 수 없습니다.");
-    return;
-  }
 
   freeBlocks = freeBlocks.filter(b => b.id !== blockId);
   freeConnections = freeConnections.filter(c => c.from !== blockId && c.to !== blockId);
@@ -1977,10 +2099,12 @@ function handleCanvasDrop(e) {
   if (!shape) return;
 
   const canvas = document.getElementById('free-flowchart-canvas');
-  if (!canvas) return;
-  const cRect = canvas.getBoundingClientRect();
-  const dropX = Math.max(20, Math.round((e.clientX - cRect.left - 90) / 20) * 20);
-  const dropY = Math.max(20, Math.round((e.clientY - cRect.top - 30) / 20) * 20);
+  const stage = document.getElementById('free-flowchart-stage') || canvas;
+  if (!canvas || !stage) return;
+  const sRect = stage.getBoundingClientRect();
+  const zoom = currentCanvasZoom || 1.0;
+  const dropX = Math.max(20, Math.round(((e.clientX - sRect.left) / zoom - 90) / 20) * 20);
+  const dropY = Math.max(20, Math.round(((e.clientY - sRect.top) / zoom - 30) / 20) * 20);
 
   addCanvasBlockAtPosition(shape, dropX, dropY);
   draggedPaletteShape = null;
@@ -2005,7 +2129,7 @@ function handleTrashDrop(e) {
   const zone = document.getElementById('entry-trash-zone');
   if (zone) zone.classList.remove('trash-active');
 
-  if (selectedBlockId && selectedBlockId !== 'blk-start' && selectedBlockId !== 'blk-end') {
+  if (selectedBlockId) {
     removeCanvasBlock(selectedBlockId);
     deselectCanvasBlock();
     if (typeof playSfx === 'function') playSfx('pop');
@@ -2013,7 +2137,7 @@ function handleTrashDrop(e) {
 }
 
 function handleTrashClick() {
-  if (selectedBlockId && selectedBlockId !== 'blk-start' && selectedBlockId !== 'blk-end') {
+  if (selectedBlockId) {
     removeCanvasBlock(selectedBlockId);
     deselectCanvasBlock();
     if (typeof playSfx === 'function') playSfx('pop');
@@ -2027,9 +2151,22 @@ function addCanvasBlockAtPosition(shapeType, x, y) {
   const stage = document.getElementById('free-flowchart-stage') || canvas;
   if (!canvas || !stage) return;
 
+  // 💡 단말(시작/종료) 블록 스마트 가드: 이미 시작과 종료가 모두 존재할 경우 불필요한 단말 중복 추가 방지
+  if (shapeType === 'terminal') {
+    const hasStart = freeBlocks.some(b => b.shape === 'terminal' && (b.text || '').includes('시작'));
+    const hasEnd = freeBlocks.some(b => b.shape === 'terminal' && (b.text || '').includes('종료'));
+
+    if (hasStart && hasEnd) {
+      if (typeof playSfx === 'function') playSfx('warning');
+      alert("💡 순서도에는 '시작'과 '종료' 기호가 각각 하나씩만 있으면 충분해요!\n이미 캔버스에 시작과 종료 기호가 모두 있으니, 자료(▱)·처리(▭)·판단(◇) 기호를 추가해 보세요.");
+      return;
+    }
+  }
+
   const id = `blk-${Date.now()}`;
+  const hasStartTerminal = freeBlocks.some(b => b.shape === 'terminal' && (b.text || '').includes('시작'));
   const defaultLabels = {
-    terminal: freeBlocks.some(b => b.shape === 'terminal' && b.text.includes('시작')) ? "종료" : "시작",
+    terminal: !hasStartTerminal ? "시작" : "종료",
     io: "데이터 입출력",
     process: "연산 처리 실행",
     decision: "조건 검사 ◇"
@@ -2083,23 +2220,23 @@ function handleBlockMouseDown(blockId, e) {
   if (el) el.classList.add('selected');
 
   const zoom = currentCanvasZoom || 1.0;
-  const cRect = canvas.getBoundingClientRect();
-  const startMouseX = (e.clientX - cRect.left) / zoom;
-  const startMouseY = (e.clientY - cRect.top) / zoom;
+  const sRect = stage.getBoundingClientRect();
+  const startMouseX = (e.clientX - sRect.left) / zoom;
+  const startMouseY = (e.clientY - sRect.top) / zoom;
   const startBlockX = b.x;
   const startBlockY = b.y;
 
   const onMouseMove = (moveEvent) => {
     if (!isDraggingBlock || !draggedBlockObj) return;
 
-    const curMouseX = (moveEvent.clientX - cRect.left) / zoom;
-    const curMouseY = (moveEvent.clientY - cRect.top) / zoom;
+    const curMouseX = (moveEvent.clientX - sRect.left) / zoom;
+    const curMouseY = (moveEvent.clientY - sRect.top) / zoom;
 
     let nx = Math.round(startBlockX + (curMouseX - startMouseX));
     let ny = Math.round(startBlockY + (curMouseY - startMouseY));
 
-    const maxW = stage.clientWidth || 800;
-    const maxH = stage.clientHeight || 1400;
+    const maxW = stage.clientWidth || 3000;
+    const maxH = stage.clientHeight || 3000;
 
     nx = Math.max(10, Math.min(maxW - 190, nx));
     ny = Math.max(10, Math.min(maxH - 80, ny));
@@ -2112,9 +2249,9 @@ function handleBlockMouseDown(blockId, e) {
       el.style.top = `${ny}px`;
     }
 
-    // 엔트리 캔버스 휴지통 호버 감지
+    // 엔트리 캔버스 휴지통 호버 감지 (모든 블록 삭제 가능)
     const trashZone = document.getElementById('entry-trash-zone');
-    if (trashZone && draggedBlockObj.id !== 'blk-start' && draggedBlockObj.id !== 'blk-end') {
+    if (trashZone) {
       const tRect = trashZone.getBoundingClientRect();
       const isOverTrash = (
         moveEvent.clientX >= tRect.left &&
@@ -2134,7 +2271,7 @@ function handleBlockMouseDown(blockId, e) {
     draggedBlockObj = null;
     if (el) el.classList.remove('selected');
 
-    // 휴지통에 드롭 시 삭제 처리
+    // 휴지통에 드롭 시 삭제 처리 (단말 포함 모든 블록 삭제)
     const trashZone = document.getElementById('entry-trash-zone');
     let droppedInTrash = false;
     if (trashZone && trashZone.classList.contains('trash-active')) {
@@ -2145,7 +2282,7 @@ function handleBlockMouseDown(blockId, e) {
     document.removeEventListener('mousemove', onMouseMove);
     document.removeEventListener('mouseup', onMouseUp);
 
-    if (droppedInTrash && blockToDelete && blockToDelete.id !== 'blk-start' && blockToDelete.id !== 'blk-end') {
+    if (droppedInTrash && blockToDelete) {
       removeCanvasBlock(blockToDelete.id);
       if (typeof playSfx === 'function') playSfx('pop');
     }
@@ -2327,11 +2464,12 @@ function startConnecting(blockId, portType, e) {
   highlightValidPorts(sourceBlock, portType);
 
   const canvas = document.getElementById('free-flowchart-canvas');
+  const stage = document.getElementById('free-flowchart-stage') || canvas;
   const svg = document.getElementById('free-flowchart-svg');
-  if (!canvas || !svg) return;
+  if (!canvas || !svg || !stage) return;
 
   const zoom = currentCanvasZoom || 1.0;
-  const cRect = canvas.getBoundingClientRect();
+  const sRect = stage.getBoundingClientRect();
 
   // 실시간 가이드 화살표 패스
   const tempPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
@@ -2347,16 +2485,16 @@ function startConnecting(blockId, portType, e) {
   let startX = sourceBlock.x + 80;
   let startY = sourceBlock.y + 50;
   if (sourcePortEl) {
-    const sRect = sourcePortEl.getBoundingClientRect();
-    startX = (sRect.left + sRect.width / 2 - cRect.left) / zoom;
-    startY = (sRect.top + sRect.height / 2 - cRect.top) / zoom;
+    const pRect = sourcePortEl.getBoundingClientRect();
+    startX = (pRect.left + pRect.width / 2 - sRect.left) / zoom;
+    startY = (pRect.top + pRect.height / 2 - sRect.top) / zoom;
   }
 
   const onMouseMove = (moveEvent) => {
     if (!isConnecting) return;
 
-    let targetX = (moveEvent.clientX - cRect.left) / zoom;
-    let targetY = (moveEvent.clientY - cRect.top) / zoom;
+    let targetX = (moveEvent.clientX - sRect.left) / zoom;
+    let targetY = (moveEvent.clientY - sRect.top) / zoom;
     let targetPortType = 'in';
 
     // ★ 28px draw.io 자석 스냅(Magnet Snap) 감지
@@ -2374,8 +2512,8 @@ function startConnecting(blockId, portType, e) {
           el: portEl,
           blockId: portEl.dataset.blockId,
           portType: portEl.dataset.portType,
-          x: (pCenterX - cRect.left) / zoom,
-          y: (pCenterY - cRect.top) / zoom
+          x: (pCenterX - sRect.left) / zoom,
+          y: (pCenterY - sRect.top) / zoom
         };
       }
     });
@@ -2430,7 +2568,8 @@ function highlightValidPorts(sourceBlock, portType) {
         c.from === sourceBlock.id && c.fromPort === portType && c.to === b.id && c.toPort === pType
       );
 
-      if (alreadyConnected || sourceBlock.id === 'blk-end') {
+      const isSourceEnd = sourceBlock.id === 'blk-end' || (sourceBlock.shape === 'terminal' && (sourceBlock.text || '').includes('종료'));
+      if (alreadyConnected || isSourceEnd) {
         portEl.classList.add('port-disabled');
       } else {
         portEl.classList.add('port-valid-glow');
@@ -2456,7 +2595,7 @@ function handlePortMouseUp(targetBlockId, targetPortType) {
   if (source.blockId === targetBlockId) return;
 
   // 종료 단말 기호에서 나가는 연결 차단
-  if (sourceBlock.id === 'blk-end') {
+  if (sourceBlock.id === 'blk-end' || (sourceBlock.shape === 'terminal' && (sourceBlock.text || '').includes('종료'))) {
     if (typeof playSfx === 'function') playSfx('error');
     alert("종료 단말 기호에서는 다른 기호로 나가는 연결을 만들 수 없습니다.");
     return;
@@ -2488,8 +2627,9 @@ function handlePortMouseUp(targetBlockId, targetPortType) {
 
 function renderFreeConnections() {
   const canvas = document.getElementById('free-flowchart-canvas');
+  const stage = document.getElementById('free-flowchart-stage') || canvas;
   const svg = document.getElementById('free-flowchart-svg');
-  if (!canvas || !svg) return;
+  if (!canvas || !svg || !stage) return;
 
   svg.innerHTML = `
     <defs>
@@ -2508,7 +2648,7 @@ function renderFreeConnections() {
     </defs>
   `;
 
-  const cRect = canvas.getBoundingClientRect();
+  const sRect = stage.getBoundingClientRect();
   const zoom = currentCanvasZoom || 1.0;
 
   freeConnections.forEach((conn, idx) => {
@@ -2522,10 +2662,10 @@ function renderFreeConnections() {
     const fRect = fromPortEl ? fromPortEl.getBoundingClientRect() : fromEl.getBoundingClientRect();
     const tRect = toPortEl ? toPortEl.getBoundingClientRect() : toEl.getBoundingClientRect();
 
-    const x1 = (fRect.left + fRect.width / 2 - cRect.left) / zoom;
-    const y1 = (fRect.top + fRect.height / 2 - cRect.top) / zoom;
-    const x2 = (tRect.left + tRect.width / 2 - cRect.left) / zoom;
-    const y2 = (tRect.top + tRect.height / 2 - cRect.top) / zoom;
+    const x1 = (fRect.left + fRect.width / 2 - sRect.left) / zoom;
+    const y1 = (fRect.top + fRect.height / 2 - sRect.top) / zoom;
+    const x2 = (tRect.left + tRect.width / 2 - sRect.left) / zoom;
+    const y2 = (tRect.top + tRect.height / 2 - sRect.top) / zoom;
 
     let markerId = "free-arrowhead";
     let lineClass = "flow-line";
@@ -3092,7 +3232,7 @@ function analyzeAlgorithmConsistency() {
 
 /**
  * --------------------------------------------------
- * 🤖 Solar AI 알고리즘 감수 모달 (전용 팝업 리포트)
+ * 🤖 Solar AI 알고리즘 설계 검사 모달 (전용 팝업 리포트)
  * --------------------------------------------------
  */
 function openAiAuditModal() {
@@ -3226,6 +3366,7 @@ ${complimentsText}
 
   const isGood = consistency.isConsistent;
   window.isFlowchartAiPassed = isGood;
+  if (typeof updateThinkerToolbarButton === 'function') updateThinkerToolbarButton();
 
   // 헤더 배너
   const headerHtml = isGood ? `
@@ -3234,14 +3375,14 @@ ${complimentsText}
         <div class="w-11 h-11 rounded-2xl bg-emerald-500 text-white flex items-center justify-center text-xl font-black shadow-md shadow-emerald-500/20">💮</div>
         <div>
           <div class="text-sm font-black text-emerald-950 flex items-center gap-1.5">
-            <span>Solar AI 정식 감수 통과!</span>
+            <span>Solar AI 설계 검사 통과!</span>
             <span class="px-2 py-0.5 bg-emerald-200/80 text-emerald-800 text-[10px] rounded-md font-bold">2022 개정 정보 표준</span>
           </div>
           <div class="text-xs text-emerald-700 font-medium mt-0.5">자연어 기획서와 순서도 캔버스가 완벽하게 일치합니다.</div>
         </div>
       </div>
       <span class="hidden sm:inline-flex px-3 py-1.5 bg-emerald-600 text-white font-black rounded-xl text-xs shadow-sm">
-        공식 합격 인증
+        💮 AI 검사 통과 (합격 인증)
       </span>
     </div>
   ` : `
@@ -3314,7 +3455,7 @@ ${complimentsText}
 
   // AI 총평 카드
   const adviceBorder = isGood ? "border-emerald-200 bg-emerald-50/70" : "border-indigo-200 bg-indigo-50/70";
-  const adviceTitle = isGood ? "Solar AI의 알고리즘 감수 총평" : "Solar AI의 맞춤형 보완 가이드";
+  const adviceTitle = isGood ? "Solar AI의 설계 검사 종합 의견" : "Solar AI의 맞춤형 보완 가이드";
   const adviceColor = isGood ? "text-emerald-950" : "text-indigo-950";
   const adviceIcon = isGood ? "fa-medal text-emerald-600" : "fa-lightbulb text-indigo-600";
 
@@ -3424,6 +3565,16 @@ function getFlowchartOrderedBlocks() {
 }
 
 function openThinkerSubmissionModal() {
+  // 💡 구조적 합격 인증 게이트웨이: AI 설계 검사를 통과해야만 띵커보드에 제출 가능
+  if (!window.isFlowchartAiPassed) {
+    if (typeof playSfx === 'function') playSfx('warning');
+    const proceed = confirm("⚠️ 아직 Solar AI 설계 검사를 통과하지 않았습니다!\n\n순서도 연구소에서는 내가 만든 기획서와 순서도가 올바른지 AI의 검사를 통과해야 띵커보드에 최종 제출할 수 있어요.\n\n지금 AI 설계 검사를 받으시겠습니까?");
+    if (proceed) {
+      diagnoseFreeAlgorithmWithSolarAI();
+    }
+    return;
+  }
+
   const modal = document.getElementById('thinker-submission-modal');
   if (!modal) return;
   modal.classList.remove('hidden');
@@ -3434,7 +3585,10 @@ function openThinkerSubmissionModal() {
   const pres = window.latestAbstractionPrescription;
 
   if (curInput && goalInput) {
-    if (pres) {
+    if (pres && pres.currentStatus && pres.goalStatus) {
+      curInput.value = pres.currentStatus;
+      goalInput.value = pres.goalStatus;
+    } else if (pres) {
       if (!curInput.value) curInput.value = pres.currentStatus || "";
       if (!goalInput.value) goalInput.value = pres.goalStatus || "";
     } else {
@@ -3510,12 +3664,12 @@ function updateThinkerCardPreview() {
         <h4 class="font-black text-violet-900 text-xs flex items-center gap-1.5">
           <i class="fa-solid fa-lightbulb text-violet-600"></i> 1. 문제 분석 및 추상화
         </h4>
-        <div class="grid grid-cols-2 gap-2 text-xs">
-          <div><span class="text-slate-400">현재 상태:</span> <strong>${escapeHtml(curStatus)}</strong></div>
-          <div><span class="text-slate-400">목표 상태:</span> <strong>${escapeHtml(goalStatus)}</strong></div>
+        <div class="space-y-1 text-xs">
+          <div><span class="text-slate-500 font-bold">현재 상태:</span> <strong class="text-slate-800">${escapeHtml(curStatus)}</strong></div>
+          <div><span class="text-slate-500 font-bold">목표 상태:</span> <strong class="text-slate-800">${escapeHtml(goalStatus)}</strong></div>
         </div>
         <div class="text-xs pt-1 border-t border-violet-100">
-          <span class="text-slate-400">핵심 변수 & 조건:</span> 
+          <span class="text-slate-500 font-bold">핵심 변수 & 조건:</span> 
           <strong class="text-violet-800">${escapeHtml(coreVars)}</strong>
         </div>
       </div>
@@ -3533,25 +3687,25 @@ function updateThinkerCardPreview() {
       <!-- 4. 순서도 시각 구조 -->
       <div class="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-2xl space-y-1.5">
         <h4 class="font-black text-emerald-900 text-xs flex items-center gap-1.5">
-          <i class="fa-solid fa-diagram-project text-emerald-600"></i> 3. 완성된 순서도 흐름 (실제 실행 순서)
+          <i class="fa-solid fa-diagram-project text-emerald-600"></i> 3. 완성된 순서도 흐름 (실제 캔버스 배치)
         </h4>
         <div class="flex flex-wrap items-center gap-1.5 text-xs text-slate-700 leading-relaxed py-1">
           ${blocksHtml || '<div class="text-slate-400 italic">배치된 순서도 블록이 없습니다.</div>'}
         </div>
       </div>
 
-      <!-- 5. 합격 스탬프 (조건부: AI 감수 통과 시에만 공식 합격 인증 마크 부여) -->
+      <!-- 5. 합격 스탬프 (조건부: AI 설계 검사 통과 시에만 공식 합격 인증 마크 부여) -->
       ${window.isFlowchartAiPassed ? `
         <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between text-xs shadow-xs">
           <div class="flex items-center gap-2 text-emerald-950 font-bold">
             <span class="text-base">💮</span>
             <div>
-              <span class="font-black text-emerald-900">Solar AI 정식 감수 합격</span>
+              <span class="font-black text-emerald-900">Solar AI 설계 검사 통과</span>
               <span class="text-[11px] text-emerald-700 block sm:inline sm:ml-1">자연어 기획서와 순서도가 완벽히 일치합니다.</span>
             </div>
           </div>
           <span class="px-3 py-1 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-black rounded-xl text-xs shadow-xs shrink-0">
-            공식 합격 인증
+            💮 AI 검사 통과 (합격 인증)
           </span>
         </div>
       ` : `
@@ -3559,20 +3713,35 @@ function updateThinkerCardPreview() {
           <div class="flex items-center gap-2 text-amber-950">
             <span class="text-base shrink-0">⏳</span>
             <div>
-              <span class="font-black text-amber-900">AI 감수 미완료</span>
-              <span class="text-[11px] text-amber-700 block sm:inline sm:ml-1">AI 감수를 통과하면 이곳에 공식 합격 도장이 찍힙니다!</span>
+              <span class="font-black text-amber-900">AI 검사 전 (실습 중)</span>
+              <span class="text-[11px] text-amber-700 block sm:inline sm:ml-1">AI 설계 검사를 통과하면 이곳에 공식 합격 도장이 찍힙니다!</span>
             </div>
           </div>
           <div class="flex items-center gap-2 shrink-0 self-end sm:self-auto">
             <button onclick="closeThinkerSubmissionModal(); diagnoseFreeAlgorithmWithSolarAI();" class="px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-black rounded-xl text-xs shadow-xs flex items-center gap-1 transition active:scale-95">
               <i class="fa-solid fa-wand-magic-sparkles text-[10px]"></i>
-              <span>지금 AI 감수 받기</span>
+              <span>지금 AI 검사받기</span>
             </button>
           </div>
         </div>
       `}
     </div>
   `;
+
+  // 모달 하단 버튼 제어 (미통과 시 복사/다운로드 비활성화)
+  const copyBtn = document.getElementById('btn-thinker-copy');
+  const dlBtn = document.getElementById('btn-thinker-download');
+  const isPassed = !!window.isFlowchartAiPassed;
+  if (copyBtn) {
+    copyBtn.disabled = !isPassed;
+    copyBtn.classList.toggle('opacity-50', !isPassed);
+    copyBtn.classList.toggle('cursor-not-allowed', !isPassed);
+  }
+  if (dlBtn) {
+    dlBtn.disabled = !isPassed;
+    dlBtn.classList.toggle('opacity-50', !isPassed);
+    dlBtn.classList.toggle('cursor-not-allowed', !isPassed);
+  }
 }
 
 // --------------------------------------------------
@@ -3635,10 +3804,77 @@ function downloadCanvasImage(canvas, filename) {
   a.click();
 }
 
+/**
+ * 캔버스 지능형 줄바꿈 텍스트 렌더링 헬퍼 (글자 겹침 및 우측 잘림 완벽 방지)
+ */
+function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight, maxLines = 3) {
+  if (!text) return y;
+  const chars = Array.from(String(text));
+  let line = '';
+  let linesDrawn = 0;
+  let currentY = y;
+
+  for (let i = 0; i < chars.length; i++) {
+    const testLine = line + chars[i];
+    const metrics = ctx.measureText(testLine);
+    if (metrics.width > maxWidth && line !== '') {
+      if (linesDrawn === maxLines - 1) {
+        ctx.fillText(line.substring(0, Math.max(0, line.length - 1)) + '…', x, currentY);
+        return currentY + lineHeight;
+      }
+      ctx.fillText(line, x, currentY);
+      line = chars[i];
+      currentY += lineHeight;
+      linesDrawn++;
+    } else {
+      line = testLine;
+    }
+  }
+  if (line) {
+    ctx.fillText(line, x, currentY);
+    currentY += lineHeight;
+  }
+  return currentY;
+}
+
+/**
+ * 방향 인식 화살표 촉 드로잉 헬퍼
+ */
+function drawArrowHead(ctx, x, y, dir, color, scale = 1.0) {
+  const headLen = Math.max(6, 8 * scale);
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  if (dir === 'right') {
+    ctx.moveTo(x, y);
+    ctx.lineTo(x - headLen, y - headLen * 0.55);
+    ctx.lineTo(x - headLen, y + headLen * 0.55);
+  } else if (dir === 'left') {
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + headLen, y - headLen * 0.55);
+    ctx.lineTo(x + headLen, y + headLen * 0.55);
+  } else if (dir === 'up') {
+    ctx.moveTo(x, y);
+    ctx.lineTo(x - headLen * 0.55, y + headLen);
+    ctx.lineTo(x + headLen * 0.55, y + headLen);
+  } else {
+    // down (기본: 상단 포트로 진입)
+    ctx.moveTo(x, y);
+    ctx.lineTo(x - headLen * 0.55, y - headLen);
+    ctx.lineTo(x + headLen * 0.55, y - headLen);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+/**
+ * 나만의 알고리즘 & 순서도 설계 보고서 Canvas 2D 고해상도 이미지 생성 엔진
+ */
 function generatePortfolioCanvas(studentNum, studentName) {
   return new Promise((resolve) => {
     const W = 840;
-    const H = 960;
+    const H = 990;
     const canvas = document.createElement('canvas');
     canvas.width = W;
     canvas.height = H;
@@ -3648,7 +3884,7 @@ function generatePortfolioCanvas(studentNum, studentName) {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, W, H);
 
-    // 테두리
+    // 외곽 테두리
     ctx.strokeStyle = "#e2e8f0";
     ctx.lineWidth = 4;
     ctx.strokeRect(10, 10, W - 20, H - 20);
@@ -3679,9 +3915,11 @@ function generatePortfolioCanvas(studentNum, studentName) {
     ctx.fillText(`${sNum} ${sName}`, W - 145, 80);
     ctx.textAlign = "left";
 
-    let curY = 150;
+    let curY = 145;
 
-    // 섹션 1: 추상화 문제 정의
+    // --------------------------------------------------
+    // 섹션 1: 문제 분석 및 생각 다이어트 (추상화) - 세로형 3단 레이아웃
+    // --------------------------------------------------
     const pres = window.latestAbstractionPrescription;
     const curStatus = (document.getElementById('thinker-cur-status')?.value || '').trim()
       || (pres ? pres.currentStatus : '')
@@ -3697,144 +3935,271 @@ function generatePortfolioCanvas(studentNum, studentName) {
 
     ctx.fillStyle = "#faf5ff";
     ctx.strokeStyle = "#e9d5ff";
-    roundRect(ctx, 30, curY, W - 60, 110, 16, true, true);
+    roundRect(ctx, 30, curY, W - 60, 125, 16, true, true);
 
     ctx.fillStyle = "#6b21a8";
     ctx.font = "bold 15px 'Pretendard', sans-serif";
-    ctx.fillText("💡 1. 문제 분석 및 생각 다이어트 (추상화)", 50, curY + 30);
+    ctx.fillText("💡 1. 문제 분석 및 생각 다이어트 (추상화)", 50, curY + 28);
 
-    ctx.fillStyle = "#334155";
-    ctx.font = "14px 'Pretendard', sans-serif";
-    ctx.fillText(`• 현재 상태: ${curStatus}`, 50, curY + 58);
-    ctx.fillText(`• 목표 상태: ${goalStatus}`, 50, curY + 80);
-    ctx.fillText(`• 핵심 변수: ${coreVars}`, 440, curY + 58);
+    // 1. 현재 상태 (최대 W-190 = 650px 폭으로 자동 줄바꿈)
+    let textY = curY + 52;
+    ctx.fillStyle = "#475569";
+    ctx.font = "bold 13px 'Pretendard', sans-serif";
+    ctx.fillText("• 현재 상태:", 50, textY);
+    ctx.fillStyle = "#1e293b";
+    ctx.font = "13px 'Pretendard', sans-serif";
+    drawWrappedText(ctx, curStatus, 130, textY, W - 190, 19, 2);
 
-    curY += 130;
+    // 2. 목표 상태
+    textY += 28;
+    ctx.fillStyle = "#475569";
+    ctx.font = "bold 13px 'Pretendard', sans-serif";
+    ctx.fillText("• 목표 상태:", 50, textY);
+    ctx.fillStyle = "#1e293b";
+    ctx.font = "13px 'Pretendard', sans-serif";
+    drawWrappedText(ctx, goalStatus, 130, textY, W - 190, 19, 2);
 
-    // 섹션 2: 자연어 알고리즘
+    // 3. 핵심 변수 & 조건
+    textY += 28;
+    ctx.fillStyle = "#7c3aed";
+    ctx.font = "bold 12px 'Pretendard', sans-serif";
+    ctx.fillText("• 핵심 변수 & 조건:", 50, textY);
+    ctx.fillStyle = "#5b21b6";
+    ctx.font = "12px 'Pretendard', sans-serif";
+    drawWrappedText(ctx, coreVars, 175, textY, W - 235, 18, 1);
+
+    curY += 145;
+
+    // --------------------------------------------------
+    // 섹션 2: 자연어 알고리즘 기획서 (3대 제어 구조) - 단어 단위 자동 줄바꿈
+    // --------------------------------------------------
     ctx.fillStyle = "#eff6ff";
     ctx.strokeStyle = "#bfdbfe";
-    roundRect(ctx, 30, curY, W - 60, 190, 16, true, true);
+    roundRect(ctx, 30, curY, W - 60, 185, 16, true, true);
 
     ctx.fillStyle = "#1e40af";
     ctx.font = "bold 15px 'Pretendard', sans-serif";
-    ctx.fillText("📝 2. 자연어 알고리즘 기획서 (3대 제어 구조)", 50, curY + 30);
+    ctx.fillText("📝 2. 자연어 알고리즘 기획서 (3대 제어 구조)", 50, curY + 28);
 
-    ctx.fillStyle = "#1e293b";
-    ctx.font = "bold 13px 'Pretendard', sans-serif";
-    nlCards.slice(0, 5).forEach((c, idx) => {
-      let t = "";
-      if (c.type === 'seq') t = `${idx+1}. [순차] ${c.text || '행동 실행'}`;
-      else if (c.type === 'sel') t = `${idx+1}. [선택] 만약 [${c.condition || '조건'}] -> 예: ${c.yesAction || '실행'} / 아니오: ${c.noAction || '실행'}`;
-      else if (c.type === 'loop') t = `${idx+1}. [반복] [${c.condition || '조건'}] 동안 -> ${c.loopAction || '행동'} 반복`;
-      ctx.fillText(t, 50, curY + 60 + (idx * 25));
+    let nlY = curY + 52;
+    const maxCardW = W - 110; // 730px
+    nlCards.slice(0, 4).forEach((c, idx) => {
+      let prefix = "";
+      let body = "";
+      if (c.type === 'seq') {
+        prefix = `${idx+1}. [순차] `;
+        body = c.text || '행동 실행';
+      } else if (c.type === 'sel') {
+        prefix = `${idx+1}. [선택] `;
+        body = `만약 [${c.condition || '조건'}] -> 예: ${c.yesAction || '실행'} / 아니오: ${c.noAction || '실행'}`;
+      } else if (c.type === 'loop') {
+        prefix = `${idx+1}. [반복] `;
+        body = `[${c.condition || '조건'}] 동안 -> ${c.loopAction || '행동'} 반복`;
+      }
+
+      ctx.fillStyle = "#1e40af";
+      ctx.font = "bold 12px 'Pretendard', sans-serif";
+      ctx.fillText(prefix, 50, nlY);
+
+      const prefixW = ctx.measureText(prefix).width;
+      ctx.fillStyle = "#1e293b";
+      ctx.font = "12px 'Pretendard', sans-serif";
+      const nextY = drawWrappedText(ctx, body, 50 + prefixW, nlY, maxCardW - prefixW - 40, 17, 2);
+      nlY = Math.max(nlY + 24, nextY + 6);
     });
 
-    curY += 210;
+    curY += 205;
 
-    // 섹션 3: 순서도 다이어그램
-    ctx.fillStyle = "#ecfdf5";
-    ctx.strokeStyle = "#a7f3d0";
-    roundRect(ctx, 30, curY, W - 60, 340, 16, true, true);
+    // --------------------------------------------------
+    // 섹션 3: 완성된 순서도 다이어그램 (실제 캔버스 1:1 미니어처 캡처 엔진)
+    // --------------------------------------------------
+    ctx.fillStyle = "#f8fafc";
+    ctx.strokeStyle = "#cbd5e1";
+    roundRect(ctx, 30, curY, W - 60, 350, 16, true, true);
 
-    ctx.fillStyle = "#065f46";
+    ctx.fillStyle = "#0f172a";
     ctx.font = "bold 15px 'Pretendard', sans-serif";
-    ctx.fillText("📐 3. 완성된 순서도 다이어그램", 50, curY + 30);
+    ctx.fillText("📐 3. 완성된 순서도 다이어그램 (실제 캔버스 배치)", 50, curY + 28);
 
-    // 블록 그리기 (실제 실행 순서 보장: 시작 ➔ 중간 블록들 ➔ 종료)
-    const canvasCenterX = W / 2;
-    let bY = curY + 50;
-
-    const orderedBlocks = getFlowchartOrderedBlocks();
-    let displayBlocks = [];
-    if (orderedBlocks.length <= 5) {
-      displayBlocks = orderedBlocks;
-    } else {
-      const start = orderedBlocks[0];
-      const end = orderedBlocks[orderedBlocks.length - 1];
-      const middle = orderedBlocks.slice(1, orderedBlocks.length - 1);
-      displayBlocks = [start, ...middle.slice(0, 3), end];
+    // 캔버스 박스 내부 도트 모눈 그리드 (엔트리 스타일)
+    const boxX = 45;
+    const boxY = curY + 45;
+    const boxW = W - 90; // 750px
+    const boxH = 285;
+    ctx.fillStyle = "#e2e8f0";
+    for (let dx = boxX + 10; dx < boxX + boxW - 5; dx += 24) {
+      for (let dy = boxY + 10; dy < boxY + boxH - 5; dy += 24) {
+        ctx.fillRect(dx, dy, 2, 2);
+      }
     }
 
-    displayBlocks.forEach((b, i) => {
-      ctx.lineWidth = 2.5;
-      const bw = 240;
-      const bh = 42;
-      const bx = canvasCenterX - bw / 2;
-
-      let displayText = b.text || '';
-      if (displayText.length > 18) {
-        displayText = displayText.substring(0, 17) + '…';
-      }
-
-      if (b.shape === 'terminal') {
-        // 완전 타원 알약형
-        ctx.fillStyle = "#faf5ff";
-        ctx.strokeStyle = "#a855f7";
-        roundRect(ctx, bx, bY, bw, bh, 21, true, true);
-        ctx.fillStyle = "#581c87";
-        ctx.font = "bold 13px 'Pretendard', sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText(`⬭ ${displayText}`, canvasCenterX, bY + 26);
-      } else if (b.shape === 'io') {
-        // 평행사변형
-        ctx.fillStyle = "#ecfdf5";
-        ctx.strokeStyle = "#10b981";
-        const skew = 14;
-        ctx.beginPath();
-        ctx.moveTo(bx + skew, bY);
-        ctx.lineTo(bx + bw, bY);
-        ctx.lineTo(bx + bw - skew, bY + bh);
-        ctx.lineTo(bx, bY + bh);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-        ctx.fillStyle = "#064e3b";
-        ctx.font = "bold 13px 'Pretendard', sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText(`▱ ${displayText}`, canvasCenterX, bY + 26);
-      } else if (b.shape === 'decision') {
-        // 마름모 다이아몬드
-        ctx.fillStyle = "#fffbeb";
-        ctx.strokeStyle = "#f59e0b";
-        ctx.beginPath();
-        ctx.moveTo(canvasCenterX, bY);
-        ctx.lineTo(bx + bw, bY + bh / 2);
-        ctx.lineTo(canvasCenterX, bY + bh);
-        ctx.lineTo(bx, bY + bh / 2);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-        ctx.fillStyle = "#78350f";
-        ctx.font = "bold 12px 'Pretendard', sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText(`◇ ${displayText}`, canvasCenterX, bY + 26);
-      } else {
-        // 처리 (직사각형)
-        ctx.fillStyle = "#eff6ff";
-        ctx.strokeStyle = "#3b82f6";
-        roundRect(ctx, bx, bY, bw, bh, 6, true, true);
-        ctx.fillStyle = "#1e3a8a";
-        ctx.font = "bold 13px 'Pretendard', sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText(`▭ ${displayText}`, canvasCenterX, bY + 26);
-      }
+    if (!freeBlocks || freeBlocks.length === 0) {
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "bold 14px 'Pretendard', sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("배치된 순서도 블록이 없습니다.", W / 2, boxY + boxH / 2);
       ctx.textAlign = "left";
+    } else {
+      // 1. 전체 블록 Bounding Box 계산
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      freeBlocks.forEach(b => {
+        const bw = b.shape === 'decision' ? 220 : (b.shape === 'terminal' ? 200 : (b.shape === 'io' ? 220 : 210));
+        const bh = b.shape === 'decision' ? 120 : 60;
+        if (b.x < minX) minX = b.x;
+        if (b.y < minY) minY = b.y;
+        if (b.x + bw > maxX) maxX = b.x + bw;
+        if (b.y + bh > maxY) maxY = b.y + bh;
+      });
 
-      if (i < displayBlocks.length - 1) {
-        ctx.strokeStyle = "#64748b";
-        ctx.lineWidth = 2;
+      const contentW = Math.max(maxX - minX, 120);
+      const contentH = Math.max(maxY - minY, 120);
+      const availW = boxW - 40;
+      const availH = boxH - 35;
+      const scale = Math.min(availW / contentW, availH / contentH, 0.95);
+
+      const offsetX = boxX + (boxW - contentW * scale) / 2 - minX * scale;
+      const offsetY = boxY + (boxH - contentH * scale) / 2 - minY * scale;
+
+      const toX = (x) => offsetX + x * scale;
+      const toY = (y) => offsetY + y * scale;
+
+      // 2. 실제 연결선 (freeConnections) 정밀 드로잉
+      freeConnections.forEach(conn => {
+        const fromB = freeBlocks.find(b => b.id === conn.from);
+        const toB = freeBlocks.find(b => b.id === conn.to);
+        if (!fromB || !toB) return;
+
+        const fromBW = (fromB.shape === 'decision' ? 220 : (fromB.shape === 'terminal' ? 200 : (fromB.shape === 'io' ? 220 : 210)));
+        const fromBH = (fromB.shape === 'decision' ? 120 : 60);
+        let p1X = fromB.x + fromBW / 2, p1Y = fromB.y + fromBH;
+        if (conn.fromPort === 'right' || conn.fromPort === 'no') { p1X = fromB.x + fromBW; p1Y = fromB.y + fromBH / 2; }
+        else if (conn.fromPort === 'left') { p1X = fromB.x; p1Y = fromB.y + fromBH / 2; }
+        else if (conn.fromPort === 'top' || conn.fromPort === 'in') { p1X = fromB.x + fromBW / 2; p1Y = fromB.y; }
+
+        const toBW = (toB.shape === 'decision' ? 220 : (toB.shape === 'terminal' ? 200 : (toB.shape === 'io' ? 220 : 210)));
+        const toBH = (toB.shape === 'decision' ? 120 : 60);
+        let p2X = toB.x + toBW / 2, p2Y = toB.y;
+        let entryDir = 'down';
+        if (conn.toPort === 'left') { p2X = toB.x; p2Y = toB.y + toBH / 2; entryDir = 'right'; }
+        else if (conn.toPort === 'right') { p2X = toB.x + toBW; p2Y = toB.y + toBH / 2; entryDir = 'left'; }
+        else if (conn.toPort === 'bottom' || conn.toPort === 'out') { p2X = toB.x + toBW / 2; p2Y = toB.y + toBH; entryDir = 'up'; }
+
+        const x1 = toX(p1X), y1 = toY(p1Y);
+        const x2 = toX(p2X), y2 = toY(p2Y);
+
+        let strokeCol = "#475569";
+        let badgeText = "";
+        if (conn.fromPort === 'yes') { strokeCol = "#10b981"; badgeText = "예"; }
+        else if (conn.fromPort === 'no') { strokeCol = "#f59e0b"; badgeText = "아니오"; }
+        else if (conn.fromPort === 'left') { strokeCol = "#f59e0b"; badgeText = "분기"; }
+
+        ctx.strokeStyle = strokeCol;
+        ctx.lineWidth = Math.max(1.8, 2.4 * scale);
         ctx.beginPath();
-        ctx.moveTo(canvasCenterX, bY + bh);
-        ctx.lineTo(canvasCenterX, bY + bh + 16);
+        ctx.moveTo(x1, y1);
+
+        if (conn.fromPort === 'right' || conn.fromPort === 'no') {
+          const midX = Math.max(x1 + 18 * scale, (x1 + x2) / 2);
+          ctx.lineTo(midX, y1);
+          ctx.lineTo(midX, y2);
+          ctx.lineTo(x2, y2);
+        } else if (conn.fromPort === 'left') {
+          const midX = Math.min(x1 - 18 * scale, (x1 + x2) / 2);
+          ctx.lineTo(midX, y1);
+          ctx.lineTo(midX, y2);
+          ctx.lineTo(x2, y2);
+        } else {
+          if (y2 > y1 + 10) {
+            const midY = (y1 + y2) / 2;
+            ctx.lineTo(x1, midY);
+            ctx.lineTo(x2, midY);
+            ctx.lineTo(x2, y2);
+          } else {
+            const loopX = x2 < x1 ? Math.min(x1 - 35 * scale, x2 - 35 * scale) : Math.max(x1 + 35 * scale, x2 + 35 * scale);
+            ctx.lineTo(x1, y1 + 14 * scale);
+            ctx.lineTo(loopX, y1 + 14 * scale);
+            ctx.lineTo(loopX, y2 - 14 * scale);
+            ctx.lineTo(x2, y2 - 14 * scale);
+            ctx.lineTo(x2, y2);
+          }
+        }
         ctx.stroke();
-      }
-      bY += 58;
-    });
 
-    curY += 360;
+        drawArrowHead(ctx, x2, y2, entryDir, strokeCol, scale);
 
-    // 섹션 4: 총평 및 조건부 합격 스탬프
+        if (badgeText) {
+          const badgeX = conn.fromPort === 'left' ? x1 - 16 * scale : x1 + 16 * scale;
+          const badgeY = y1 + 10 * scale;
+          ctx.fillStyle = strokeCol;
+          roundRect(ctx, badgeX - 10 * scale, badgeY - 7 * scale, 20 * scale, 14 * scale, 3 * scale, true, false);
+          ctx.fillStyle = "#ffffff";
+          ctx.font = `bold ${Math.max(7, Math.round(9 * scale))}px Pretendard, sans-serif`;
+          ctx.textAlign = "center";
+          ctx.fillText(badgeText, badgeX, badgeY + 3.5 * scale);
+          ctx.textAlign = "left";
+        }
+      });
+
+      // 3. 실제 블록 (freeBlocks) 정밀 드로잉
+      freeBlocks.forEach(b => {
+        const origW = (b.shape === 'decision' ? 220 : (b.shape === 'terminal' ? 200 : (b.shape === 'io' ? 220 : 210)));
+        const origH = (b.shape === 'decision' ? 120 : 60);
+        const bx = toX(b.x), by = toY(b.y);
+        const bw = origW * scale, bh = origH * scale;
+
+        ctx.lineWidth = Math.max(1.8, 2.5 * scale);
+
+        if (b.shape === 'terminal') {
+          ctx.fillStyle = "#faf5ff";
+          ctx.strokeStyle = "#a855f7";
+          roundRect(ctx, bx, by, bw, bh, bh / 2, true, true);
+          ctx.fillStyle = "#581c87";
+        } else if (b.shape === 'io') {
+          ctx.fillStyle = "#ecfdf5";
+          ctx.strokeStyle = "#10b981";
+          const skew = 12 * scale;
+          ctx.beginPath();
+          ctx.moveTo(bx + skew, by);
+          ctx.lineTo(bx + bw, by);
+          ctx.lineTo(bx + bw - skew, by + bh);
+          ctx.lineTo(bx, by + bh);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = "#064e3b";
+        } else if (b.shape === 'decision') {
+          ctx.fillStyle = "#fffbeb";
+          ctx.strokeStyle = "#f59e0b";
+          ctx.beginPath();
+          ctx.moveTo(bx + bw / 2, by);
+          ctx.lineTo(bx + bw, by + bh / 2);
+          ctx.lineTo(bx + bw / 2, by + bh);
+          ctx.lineTo(bx, by + bh / 2);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = "#78350f";
+        } else {
+          ctx.fillStyle = "#eff6ff";
+          ctx.strokeStyle = "#3b82f6";
+          roundRect(ctx, bx, by, bw, bh, 6 * scale, true, true);
+          ctx.fillStyle = "#1e3a8a";
+        }
+
+        let txt = (b.text || '').trim();
+        if (txt.length > 15) txt = txt.substring(0, 14) + '…';
+        ctx.font = `bold ${Math.max(8, Math.round(11 * scale))}px Pretendard, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.fillText(txt, bx + bw / 2, by + bh / 2 + 3.5 * scale);
+        ctx.textAlign = "left";
+      });
+    }
+
+    curY += 370;
+
+    // --------------------------------------------------
+    // 섹션 4: 총평 및 조건부 합격 스탬프 ('감수' ➔ '검사 / 점검' 반영)
+    // --------------------------------------------------
     const isAiPassed = !!window.isFlowchartAiPassed;
     if (isAiPassed) {
       ctx.fillStyle = "#ecfdf5";
@@ -3843,11 +4208,11 @@ function generatePortfolioCanvas(studentNum, studentName) {
 
       ctx.fillStyle = "#064e3b";
       ctx.font = "bold 13px 'Pretendard', sans-serif";
-      ctx.fillText("🤖 Solar AI 감수: 일상 문제를 컴퓨터적 제어 구조(순차·선택·반복)로 완벽히 설계함.", 50, curY + 40);
+      ctx.fillText("🤖 Solar AI 검사: 일상 문제를 컴퓨터적 제어 구조(순차·선택·반복)로 완벽히 설계함.", 50, curY + 40);
 
       ctx.fillStyle = "#059669";
       ctx.font = "900 15px 'Pretendard', sans-serif";
-      ctx.fillText("💮 공식 합격 인증", W - 150, curY + 40);
+      ctx.fillText("💮 AI 검사 통과 (합격)", W - 180, curY + 40);
     } else {
       ctx.fillStyle = "#fffbeb";
       ctx.strokeStyle = "#fde68a";
@@ -3855,11 +4220,11 @@ function generatePortfolioCanvas(studentNum, studentName) {
 
       ctx.fillStyle = "#78350f";
       ctx.font = "bold 13px 'Pretendard', sans-serif";
-      ctx.fillText("🤖 Solar AI 감수: 현재 알고리즘 설계 및 순서도 보완 실습 진행 중.", 50, curY + 40);
+      ctx.fillText("🤖 Solar AI 검사: 현재 알고리즘 설계 및 순서도 보완 실습 진행 중.", 50, curY + 40);
 
       ctx.fillStyle = "#d97706";
       ctx.font = "bold 14px 'Pretendard', sans-serif";
-      ctx.fillText("⏳ 감수 미완료 (실습 중)", W - 180, curY + 40);
+      ctx.fillText("⏳ AI 검사 전 (실습 중)", W - 180, curY + 40);
     }
 
     resolve(canvas);
