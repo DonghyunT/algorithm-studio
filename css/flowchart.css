@@ -447,45 +447,124 @@
 }
 
 /* ==========================================
-   실제 엔트리(PlayEntry) 1:1 풀스크린 3단 스튜디오 레이아웃
+/* ==========================================
+   실제 엔트리(PlayEntry) 1:1 풀스크린 4단 스튜디오 레이아웃
+   (자연어 기획서 | 기호 보관함 | 캔버스 | 디버그 스튜디오)
    ========================================== */
 .entry-studio-container {
   display: grid;
-  grid-template-columns: 340px 120px 1fr;
+  grid-template-columns: 320px 108px 1fr 280px;
   gap: 0;
   height: calc(100vh - 165px);
   min-height: 600px;
   width: 100%;
   border: 1px solid #cbd5e1;
-  border-radius: 1rem;
+  border-radius: 0.85rem;
   overflow: hidden;
   background: #ffffff;
   box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.06);
   transition: grid-template-columns 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* 좌측 기획서 패널만 접힘 */
 .entry-studio-container.panel-collapsed {
-  grid-template-columns: 48px 120px 1fr;
+  grid-template-columns: 48px 108px 1fr 280px;
+}
+
+/* 우측 디버거 패널만 접힘 */
+.entry-studio-container.debugger-collapsed {
+  grid-template-columns: 320px 108px 1fr 40px;
+}
+
+/* 둘 다 접힘 */
+.entry-studio-container.panel-collapsed.debugger-collapsed {
+  grid-template-columns: 48px 108px 1fr 40px;
 }
 
 @media (max-width: 1400px) {
   .entry-studio-container {
-    grid-template-columns: 310px 115px 1fr;
+    grid-template-columns: 290px 100px 1fr 260px;
     height: calc(100vh - 170px);
     min-height: 580px;
   }
   .entry-studio-container.panel-collapsed {
-    grid-template-columns: 48px 115px 1fr;
+    grid-template-columns: 48px 100px 1fr 260px;
+  }
+  .entry-studio-container.debugger-collapsed {
+    grid-template-columns: 290px 100px 1fr 40px;
+  }
+  .entry-studio-container.panel-collapsed.debugger-collapsed {
+    grid-template-columns: 48px 100px 1fr 40px;
   }
 }
 
 @media (max-width: 1024px) {
   .entry-studio-container,
-  .entry-studio-container.panel-collapsed {
+  .entry-studio-container.panel-collapsed,
+  .entry-studio-container.debugger-collapsed,
+  .entry-studio-container.panel-collapsed.debugger-collapsed {
     grid-template-columns: 1fr;
     height: auto;
     min-height: auto;
   }
+}
+
+/* ==========================================
+   🚀 [모드 2] 풀스크린 스튜디오 모드 (Zero Margin Edge-to-Edge)
+   ========================================== */
+body.studio-mode {
+  overflow: hidden !important;
+  height: 100vh !important;
+}
+
+body.studio-mode > footer {
+  display: none !important;
+}
+
+body.studio-mode #view-lab {
+  max-width: 100% !important;
+  padding: 0.25rem 0.5rem 0 0.5rem !important;
+  margin: 0 !important;
+  height: calc(100vh - 60px) !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+body.studio-mode #lab-flowchart-content {
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  margin-bottom: 0 !important;
+}
+
+body.studio-mode #fc-level3-view {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  margin-bottom: 0 !important;
+}
+
+body.studio-mode .entry-studio-container {
+  height: 100% !important;
+  min-height: 0 !important;
+  flex: 1 1 auto !important;
+  border-radius: 0.75rem !important;
+  margin-bottom: 0.25rem !important;
+}
+
+/* 변수 변경 실시간 강조 펄스 */
+@keyframes varRowPulse {
+  0% { background-color: #dbeafe; transform: scale(1.02); }
+  50% { background-color: #bfdbfe; }
+  100% { background-color: transparent; transform: scale(1); }
+}
+
+.var-changed-flash {
+  animation: varRowPulse 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+  color: #1d4ed8 !important;
+  font-weight: 800 !important;
 }
 
 /* Step 4 예시 공방용 2단 와이드 스튜디오 레이아웃 */

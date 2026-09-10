@@ -51,15 +51,31 @@ function switchFlowchartStep(stepNum) {
 
   // 3. 해당 스텝별 초기화
   if (isL1) {
+    disableStudioMode();
     selectFlowchartMission(stepNum);
   } else if (isL2) {
+    enableStudioMode();
     initLevel2Walkthrough();
   } else if (isL3) {
+    enableStudioMode();
     initLevel3FreeStudio();
   }
 
   if (typeof playSfx === 'function') playSfx('step');
 }
+
+function enableStudioMode() {
+  document.body.classList.add('studio-mode');
+  window.dispatchEvent(new Event('resize'));
+}
+
+function disableStudioMode() {
+  document.body.classList.remove('studio-mode');
+  window.dispatchEvent(new Event('resize'));
+}
+
+window.enableStudioMode = enableStudioMode;
+window.disableStudioMode = disableStudioMode;
 
 // 하위 호환성 별칭
 function switchFlowchartLevel(lvl) {
@@ -2885,9 +2901,491 @@ function zoomCanvas(direction) {
   if (typeof playSfx === 'function') playSfx('snap');
 }
 
-/**
- * 엔트리 스타일 순서도 가상 실행 시뮬레이션
- */
+// ==========================================
+// 🔍 순수 바닐라 미니 언어 파서 (AST Evaluator)
+// ==========================================
+function tokenizeFlowchartExpr(s) {
+  const t = [];
+  let i = 0;
+  const isD = c => c >= '0' && c <= '9';
+  const isI = c => /[A-Za-z_\uAC00-\uD7A3]/.test(c);
+  const isIN = c => /[A-Za-z0-9_\uAC00-\uD7A3]/.test(c);
+
+  while (i < s.length) {
+    const c = s[i];
+    if (/\s/.test(c)) { i++; continue; }
+    if (isD(c) || (c === '.' && isD(s[i + 1] || ''))) {
+      let j = i;
+      while (j < s.length && (isD(s[j]) || s[j] === '.')) j++;
+      t.push({ k: 'num', v: parseFloat(s.slice(i, j)) });
+      i = j;
+      continue;
+    }
+    if (isI(c)) {
+      let j2 = i;
+      while (j2 < s.length && isIN(s[j2])) j2++;
+      t.push({ k: 'id', v: s.slice(i, j2) });
+      i = j2;
+      continue;
+    }
+    const two = s.substr(i, 2);
+    if (two === '<=' || two === '>=' || two === '==' || two === '!=' || two === '<>') {
+      t.push({ k: 'op', v: two === '<>' ? '!=' : two });
+      i += 2;
+      continue;
+    }
+    if ('+-*/%()<>='.indexOf(c) >= 0) {
+      t.push({ k: 'op', v: c });
+      i++;
+      continue;
+    }
+    throw new Error(`사용할 수 없는 기호입니다: '${c}'`);
+  }
+  return t;
+}
+
+function makeFlowchartParser(tk) {
+  let p = 0;
+  function peek() { return tk[p]; }
+  function expr() {
+    let n = term();
+    while (peek() && (peek().v === '+' || peek().v === '-')) {
+      const o = tk[p++].v;
+      n = { k: 'bin', o, l: n, r: term() };
+    }
+    return n;
+  }
+  function term() {
+    let n = unary();
+    while (peek() && (peek().v === '*' || peek().v === '/' || peek().v === '%')) {
+      const o = tk[p++].v;
+      n = { k: 'bin', o, l: n, r: unary() };
+    }
+    return n;
+  }
+  function unary() {
+    if (peek() && peek().v === '-') {
+      p++;
+      return { k: 'neg', e: unary() };
+    }
+    return primary();
+  }
+  function primary() {
+    const t = peek();
+    if (!t) throw new Error('수식이 완성되지 않았습니다.');
+    if (t.k === 'num') { p++; return { k: 'num', v: t.v }; }
+    if (t.k === 'id') { p++; return { k: 'var', v: t.v }; }
+    if (t.v === '(') {
+      p++;
+      const e = expr();
+      if (!peek() || peek().v !== ')') throw new Error("닫는 괄호 ')'가 빠졌습니다.");
+      p++;
+      return e;
+    }
+    throw new Error(`예상하지 못한 수식 요소입니다: '${t.v}'`);
+  }
+  return {
+    expr,
+    peek,
+    take: () => tk[p++],
+    atEnd: () => p >= tk.length
+  };
+}
+
+function evalFlowchartAST(ast, vars) {
+  if (ast.k === 'num') return ast.v;
+  if (ast.k === 'var') {
+    if (!(ast.v in vars)) {
+      throw new Error(`아직 값이 지정되지 않은 변수 '${ast.v}'입니다.`);
+    }
+    return vars[ast.v];
+  }
+  if (ast.k === 'neg') return -evalFlowchartAST(ast.e, vars);
+  const l = evalFlowchartAST(ast.l, vars);
+  const r = evalFlowchartAST(ast.r, vars);
+  if (ast.o === '+') return l + r;
+  if (ast.o === '-') return l - r;
+  if (ast.o === '*') return l * r;
+  if (ast.o === '/') {
+    if (r === 0) throw new Error('0으로 나눌 수 없습니다.');
+    return l / r;
+  }
+  if (ast.o === '%') {
+    if (r === 0) throw new Error('0으로 나눈 나머지를 구할 수 없습니다.');
+    return l % r;
+  }
+  throw new Error(`알 수 없는 연산자: ${ast.o}`);
+}
+
+function parseFlowchartAssign(text) {
+  const tk = tokenizeFlowchartExpr(text);
+  if (tk.length < 3 || tk[0].k !== 'id' || tk[1].v !== '=') {
+    throw new Error("처리 기호는 '변수 = 식' 형태로 적어주세요 (예: sum = 0, sum = sum + i)");
+  }
+  const name = tk[0].v;
+  const ps = makeFlowchartParser(tk.slice(2));
+  const ast = ps.expr();
+  if (!ps.atEnd()) throw new Error('식 뒤에 해석할 수 없는 부분이 남아있습니다.');
+  return { name, ast };
+}
+
+function parseFlowchartCond(text) {
+  const tk = tokenizeFlowchartExpr(text);
+  const ps = makeFlowchartParser(tk);
+  const left = ps.expr();
+  const op = ps.peek();
+  if (!op || ['<', '>', '<=', '>=', '==', '!='].indexOf(op.v) < 0) {
+    throw new Error("판단 기호는 '식 <  <=  >  >=  ==  != 식' 형태로 적어주세요 (예: i <= 10)");
+  }
+  ps.take();
+  const right = ps.expr();
+  if (!ps.atEnd()) throw new Error('조건식 뒤에 해석할 수 없는 부분이 남아있습니다.');
+  return { l: left, o: op.v, r: right };
+}
+
+function evalFlowchartCond(c, vars) {
+  const a = evalFlowchartAST(c.l, vars);
+  const b = evalFlowchartAST(c.r, vars);
+  switch (c.o) {
+    case '<': return a < b;
+    case '>': return a > b;
+    case '<=': return a <= b;
+    case '>=': return a >= b;
+    case '==': return a === b;
+    case '!=': return a !== b;
+  }
+  return false;
+}
+
+// ==========================================
+// 🐞 디버그 스튜디오 상태 및 실행 제어 엔진
+// ==========================================
+let debuggerExec = null;
+let debuggerTimer = null;
+let debuggerSpeed = 3;
+
+function updateDebuggerSpeed(val) {
+  debuggerSpeed = parseInt(val, 10) || 3;
+  if (debuggerTimer) {
+    clearInterval(debuggerTimer);
+    const intervals = [1000, 750, 500, 300, 150];
+    const delay = intervals[debuggerSpeed - 1] || 500;
+    debuggerTimer = setInterval(() => {
+      stepDebugger();
+    }, delay);
+  }
+}
+
+function initDebugger() {
+  const startBlock = freeBlocks.find(b => b.shape === 'terminal' && (b.text || '').includes('시작')) || freeBlocks.find(b => b.id === 'blk-start');
+  if (!startBlock) {
+    alert("⚠️ 시작 단말 기호가 없습니다!");
+    return false;
+  }
+  
+  debuggerExec = {
+    curId: startBlock.id,
+    vars: {},
+    prevVars: {},
+    lastChanged: null,
+    steps: 0,
+    done: false
+  };
+
+  renderVariableWatcher();
+  logDebugConsole("🚀 디버그 세션을 시작합니다. [한 단계] 또는 [실행]을 누르세요.");
+  setDebuggerStatus("대기 중");
+  updateBlockHighlights(startBlock.id);
+  return true;
+}
+
+function logDebugConsole(msg, isErr = false) {
+  const c = document.getElementById('debug-terminal-console');
+  if (!c) return;
+  const d = document.createElement('div');
+  d.className = isErr ? 'text-rose-400 font-bold' : 'text-slate-200';
+  d.textContent = `> ${msg}`;
+  c.appendChild(d);
+  c.scrollTop = c.scrollHeight;
+}
+
+function clearDebugConsole() {
+  const c = document.getElementById('debug-terminal-console');
+  if (c) c.innerHTML = '<div class="text-slate-500 text-[10px]">> 콘솔이 초기화되었습니다.</div>';
+}
+
+function renderVariableWatcher() {
+  const tbody = document.getElementById('var-watcher-tbody');
+  const countBadge = document.getElementById('var-count-badge');
+  if (!tbody) return;
+
+  if (!debuggerExec || Object.keys(debuggerExec.vars).length === 0) {
+    tbody.innerHTML = '<tr><td colspan="3" class="py-6 text-center text-slate-400 text-[10px]">등록된 변수가 없습니다</td></tr>';
+    if (countBadge) countBadge.textContent = '0개';
+    return;
+  }
+
+  const keys = Object.keys(debuggerExec.vars);
+  if (countBadge) countBadge.textContent = `${keys.length}개`;
+
+  tbody.innerHTML = keys.map(k => {
+    const isChanged = debuggerExec.lastChanged === k;
+    const curVal = debuggerExec.vars[k];
+    const prevVal = (k in debuggerExec.prevVars) ? debuggerExec.prevVars[k] : '-';
+    const flashClass = isChanged ? 'var-changed-flash' : '';
+    const formattedCur = (typeof curVal === 'number') ? (Number.isInteger(curVal) ? curVal : Math.round(curVal * 1000) / 1000) : curVal;
+    const formattedPrev = (typeof prevVal === 'number') ? (Number.isInteger(prevVal) ? prevVal : Math.round(prevVal * 1000) / 1000) : prevVal;
+
+    return `
+      <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+        <td class="py-1.5 font-bold text-slate-800">${escapeHtml(k)}</td>
+        <td class="py-1.5 text-right font-mono ${flashClass}">${formattedCur}</td>
+        <td class="py-1.5 text-right font-mono text-slate-400">${formattedPrev}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function setDebuggerStatus(statusText) {
+  const badge = document.getElementById('sim-status-badge');
+  if (badge) badge.textContent = statusText;
+}
+
+function updateBlockHighlights(activeId) {
+  document.querySelectorAll('.flowchart-block-simulating').forEach(el => el.classList.remove('flowchart-block-simulating'));
+  if (activeId) {
+    const el = document.getElementById(activeId);
+    if (el) {
+      el.classList.add('flowchart-block-simulating');
+    }
+  }
+}
+
+function stepDebugger() {
+  if (!debuggerExec) {
+    if (!initDebugger()) return;
+  }
+  if (debuggerExec.done) {
+    logDebugConsole("실행이 이미 완료되었습니다. [초기화] 후 다시 실행하세요.");
+    setDebuggerStatus("실행 종료");
+    pauseDebugger();
+    return;
+  }
+
+  debuggerExec.steps++;
+  if (debuggerExec.steps > 1000) {
+    logDebugConsole("⚠️ 1,000단계를 초과했습니다! 무한 루프 가능성이 있으니 조건식을 점검하세요.", true);
+    debuggerExec.done = true;
+    pauseDebugger();
+    return;
+  }
+
+  const curBlock = freeBlocks.find(b => b.id === debuggerExec.curId);
+  if (!curBlock) {
+    logDebugConsole(`⚠️ 다음 기호(${debuggerExec.curId})를 찾을 수 없습니다.`, true);
+    debuggerExec.done = true;
+    pauseDebugger();
+    return;
+  }
+
+  updateBlockHighlights(curBlock.id);
+  debuggerExec.lastChanged = null;
+  let nextId = null;
+
+  try {
+    if (curBlock.shape === 'terminal') {
+      const isStart = (curBlock.text || '').includes('시작');
+      const isEnd = (curBlock.text || '').includes('종료');
+
+      if (isStart) {
+        logDebugConsole(`[시작] 알고리즘을 출발합니다.`);
+        const outConns = freeConnections.filter(c => c.from === curBlock.id);
+        if (outConns.length === 0) throw new Error("'시작' 기호에서 나가는 화살표가 없습니다.");
+        nextId = outConns[0].to;
+      } else if (isEnd) {
+        logDebugConsole(`🎉 [종료] 알고리즘이 성공적으로 완주했습니다! (총 ${debuggerExec.steps}단계)`);
+        debuggerExec.done = true;
+        setDebuggerStatus("완주 성공");
+        pauseDebugger();
+        if (typeof playSfx === 'function') playSfx('success');
+        updateBlockHighlights(null);
+        return;
+      }
+    } else if (curBlock.shape === 'process') {
+      const rawText = (curBlock.text || '').trim();
+      if (rawText.includes('=')) {
+        const assign = parseFlowchartAssign(rawText);
+        const resultVal = evalFlowchartAST(assign.ast, debuggerExec.vars);
+        if (assign.name in debuggerExec.vars) {
+          debuggerExec.prevVars[assign.name] = debuggerExec.vars[assign.name];
+        }
+        debuggerExec.vars[assign.name] = resultVal;
+        debuggerExec.lastChanged = assign.name;
+        logDebugConsole(`[처리] ${assign.name} = ${resultVal}`);
+      } else {
+        logDebugConsole(`[명령] '${rawText}' 실행 완료`);
+      }
+      const outConns = freeConnections.filter(c => c.from === curBlock.id);
+      if (outConns.length === 0) throw new Error(`'${rawText}' 기호 다음에 연결된 화살표가 없습니다.`);
+      nextId = outConns[0].to;
+    } else if (curBlock.shape === 'io') {
+      const rawText = (curBlock.text || '').trim();
+      if (rawText.startsWith('입력')) {
+        const varName = rawText.slice(2).trim() || 'x';
+        pauseDebugger();
+        const inputValStr = window.prompt(`[입력 기호] '${varName}'에 넣을 숫자 값을 입력하세요:`, '0');
+        if (inputValStr === null) {
+          logDebugConsole(`[입력 취소] 사용자가 입력을 취소했습니다.`, true);
+          return;
+        }
+        const numVal = parseFloat(inputValStr);
+        if (isNaN(numVal)) throw new Error(`숫자만 입력할 수 있습니다: '${inputValStr}'`);
+        if (varName in debuggerExec.vars) {
+          debuggerExec.prevVars[varName] = debuggerExec.vars[varName];
+        }
+        debuggerExec.vars[varName] = numVal;
+        debuggerExec.lastChanged = varName;
+        logDebugConsole(`[입력] ${varName} = ${numVal}`);
+      } else if (rawText.startsWith('출력')) {
+        const exprStr = rawText.slice(2).trim();
+        let printVal;
+        try {
+          const tk = tokenizeFlowchartExpr(exprStr);
+          const ast = makeFlowchartParser(tk).expr();
+          printVal = evalFlowchartAST(ast, debuggerExec.vars);
+        } catch (e) {
+          printVal = debuggerExec.vars[exprStr] !== undefined ? debuggerExec.vars[exprStr] : exprStr;
+        }
+        logDebugConsole(`📢 [출력] 결과: ${printVal}`);
+      } else {
+        logDebugConsole(`[입출력] '${rawText}' 완료`);
+      }
+      const outConns = freeConnections.filter(c => c.from === curBlock.id);
+      if (outConns.length === 0) throw new Error(`'${rawText}' 기호 다음에 연결된 화살표가 없습니다.`);
+      nextId = outConns[0].to;
+    } else if (curBlock.shape === 'decision') {
+      const rawText = (curBlock.text || '').trim();
+      const outConns = freeConnections.filter(c => c.from === curBlock.id);
+      let conditionResult = true;
+
+      if (/[<>=!]/.test(rawText)) {
+        try {
+          const cond = parseFlowchartCond(rawText);
+          conditionResult = evalFlowchartCond(cond, debuggerExec.vars);
+        } catch (e) {
+          conditionResult = true;
+        }
+      }
+
+      const branchChoice = conditionResult ? '예' : '아니오';
+      logDebugConsole(`[판단] '${rawText}' ➔ 판정: [${branchChoice}]`);
+
+      let targetConn = outConns.find(c => (c.branchLabel || c.label) === branchChoice);
+      if (!targetConn && outConns.length > 0) {
+        targetConn = conditionResult ? outConns[0] : (outConns[1] || outConns[0]);
+      }
+      if (!targetConn) throw new Error(`'${branchChoice}' 방향으로 나가는 연결선이 없습니다.`);
+      nextId = targetConn.to;
+    }
+  } catch (err) {
+    logDebugConsole(`❌ 오류 발생: ${err.message}`, true);
+    setDebuggerStatus("오류 멈춤");
+    pauseDebugger();
+    if (typeof playSfx === 'function') playSfx('warning');
+    return;
+  }
+
+  debuggerExec.curId = nextId;
+  renderVariableWatcher();
+  setDebuggerStatus(`실행 중 (${debuggerExec.steps}단계)`);
+}
+
+function toggleDebuggerRun() {
+  if (debuggerTimer) {
+    pauseDebugger();
+  } else {
+    if (!debuggerExec || debuggerExec.done) {
+      if (!initDebugger()) return;
+    }
+    const btnRunTxt = document.getElementById('txt-sim-run');
+    if (btnRunTxt) btnRunTxt.textContent = '일시정지';
+    setDebuggerStatus('연속 실행 중');
+
+    const intervals = [1000, 750, 500, 300, 150];
+    const delay = intervals[debuggerSpeed - 1] || 500;
+    debuggerTimer = setInterval(() => {
+      stepDebugger();
+    }, delay);
+  }
+}
+
+function pauseDebugger() {
+  if (debuggerTimer) {
+    clearInterval(debuggerTimer);
+    debuggerTimer = null;
+  }
+  const btnRunTxt = document.getElementById('txt-sim-run');
+  if (btnRunTxt) btnRunTxt.textContent = '실행';
+  if (debuggerExec && !debuggerExec.done) {
+    setDebuggerStatus('일시정지');
+  }
+}
+
+function resetDebugger() {
+  pauseDebugger();
+  debuggerExec = null;
+  updateBlockHighlights(null);
+  clearDebugConsole();
+  renderVariableWatcher();
+  setDebuggerStatus('초기화됨');
+  logDebugConsole('준비 완료. [한 단계] 또는 [실행]을 누르세요.');
+}
+
+function toggleDebuggerPanel() {
+  const container = document.querySelector('.entry-studio-container');
+  if (!container) return;
+  container.classList.toggle('debugger-collapsed');
+  const isCollapsed = container.classList.contains('debugger-collapsed');
+  
+  const fullView = document.querySelector('.debugger-panel-full-view');
+  const colView = document.querySelector('.debugger-panel-collapsed-view');
+  if (fullView && colView) {
+    fullView.classList.toggle('hidden', isCollapsed);
+    colView.classList.toggle('hidden', !isCollapsed);
+  }
+}
+
+function focusCanvasBlockByText(text) {
+  const b = freeBlocks.find(x => (x.text || '').trim() === text.trim()) || freeBlocks.find(x => (x.text || '').includes(text.trim()));
+  if (!b) return;
+  const canvas = document.getElementById('free-flowchart-canvas');
+  if (!canvas) return;
+  const cw = canvas.clientWidth;
+  const ch = canvas.clientHeight;
+  canvasPanX = Math.round(cw / 2 - (b.x + 80));
+  canvasPanY = Math.round(ch / 2 - (b.y + 35));
+  renderFreeCanvas();
+  updateCanvasGridPosition();
+  
+  const el = document.getElementById(b.id);
+  if (el) {
+    el.classList.add('flowchart-block-simulating');
+    setTimeout(() => {
+      el.classList.remove('flowchart-block-simulating');
+    }, 2000);
+  }
+}
+
+window.initDebugger = initDebugger;
+window.stepDebugger = stepDebugger;
+window.toggleDebuggerRun = toggleDebuggerRun;
+window.pauseDebugger = pauseDebugger;
+window.resetDebugger = resetDebugger;
+window.updateDebuggerSpeed = updateDebuggerSpeed;
+window.clearDebugConsole = clearDebugConsole;
+window.toggleDebuggerPanel = toggleDebuggerPanel;
+window.focusCanvasBlockByText = focusCanvasBlockByText;
+
 // ==========================================
 // ⚡ 순서도 인터랙티브 가상 실행 검증 엔진
 // ==========================================
@@ -2945,13 +3443,12 @@ function playFreeFlowchartSimulation() {
     return;
   }
 
-  // 자료(입출력) 블록 탐색
-  const ioBlocks = freeBlocks.filter(b => b.shape === 'io');
-  if (ioBlocks.length > 0) {
-    openSimInputModal(ioBlocks);
-  } else {
-    runInteractiveSimulation({});
+  // 5. 디버그 스튜디오 패널이 접혀있다면 펼치고 실행 시작
+  const container = document.querySelector('.entry-studio-container');
+  if (container && container.classList.contains('debugger-collapsed')) {
+    toggleDebuggerPanel();
   }
+  toggleDebuggerRun();
 }
 
 /**
@@ -3598,8 +4095,19 @@ ${complimentsText}
           <div class="text-[11px] font-black text-rose-700 flex items-center gap-1">
             <i class="fa-solid fa-triangle-exclamation"></i> <span>발견된 결손 및 보완 과제:</span>
           </div>
-          <ul class="text-[11px] text-rose-600 space-y-0.5 list-disc list-inside font-medium">
-            ${consistency.issues.map(iss => `<li>${escapeHtml(iss)}</li>`).join('')}
+          <ul class="text-[11px] text-rose-600 space-y-1 list-none font-medium">
+            ${consistency.issues.map((iss, idx) => {
+              const m = iss.match(/'([^']+)'/);
+              const targetText = m ? m[1] : '';
+              const clickAction = targetText ? `onclick="focusCanvasBlockByText('${escapeHtml(targetText)}'); closeAiAuditModal();"` : '';
+              const cursorClass = targetText ? 'cursor-pointer hover:bg-rose-100/80 p-1 rounded-lg transition flex items-start justify-between' : 'p-1';
+              return `
+                <li ${clickAction} class="${cursorClass}">
+                  <span>${idx + 1}. ${escapeHtml(iss)}</span>
+                  ${targetText ? '<span class="text-[10px] bg-rose-200/80 text-rose-800 px-1.5 py-0.5 rounded font-bold shrink-0 ml-1.5">기호 찾기 🔍</span>' : ''}
+                </li>
+              `;
+            }).join('')}
           </ul>
         </div>
       ` : (aiJudgmentPassed ? `

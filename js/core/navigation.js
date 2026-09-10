@@ -70,6 +70,7 @@ function switchUnit(unitId, targetStep = null) {
 
   // 2. 로드맵 또는 교사용 클래스룸 처리
   if (unitId === 'roadmap') {
+    if (typeof disableStudioMode === 'function') disableStudioMode();
     if (viewRoadmap) viewRoadmap.classList.remove('hidden');
     if (viewConcept) viewConcept.classList.add('hidden');
     if (viewQuiz) viewQuiz.classList.add('hidden');
@@ -133,6 +134,7 @@ function switchUnitStep(unitIdOrKey, stepName) {
   updateAllUnitStepHeaders(unitId, stepName);
 
   if (stepName === 'concept') {
+    if (typeof disableStudioMode === 'function') disableStudioMode();
     if (viewConcept) viewConcept.classList.remove('hidden');
     if (viewQuiz) viewQuiz.classList.add('hidden');
     if (viewLab) viewLab.classList.add('hidden');
@@ -143,6 +145,7 @@ function switchUnitStep(unitIdOrKey, stepName) {
       selectConceptModule(meta.conceptModule);
     }
   } else if (stepName === 'quiz') {
+    if (typeof disableStudioMode === 'function') disableStudioMode();
     if (viewConcept) viewConcept.classList.add('hidden');
     if (viewQuiz) viewQuiz.classList.remove('hidden');
     if (viewLab) viewLab.classList.add('hidden');

@@ -2031,8 +2031,99 @@
                   <i class="fa-solid fa-trash-can text-2xl text-red-500 mb-0.5 pointer-events-none"></i>
                   <span class="text-[10px] font-black text-red-600 pointer-events-none">휴지통</span>
                 </div>
+
+                <!-- 하단 중앙 플로팅 디버깅 컨트롤 바 (스마트 알약 스타일) -->
+                <div id="sim-floating-bar" class="absolute bottom-3.5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 sm:gap-2 bg-white/95 backdrop-blur-md px-3.5 py-1.5 sm:py-2 rounded-2xl shadow-xl border border-slate-200 select-none">
+                  <button id="btn-sim-run" onclick="toggleDebuggerRun()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition flex items-center gap-1.5 shadow-xs cursor-pointer">
+                    <i class="fa-solid fa-play text-[10px]"></i> <span id="txt-sim-run">실행</span>
+                  </button>
+                  <button id="btn-sim-step" onclick="stepDebugger()" class="px-2.5 sm:px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer" title="한 단계씩 실행">
+                    <i class="fa-solid fa-forward-step text-[10px]"></i> <span>한 단계</span>
+                  </button>
+                  <button id="btn-sim-pause" onclick="pauseDebugger()" class="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer" title="일시정지">
+                    <i class="fa-solid fa-pause text-[10px]"></i>
+                  </button>
+                  <button id="btn-sim-reset" onclick="resetDebugger()" class="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer" title="처음부터 다시 초기화">
+                    <i class="fa-solid fa-rotate-left text-[10px]"></i>
+                  </button>
+                  <div class="w-[1px] h-4 bg-slate-200 mx-0.5"></div>
+                  <label class="flex items-center gap-1.5 text-[11px] font-bold text-slate-500">
+                    <span class="hidden sm:inline">속도</span>
+                    <input type="range" id="sim-speed-slider" min="1" max="5" value="3" oninput="updateDebuggerSpeed(this.value)" class="w-14 sm:w-16 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                  </label>
+                  <div class="w-[1px] h-4 bg-slate-200 mx-0.5"></div>
+                  <span id="sim-status-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">대기 중</span>
+                </div>
               </div>
 
+            </section>
+
+            <!-- [4단 우측] 디버그 스튜디오 (변수 추적기 & 입출력 콘솔) -->
+            <section id="debugger-studio-panel" class="bg-slate-50 flex flex-col h-full overflow-hidden border-l border-slate-200 relative min-w-0">
+              <!-- 펼침 뷰 -->
+              <div class="debugger-panel-full-view flex flex-col h-full overflow-hidden flex-1">
+                <!-- 헤더 -->
+                <div class="flex items-center justify-between px-3 py-2 border-b border-slate-200 bg-white shrink-0">
+                  <div class="flex items-center gap-1.5">
+                    <span class="w-6 h-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold"><i class="fa-solid fa-bug"></i></span>
+                    <h3 class="text-xs font-black text-slate-900">🐞 디버그 스튜디오</h3>
+                  </div>
+                  <div class="flex items-center gap-1">
+                    <button onclick="toggleDebuggerPanel()" class="w-6 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-xs transition cursor-pointer" title="디버거 패널 접기">
+                      <i class="fa-solid fa-angles-right text-[10px]"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- 상단부: 실시간 변수 추적기 (Variable Watcher) -->
+                <div class="p-2.5 border-b border-slate-200 flex-1 flex flex-col min-h-[170px] max-h-[50%] overflow-hidden bg-white">
+                  <div class="flex items-center justify-between pb-1.5 mb-1 border-b border-slate-100 shrink-0">
+                    <span class="text-[11px] font-black text-slate-700 flex items-center gap-1">
+                      <i class="fa-solid fa-chart-line text-indigo-500 text-[10px]"></i> 변수 추적 (Watcher)
+                    </span>
+                    <span id="var-count-badge" class="text-[10px] text-slate-400 font-mono">0개</span>
+                  </div>
+                  <div class="overflow-y-auto flex-1">
+                    <table class="w-full text-[11px] border-collapse">
+                      <thead>
+                        <tr class="text-slate-400 font-bold border-b border-slate-100 text-[10px]">
+                          <th class="py-1 text-left">변수</th>
+                          <th class="py-1 text-right">현재값</th>
+                          <th class="py-1 text-right text-slate-300">직전값</th>
+                        </tr>
+                      </thead>
+                      <tbody id="var-watcher-tbody">
+                        <tr>
+                          <td colspan="3" class="py-6 text-center text-slate-400 text-[10px]">실행 버튼을 누르면<br>변수 값이 실시간으로 추적됩니다</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- 하단부: 다크 입출력 터미널 콘솔 -->
+                <div class="flex-1 flex flex-col min-h-[140px] overflow-hidden bg-slate-950 p-2.5 text-slate-200">
+                  <div class="flex items-center justify-between pb-1.5 mb-1 border-b border-slate-800 shrink-0">
+                    <span class="text-[11px] font-black text-emerald-400 flex items-center gap-1 font-mono">
+                      <i class="fa-solid fa-terminal text-[10px]"></i> 출력 콘솔 (Console)
+                    </span>
+                    <button onclick="clearDebugConsole()" class="text-[10px] text-slate-400 hover:text-slate-200 font-mono cursor-pointer" title="콘솔 지우기">지우기</button>
+                  </div>
+                  <div id="debug-terminal-console" class="flex-1 overflow-y-auto font-mono text-[11px] leading-relaxed space-y-1 pr-1 text-slate-300 select-text">
+                    <div class="text-slate-500 text-[10px]">> 대기 중... 준비 완료</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 접힘 뷰 (세로 바) -->
+              <div class="debugger-panel-collapsed-view hidden flex flex-col items-center py-2 h-full bg-slate-100 border-l border-slate-200">
+                <button onclick="toggleDebuggerPanel()" class="w-7 h-7 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-black transition border border-indigo-200 shadow-xs cursor-pointer" title="디버거 펼치기">
+                  <i class="fa-solid fa-angles-left text-[10px]"></i>
+                </button>
+                <div class="writing-mode-vertical text-[11px] font-black text-slate-500 tracking-wider py-3">
+                  🐞 디버거
+                </div>
+              </div>
             </section>
 
           </div>
