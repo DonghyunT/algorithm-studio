@@ -835,3 +835,37 @@
   box-shadow: -6px 8px 26px rgba(37, 99, 235, 0.5);
 }
 
+/* ==========================================
+   8. 🎓 띵커보드 제출 모달 학번/이름 시선 집중 하이라이트 & 쉐이크
+   ========================================== */
+@keyframes studentInputGlow {
+  0%, 100% {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.25), 0 2px 8px rgba(99, 102, 241, 0.2);
+    background-color: #f5f3ff;
+  }
+  50% {
+    border-color: #818cf8;
+    box-shadow: 0 0 0 7px rgba(99, 102, 241, 0.45), 0 4px 14px rgba(99, 102, 241, 0.35);
+    background-color: #ede9fe;
+  }
+}
+
+.student-input-highlight {
+  animation: studentInputGlow 1.4s ease-in-out infinite alternate !important;
+}
+
+@keyframes inputShakeAnim {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+
+.input-shake {
+  animation: inputShakeAnim 0.4s ease-in-out !important;
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.3) !important;
+  background-color: #fef2f2 !important;
+}
+
+

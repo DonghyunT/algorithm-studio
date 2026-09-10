@@ -987,6 +987,12 @@ let freeBlocks = [];
 let freeConnections = [];
 let nextBlockId = 1;
 
+// 외부 모듈 및 테스트 환경 연동용 접근자
+window.getFreeBlocks = () => freeBlocks;
+window.setFreeBlocks = (blocks) => { freeBlocks = blocks; };
+window.getFreeConnections = () => freeConnections;
+window.setFreeConnections = (conns) => { freeConnections = conns; };
+
 // AI 설계 검사 통과 및 시뮬레이션 완주 상태 플래그
 window.isFlowchartAiPassed = false;
 window.isFlowchartSimValidated = false;
@@ -1036,6 +1042,13 @@ function applyCanvasPan() {
     canvas.style.backgroundPosition = `${canvasPanX}px ${canvasPanY}px`;
   }
 }
+
+window.getCanvasPan = () => ({ x: canvasPanX, y: canvasPanY });
+window.setCanvasPan = (x, y) => {
+  canvasPanX = x;
+  canvasPanY = y;
+  applyCanvasPan();
+};
 
 function resetCanvasPan() {
   canvasPanX = 0;
@@ -2177,8 +2190,8 @@ function addCanvasBlockAtPosition(shapeType, x, y) {
     shape: shapeType,
     type: shapeType,
     text: defaultLabels[shapeType] || "블록 내용",
-    x: Math.max(10, x),
-    y: Math.max(10, y)
+    x: Math.max(-2500, x),
+    y: Math.max(-2500, y)
   };
 
   freeBlocks.push(newBlock);
@@ -2194,14 +2207,25 @@ function addCanvasBlockAtPosition(shapeType, x, y) {
 function addCanvasBlock(shapeType) {
   const canvas = document.getElementById('free-flowchart-canvas');
   const stage = document.getElementById('free-flowchart-stage') || canvas;
-  const stageWidth = stage ? (stage.clientWidth || 600) : 600;
-  const x = Math.max(30, Math.floor((stageWidth - 190) / 2) + Math.floor(Math.random() * 40 - 20));
-  const y = 80 + (freeBlocks.length % 6) * 65;
+  const zoom = currentCanvasZoom || 1.0;
+
+  // 💡 뷰포트 기준 현재 보고 있는 정중앙 좌표 스마트 계산 (팬 이동 canvasPanX, canvasPanY 완벽 동기화)
+  const cWidth = (canvas && canvas.clientWidth > 0) ? canvas.clientWidth : 800;
+  const cHeight = (canvas && canvas.clientHeight > 0) ? canvas.clientHeight : 600;
+
+  const centerX = (cWidth / 2 - canvasPanX) / zoom;
+  const centerY = (cHeight / 2 - canvasPanY) / zoom;
+
+  // 약간의 지그재그 오프셋으로 블록이 겹치지 않게 스마트 배치
+  const offsetIndex = freeBlocks.length % 5;
+  const x = Math.round((centerX - 90 + (offsetIndex - 2) * 15) / 20) * 20;
+  const y = Math.round((centerY - 40 + (offsetIndex - 2) * 25) / 20) * 20;
+
   addCanvasBlockAtPosition(shapeType, x, y);
 }
 
 // --------------------------------------------------
-// 블록 마우스 드래그 이동 처리 (캔버스 줌 배율 완벽 동기화)
+// 블록 마우스 드래그 이동 처리 (캔버스 줌 배율 완벽 동기화 & 무한 가상 작업대)
 // --------------------------------------------------
 function handleBlockMouseDown(blockId, e) {
   if (e.target.classList.contains('flow-port') || e.target.isContentEditable) return;
@@ -2235,11 +2259,10 @@ function handleBlockMouseDown(blockId, e) {
     let nx = Math.round(startBlockX + (curMouseX - startMouseX));
     let ny = Math.round(startBlockY + (curMouseY - startMouseY));
 
-    const maxW = stage.clientWidth || 3000;
-    const maxH = stage.clientHeight || 3000;
-
-    nx = Math.max(10, Math.min(maxW - 190, nx));
-    ny = Math.max(10, Math.min(maxH - 80, ny));
+    // 💡 광활한 가상 작업대 허용 (화면 중간에서 멈추는 '보이지 않는 벽' 영구 제거!)
+    // 무한에 가까운 작업 공간(-2500px ~ +4500px) 지원으로 캔버스를 어디로 이동해도 자유롭게 배치 가능
+    nx = Math.max(-2500, Math.min(4500, nx));
+    ny = Math.max(-2500, Math.min(4500, ny));
 
     draggedBlockObj.x = nx;
     draggedBlockObj.y = ny;
@@ -2249,17 +2272,30 @@ function handleBlockMouseDown(blockId, e) {
       el.style.top = `${ny}px`;
     }
 
-    // 엔트리 캔버스 휴지통 호버 감지 (모든 블록 삭제 가능)
+    // 엔트리 캔버스 휴지통 호버 감지 (모든 블록 삭제 가능 & 시각적 삭제 예고 피드백)
     const trashZone = document.getElementById('entry-trash-zone');
     if (trashZone) {
       const tRect = trashZone.getBoundingClientRect();
       const isOverTrash = (
-        moveEvent.clientX >= tRect.left &&
-        moveEvent.clientX <= tRect.right &&
-        moveEvent.clientY >= tRect.top &&
-        moveEvent.clientY <= tRect.bottom
+        moveEvent.clientX >= tRect.left - 12 &&
+        moveEvent.clientX <= tRect.right + 12 &&
+        moveEvent.clientY >= tRect.top - 12 &&
+        moveEvent.clientY <= tRect.bottom + 12
       );
       trashZone.classList.toggle('trash-active', isOverTrash);
+
+      // 휴지통 위 호버 시 블록 투명화 및 축소 피드백
+      if (el) {
+        if (isOverTrash) {
+          el.style.opacity = '0.45';
+          el.style.transform = 'scale(0.8)';
+          el.style.transition = 'transform 0.15s ease, opacity 0.15s ease';
+        } else {
+          el.style.opacity = '1';
+          el.style.transform = '';
+          el.style.transition = '';
+        }
+      }
     }
 
     renderFreeConnections();
@@ -2269,14 +2305,28 @@ function handleBlockMouseDown(blockId, e) {
     isDraggingBlock = false;
     const blockToDelete = draggedBlockObj;
     draggedBlockObj = null;
-    if (el) el.classList.remove('selected');
+    if (el) {
+      el.classList.remove('selected');
+      el.style.opacity = '1';
+      el.style.transform = '';
+      el.style.transition = '';
+    }
 
     // 휴지통에 드롭 시 삭제 처리 (단말 포함 모든 블록 삭제)
     const trashZone = document.getElementById('entry-trash-zone');
     let droppedInTrash = false;
-    if (trashZone && trashZone.classList.contains('trash-active')) {
-      trashZone.classList.remove('trash-active');
-      droppedInTrash = true;
+    if (trashZone) {
+      const tRect = trashZone.getBoundingClientRect();
+      const isOverTrash = (
+        upEvent.clientX >= tRect.left - 12 &&
+        upEvent.clientX <= tRect.right + 12 &&
+        upEvent.clientY >= tRect.top - 12 &&
+        upEvent.clientY <= tRect.bottom + 12
+      );
+      if (trashZone.classList.contains('trash-active') || isOverTrash) {
+        trashZone.classList.remove('trash-active');
+        droppedInTrash = true;
+      }
     }
 
     document.removeEventListener('mousemove', onMouseMove);
@@ -3194,22 +3244,82 @@ function analyzeAlgorithmConsistency() {
     issues.push(`자연어 기획서의 행동 단계(${seqCards.length}개)에 비해 캔버스의 파란색 처리 블록(${processBlocks.length}개)이 부족합니다. 중간 명령을 더 채워 넣어 보세요.`);
   }
 
-  // 5. 고립 블록 검사
-  const orphanBlocks = freeBlocks.filter(b => {
-    const hasOutgoing = freeConnections.some(c => c.from === b.id);
-    const hasIncoming = freeConnections.some(c => c.to === b.id);
-    if (b === startBlock) return !hasOutgoing;
-    if (b === endBlock) return !hasIncoming;
-    return !hasOutgoing && !hasIncoming;
+  // 5. 💡 판단(Decision) 기호의 양방향 분기 완결성 검사 (참/거짓 2갈래 필수)
+  decisionBlocks.forEach(dec => {
+    const outgoing = freeConnections.filter(c => c.from === dec.id);
+    if (outgoing.length < 2) {
+      issues.push(`⚠️ [판단 분기 누락] '${dec.text || '조건 판단'}' 기호에서 '예' 또는 '아니오' 분기 중 하나가 빠져 있습니다. 조건에 따른 두 갈래 길을 모두 연결해 주세요.`);
+    }
   });
-  if (orphanBlocks.length > 0) {
-    issues.push(`화살표가 연결되지 않은 고립된 기호 블록이 ${orphanBlocks.length}개 있습니다.`);
+
+  // 6. 💡 비단말 블록의 나가는 연결선 검사 (종료 외 블록 중간 멈춤 방지)
+  freeBlocks.forEach(b => {
+    if (b !== endBlock) {
+      const outgoing = freeConnections.filter(c => c.from === b.id);
+      if (outgoing.length === 0) {
+        if (b === startBlock) {
+          issues.push("시작 기호에서 출발하는 화살표가 없습니다. 첫 번째 단계를 연결해 주세요.");
+        } else {
+          issues.push(`⚠️ [미완성 경로 발견] '${b.text || b.shape}' 기호 다음에 나가는 화살표가 없어 알고리즘이 중간에 멈춥니다. 종료 기호까지 연결해 주세요.`);
+        }
+      }
+    }
+  });
+
+  // 7. 💡 시작 ➔ 종료 전 경로 도달성(Reachability) 및 막다른 길(Dead End) 정밀 탐색
+  if (startBlock && endBlock) {
+    // 7.1 시작 블록에서 출발하여 도달 가능한 모든 블록 집합 (Forward Reachability)
+    const visitedFromStart = new Set([startBlock.id]);
+    const queue = [startBlock.id];
+    while (queue.length > 0) {
+      const currId = queue.shift();
+      const outgoing = freeConnections.filter(c => c.from === currId);
+      for (const conn of outgoing) {
+        if (!visitedFromStart.has(conn.to)) {
+          visitedFromStart.add(conn.to);
+          queue.push(conn.to);
+        }
+      }
+    }
+
+    // 7.2 종료 블록에 도달할 수 있는 모든 블록 집합 (Backward Reachability)
+    const canReachEnd = new Set([endBlock.id]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const conn of freeConnections) {
+        if (canReachEnd.has(conn.to) && !canReachEnd.has(conn.from)) {
+          canReachEnd.add(conn.from);
+          changed = true;
+        }
+      }
+    }
+
+    // 7.3 막다른 길(Dead End) 검출: 시작에서 도달할 수 있으나 종료로 갈 수 없는 분기/블록
+    const deadEndBlocks = freeBlocks.filter(b => b !== endBlock && visitedFromStart.has(b.id) && !canReachEnd.has(b.id));
+    if (deadEndBlocks.length > 0) {
+      const names = deadEndBlocks.map(b => `'${b.text || b.shape}'`).slice(0, 2).join(', ');
+      const suffix = deadEndBlocks.length > 2 ? ` 외 ${deadEndBlocks.length - 2}개` : '';
+      issues.push(`⚠️ [종료 미도달 분기 발견] ${names}${suffix}에서 출발한 흐름이 '종료' 기호에 닿지 못하고 끊겨 있습니다. 모든 갈래길이 최종적으로 '종료'로 이어지도록 만들어 보세요.`);
+    }
+
+    // 7.4 시작 기호와 전혀 연결되지 않은 부유 블록 검출
+    const orphanBlocks = freeBlocks.filter(b => b !== startBlock && !visitedFromStart.has(b.id));
+    if (orphanBlocks.length > 0) {
+      issues.push(`캔버스에 '시작' 기호의 실행 흐름과 연결되지 않은 기호가 ${orphanBlocks.length}개 있습니다. 불필요한 블록은 휴지통으로 지워주세요.`);
+    }
   }
 
   // 칭찬 요소
-  if (startBlock && endBlock) compliments.push("시작과 종료 단말 기호가 바르게 배치되어 있습니다.");
-  if (decisionBlocks.length > 0 && selCards.length > 0) compliments.push("자연어 기획서의 조건 분기를 주황색 마름모(판단) 기호로 잘 대응시켰습니다.");
-  if (loopbackConns.length > 0) compliments.push("상위 블록으로 되돌아가는 완벽한 반복(루프백) 화살표를 갖추고 있습니다.");
+  if (startBlock && endBlock && issues.length === 0) {
+    compliments.push("시작과 종료 단말 기호가 바르게 배치되어 있으며, 모든 경로가 종료까지 완벽하게 이어집니다.");
+  }
+  if (decisionBlocks.length > 0 && selCards.length > 0 && !issues.some(i => i.includes('판단'))) {
+    compliments.push("자연어 기획서의 조건 분기를 주황색 마름모(판단) 기호와 양방향 갈래길로 잘 대응시켰습니다.");
+  }
+  if (loopbackConns.length > 0) {
+    compliments.push("상위 블록으로 되돌아가는 완벽한 반복(루프백) 화살표를 갖추고 있습니다.");
+  }
 
   return {
     isConsistent: issues.length === 0,
@@ -3564,6 +3674,21 @@ function getFlowchartOrderedBlocks() {
   return ordered;
 }
 
+// 💡 학생 학번/이름 입력 핸들러 및 세션 저장소 동기화
+function handleStudentInput(el) {
+  if (el) {
+    el.classList.remove('student-input-highlight', 'input-shake');
+  }
+  const numInput = document.getElementById('thinker-student-num');
+  const nameInput = document.getElementById('thinker-student-name');
+  if (numInput && numInput.value.trim()) {
+    sessionStorage.setItem('flowchart_student_num', numInput.value.trim());
+  }
+  if (nameInput && nameInput.value.trim()) {
+    sessionStorage.setItem('flowchart_student_name', nameInput.value.trim());
+  }
+}
+
 function openThinkerSubmissionModal() {
   // 💡 구조적 합격 인증 게이트웨이: AI 설계 검사를 통과해야만 띵커보드에 제출 가능
   if (!window.isFlowchartAiPassed) {
@@ -3578,6 +3703,31 @@ function openThinkerSubmissionModal() {
   const modal = document.getElementById('thinker-submission-modal');
   if (!modal) return;
   modal.classList.remove('hidden');
+
+  // 💡 학번 및 이름 입력창 초기화 및 자동 포커스 & 시각적 하이라이트 (홍길동 근절!)
+  const numInput = document.getElementById('thinker-student-num');
+  const nameInput = document.getElementById('thinker-student-name');
+  if (numInput && nameInput) {
+    const savedNum = sessionStorage.getItem('flowchart_student_num') || '';
+    const savedName = sessionStorage.getItem('flowchart_student_name') || '';
+    numInput.value = savedNum;
+    nameInput.value = savedName;
+
+    // 시각적 시선 집중 하이라이트 (홍길동 기본값 대신 직접 입력 강력 유도)
+    if (!savedNum) numInput.classList.add('student-input-highlight');
+    if (!savedName) nameInput.classList.add('student-input-highlight');
+
+    // 모달 렌더링 완료 후 학번 칸에 자동 포커스
+    setTimeout(() => {
+      if (!savedNum) {
+        numInput.focus();
+      } else if (!savedName) {
+        nameInput.focus();
+      } else {
+        numInput.focus();
+      }
+    }, 100);
+  }
 
   // 현재 상태 / 목표 상태 인풋 스마트 기본값 채우기
   const curInput = document.getElementById('thinker-cur-status');
@@ -3621,8 +3771,10 @@ function closeThinkerSubmissionModal() {
 }
 
 function updateThinkerCardPreview() {
-  const studentNum = document.getElementById('thinker-student-num') ? document.getElementById('thinker-student-num').value.trim() : "20315";
-  const studentName = document.getElementById('thinker-student-name') ? document.getElementById('thinker-student-name').value.trim() : "홍길동";
+  const sNumVal = document.getElementById('thinker-student-num') ? document.getElementById('thinker-student-num').value.trim() : "";
+  const sNameVal = document.getElementById('thinker-student-name') ? document.getElementById('thinker-student-name').value.trim() : "";
+  const studentNum = sNumVal || "(학번 미입력)";
+  const studentName = sNameVal || "(이름 미입력)";
 
   const preview = document.getElementById('thinker-card-preview');
   if (!preview) return;
@@ -3748,8 +3900,30 @@ function updateThinkerCardPreview() {
 // HTML5 Canvas 기반 초정밀 이미지 생성 및 클립보드 복사
 // --------------------------------------------------
 async function copyThinkerImageToClipboard() {
-  const studentNum = document.getElementById('thinker-student-num') ? document.getElementById('thinker-student-num').value.trim() : "20315";
-  const studentName = document.getElementById('thinker-student-name') ? document.getElementById('thinker-student-name').value.trim() : "홍길동";
+  const numInput = document.getElementById('thinker-student-num');
+  const nameInput = document.getElementById('thinker-student-name');
+  const studentNum = numInput ? numInput.value.trim() : "";
+  const studentName = nameInput ? nameInput.value.trim() : "";
+
+  // 💡 학번 및 이름 필수 입력 가드 (홍길동/공란 제출 원천 방지)
+  if (!studentNum || !studentName) {
+    if (typeof playSfx === 'function') playSfx('warning');
+    alert("⚠️ 학번과 이름을 모두 입력해 주세요!\n\n선생님께서 여러분의 멋진 순서도 작품을 확인할 수 있도록\n학번과 이름을 꼭 적어주세요.");
+    if (!studentNum && numInput) {
+      numInput.classList.add('input-shake');
+      numInput.focus();
+      setTimeout(() => numInput.classList.remove('input-shake'), 600);
+    } else if (!studentName && nameInput) {
+      nameInput.classList.add('input-shake');
+      nameInput.focus();
+      setTimeout(() => nameInput.classList.remove('input-shake'), 600);
+    }
+    return;
+  }
+
+  // 성공 시 sessionStorage 보존 (동일 세션 재입력 편의)
+  sessionStorage.setItem('flowchart_student_num', studentNum);
+  sessionStorage.setItem('flowchart_student_name', studentName);
 
   const btn = document.getElementById('btn-thinker-copy');
   if (btn) btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> 이미지 생성 중...`;
@@ -3789,8 +3963,30 @@ async function copyThinkerImageToClipboard() {
 }
 
 async function downloadThinkerImage() {
-  const studentNum = document.getElementById('thinker-student-num') ? document.getElementById('thinker-student-num').value.trim() : "20315";
-  const studentName = document.getElementById('thinker-student-name') ? document.getElementById('thinker-student-name').value.trim() : "홍길동";
+  const numInput = document.getElementById('thinker-student-num');
+  const nameInput = document.getElementById('thinker-student-name');
+  const studentNum = numInput ? numInput.value.trim() : "";
+  const studentName = nameInput ? nameInput.value.trim() : "";
+
+  // 💡 학번 및 이름 필수 입력 가드 (홍길동/공란 제출 원천 방지)
+  if (!studentNum || !studentName) {
+    if (typeof playSfx === 'function') playSfx('warning');
+    alert("⚠️ 학번과 이름을 모두 입력해 주세요!\n\n선생님께서 여러분의 멋진 순서도 작품을 확인할 수 있도록\n학번과 이름을 꼭 적어주세요.");
+    if (!studentNum && numInput) {
+      numInput.classList.add('input-shake');
+      numInput.focus();
+      setTimeout(() => numInput.classList.remove('input-shake'), 600);
+    } else if (!studentName && nameInput) {
+      nameInput.classList.add('input-shake');
+      nameInput.focus();
+      setTimeout(() => nameInput.classList.remove('input-shake'), 600);
+    }
+    return;
+  }
+
+  // 성공 시 sessionStorage 보존
+  sessionStorage.setItem('flowchart_student_num', studentNum);
+  sessionStorage.setItem('flowchart_student_name', studentName);
 
   const canvas = await generatePortfolioCanvas(studentNum, studentName);
   downloadCanvasImage(canvas, `${studentNum}_${studentName}_알고리즘_포트폴리오.png`);
@@ -3905,8 +4101,8 @@ function generatePortfolioCanvas(studentNum, studentName) {
     ctx.fillText("나만의 알고리즘 & 순서도 설계 보고서", 50, 95);
 
     // 학생 정보 뱃지
-    const sNum = (studentNum || document.getElementById('thinker-student-num')?.value || '').trim() || "20315";
-    const sName = (studentName || document.getElementById('thinker-student-name')?.value || '').trim() || "홍길동";
+    const sNum = (studentNum || document.getElementById('thinker-student-num')?.value || '').trim() || "학번";
+    const sName = (studentName || document.getElementById('thinker-student-name')?.value || '').trim() || "이름";
     ctx.fillStyle = "rgba(255, 255, 255, 0.25)";
     roundRect(ctx, W - 240, 50, 190, 48, 12, true, false);
     ctx.fillStyle = "#ffffff";

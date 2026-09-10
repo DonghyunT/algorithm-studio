@@ -2287,15 +2287,19 @@
         </button>
       </div>
 
-      <!-- 학번 및 이름 입력창 -->
+      <!-- 학번 및 이름 입력창 (필수 입력 & 초기 공란화) -->
       <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl grid grid-cols-2 gap-3">
         <div>
-          <label class="block text-xs font-black text-slate-700 mb-1">학번 (예: 20315)</label>
-          <input type="text" id="thinker-student-num" value="20315" oninput="updateThinkerCardPreview()" placeholder="학번 입력" class="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-800 focus:outline-none focus:border-indigo-500" />
+          <label class="block text-xs font-black text-slate-700 mb-1">
+            학번 <span class="text-rose-500 font-black">*</span> <span class="text-[10px] text-slate-400 font-normal">(예: 20315)</span>
+          </label>
+          <input type="text" id="thinker-student-num" value="" oninput="handleStudentInput(this); updateThinkerCardPreview()" placeholder="학번 입력 (예: 20315)" class="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-bold text-slate-800 focus:outline-none focus:border-indigo-500 transition-all" />
         </div>
         <div>
-          <label class="block text-xs font-black text-slate-700 mb-1">이름 (예: 홍길동)</label>
-          <input type="text" id="thinker-student-name" value="홍길동" oninput="updateThinkerCardPreview()" placeholder="이름 입력" class="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-800 focus:outline-none focus:border-indigo-500" />
+          <label class="block text-xs font-black text-slate-700 mb-1">
+            이름 <span class="text-rose-500 font-black">*</span> <span class="text-[10px] text-slate-400 font-normal">(예: 김철수)</span>
+          </label>
+          <input type="text" id="thinker-student-name" value="" oninput="handleStudentInput(this); updateThinkerCardPreview()" placeholder="이름 입력 (예: 김철수)" class="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-bold text-slate-800 focus:outline-none focus:border-indigo-500 transition-all" />
         </div>
       </div>
 
