@@ -1868,7 +1868,7 @@
             <!-- [1단 좌측] 3대 제어구조 자연어 기획서 & Solar AI 설계 검사 -->
             <section class="bg-white p-3 sm:p-3.5 flex flex-col gap-2.5 h-full overflow-hidden relative border-r border-slate-200">
               <!-- 펼침 뷰 -->
-              <div class="nl-panel-full-view flex flex-col gap-2.5 h-full overflow-hidden flex-1">
+              <div class="nl-panel-full-view flex flex-col gap-2.5 min-h-0 overflow-hidden flex-1">
                 <div class="flex items-center justify-between border-b border-slate-100 pb-2 shrink-0">
                   <div class="flex items-center gap-2">
                     <span class="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-xs font-bold"><i class="fa-solid fa-pen-to-square"></i></span>
@@ -1896,7 +1896,7 @@
                 </div>
 
                 <!-- 자연어 카드 리스트 (스크롤) -->
-                <div id="nl-cards-container" class="flex flex-col gap-2.5 overflow-y-auto flex-1 pr-1 pb-16 min-h-[220px]">
+                <div id="nl-cards-container" class="flex flex-col gap-2.5 overflow-y-auto flex-1 pr-1 pb-16 min-h-0">
                   <!-- 동적 렌더링 -->
                 </div>
 
@@ -2061,7 +2061,7 @@
             <!-- [4단 우측] 디버그 스튜디오 (변수 추적기 & 입출력 콘솔) -->
             <section id="debugger-studio-panel" class="bg-slate-50 flex flex-col h-full overflow-hidden border-l border-slate-200 relative min-w-0">
               <!-- 펼침 뷰 -->
-              <div class="debugger-panel-full-view flex flex-col h-full overflow-hidden flex-1">
+              <div class="debugger-panel-full-view flex flex-col min-h-0 overflow-hidden flex-1">
                 <!-- 헤더 -->
                 <div class="flex items-center justify-between px-3 py-2 border-b border-slate-200 bg-white shrink-0">
                   <div class="flex items-center gap-1.5">
@@ -2076,20 +2076,20 @@
                 </div>
 
                 <!-- 상단부: 실시간 변수 추적기 (Variable Watcher) -->
-                <div class="p-2.5 border-b border-slate-200 flex-1 flex flex-col min-h-[170px] max-h-[50%] overflow-hidden bg-white">
+                <div class="p-2.5 border-b border-slate-200 flex-1 flex flex-col min-h-0 max-h-[50%] overflow-hidden bg-white">
                   <div class="flex items-center justify-between pb-1.5 mb-1 border-b border-slate-100 shrink-0">
                     <span class="text-[11px] font-black text-slate-700 flex items-center gap-1">
                       <i class="fa-solid fa-chart-line text-indigo-500 text-[10px]"></i> 변수 추적 (Watcher)
                     </span>
                     <span id="var-count-badge" class="text-[10px] text-slate-400 font-mono">0개</span>
                   </div>
-                  <div class="overflow-y-auto flex-1">
-                    <table class="w-full text-[11px] border-collapse">
+                  <div class="overflow-y-auto flex-1 min-h-0">
+                    <table class="w-full text-[11px] border-collapse table-fixed break-all">
                       <thead>
                         <tr class="text-slate-400 font-bold border-b border-slate-100 text-[10px]">
-                          <th class="py-1 text-left">변수</th>
-                          <th class="py-1 text-right">현재값</th>
-                          <th class="py-1 text-right text-slate-300">직전값</th>
+                          <th class="w-[45%] py-1 text-left">변수</th>
+                          <th class="w-[30%] py-1 text-right">현재값</th>
+                          <th class="w-[25%] py-1 text-right text-slate-300">직전값</th>
                         </tr>
                       </thead>
                       <tbody id="var-watcher-tbody">
@@ -2102,14 +2102,14 @@
                 </div>
 
                 <!-- 하단부: 다크 입출력 터미널 콘솔 -->
-                <div class="flex-1 flex flex-col min-h-[140px] overflow-hidden bg-slate-950 p-2.5 text-slate-200">
+                <div class="flex-1 flex flex-col min-h-0 overflow-hidden bg-slate-950 p-2.5 text-slate-200">
                   <div class="flex items-center justify-between pb-1.5 mb-1 border-b border-slate-800 shrink-0">
                     <span class="text-[11px] font-black text-emerald-400 flex items-center gap-1 font-mono">
                       <i class="fa-solid fa-terminal text-[10px]"></i> 출력 콘솔 (Console)
                     </span>
                     <button onclick="clearDebugConsole()" class="text-[10px] text-slate-400 hover:text-slate-200 font-mono cursor-pointer" title="콘솔 지우기">지우기</button>
                   </div>
-                  <div id="debug-terminal-console" class="flex-1 overflow-y-auto font-mono text-[11px] leading-relaxed space-y-1 pr-1 text-slate-300 select-text">
+                  <div id="debug-terminal-console" class="flex-1 overflow-y-auto font-mono text-[11px] leading-relaxed space-y-1 pr-1 text-slate-300 select-text min-h-0">
                     <div class="text-slate-500 text-[10px]">> 대기 중... 준비 완료</div>
                   </div>
                 </div>
