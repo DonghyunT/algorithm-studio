@@ -992,6 +992,8 @@ window.getFreeBlocks = () => freeBlocks;
 window.setFreeBlocks = (blocks) => { freeBlocks = blocks; };
 window.getFreeConnections = () => freeConnections;
 window.setFreeConnections = (conns) => { freeConnections = conns; };
+window.getNlCards = () => nlCards;
+window.setNlCards = (cards) => { nlCards = cards; };
 
 // AI 설계 검사 통과 및 시뮬레이션 완주 상태 플래그
 window.isFlowchartAiPassed = false;
@@ -3310,6 +3312,29 @@ function analyzeAlgorithmConsistency() {
     }
   }
 
+  // 8. 💡 미수정 기본(더미) 블록 텍스트 방치 검출 (학생이 내용을 채우지 않은 경우)
+  const DUMMY_TEXTS = [
+    "알고리즘 명령 실행",
+    "연산 처리 실행",
+    "데이터 입출력",
+    "조건 검사 ◇",
+    "블록 내용"
+  ];
+  const uneditedBlocks = freeBlocks.filter(b => 
+    b.shape !== 'terminal' && DUMMY_TEXTS.some(dt => (b.text || '').trim() === dt)
+  );
+  if (uneditedBlocks.length > 0) {
+    const uneditedNames = uneditedBlocks.map(b => `'${b.text}'`).slice(0, 2).join(', ');
+    const suffix = uneditedBlocks.length > 2 ? ` 외 ${uneditedBlocks.length - 2}개` : '';
+    issues.push(`⚠️ [기본 블록 내용 미작성] 캔버스에 내용을 수정하지 않은 기본 기호(${uneditedNames}${suffix})가 있습니다. 기호를 더블클릭하여 자연어 기획서에 맞게 실제 명령을 적어주세요.`);
+  }
+
+  // 9. 💡 기획서에 단계가 있으나 캔버스에 명령 블록이 전혀 없는 경우
+  const commandBlocks = freeBlocks.filter(b => b.shape !== 'terminal');
+  if (nlCards.length > 0 && commandBlocks.length === 0) {
+    issues.push("자연어 기획서에 단계가 작성되어 있으나, 캔버스에 '시작'과 '종료' 외에 실제 명령 기호(자료·처리·판단)가 하나도 없습니다. 기호 보관함에서 기호를 추가해 보세요.");
+  }
+
   // 칭찬 요소
   if (startBlock && endBlock && issues.length === 0) {
     compliments.push("시작과 종료 단말 기호가 바르게 배치되어 있으며, 모든 경로가 종료까지 완벽하게 이어집니다.");
@@ -3445,10 +3470,15 @@ ${issuesText}
 ${complimentsText}
 
 [평가 및 피드백 지침 - 매우 중요!]:
-1. ⚠️ 절대 주의: 캔버스에 누락된 블록이 있거나 정량 분석에서 '보완 필요' 판정이 난 경우, 절대 무조건적인 칭찬을 남발하지 마세요!
-2. 만약 결손 문제(예: 판단 블록 누락, 처리 블록 부족, 시작/종료 누락 등)가 있다면, 잘된 점은 짧게 1문장만 언급하고, 학생이 어떤 기호(마름모 판단, 직사각형 처리 등)를 더 꺼내어 자연어의 몇 번 단계를 채워 넣어야 하는지 중2 학생의 눈높이에서 다정하고 구체적으로 지도해 주세요.
-3. 순서도에서 처리(Process) 블록의 아래쪽뿐만 아니라 우측이나 좌측 포트에서 판단(Decision) 블록으로 되돌아가는 화살표는 완벽한 반복(Loopback) 구조로 간주합니다.
-4. 중2 학생 눈높이에 맞게 다정하고 격려하는 어조로 총 3문장 이내(220자 내외)로 간결하게 요약 작성하세요.`;
+1. 반드시 응답의 맨 첫 줄에 최종 판정 태그를 단독으로 작성하세요:
+   - 자연어 기획서의 단계별 행동/조건이 순서도 블록 내용 및 화살표 흐름과 실질적으로 일치할 때: [판정: 통과]
+   - 기획서의 특정 단계가 순서도에 누락되어 있거나, 순서도 블록 내용이 기본 텍스트('알고리즘 명령 실행' 등)로 방치되어 있거나, 화살표 흐름에 결손이 있을 때: [판정: 보완 필요]
+2. 만약 사전 정량 분석에서 '보완 필요' 판정이 났거나, 발견된 결손/누락 문제가 있거나, 캔버스 블록에 실제 기획서 내용이 채워지지 않았다면 절대로 [판정: 통과]를 주지 말고 반드시 [판정: 보완 필요]를 부여하세요!
+3. 두 번째 줄부터 학생을 위한 지도 피드백을 작성하세요:
+   - [보완 필요]인 경우: 잘된 점은 짧게 1문장만 가볍게 칭찬하고, 어떤 단계의 내용이 순서도 블록에 빠져 있는지, 어떤 기호(처리, 판단 등)를 수정하거나 추가해야 하는지 중2 학생 눈높이에 맞게 다정하고 구체적으로 지도하세요.
+   - [통과]인 경우: 자연어 기획서와 순서도 캔버스가 어떻게 잘 일치했는지 칭찬하고 완성 축하 메시지를 남기세요.
+4. 순서도에서 처리(Process) 블록의 아래쪽뿐만 아니라 우측이나 좌측 포트에서 판단(Decision) 블록으로 되돌아가는 화살표는 완벽한 반복(Loopback) 구조로 간주합니다.
+5. 피드백 본문은 총 3문장 이내(220자 내외)로 간결하게 작성하세요.`;
 
   let aiFeedbackText = "";
   try {
@@ -3470,13 +3500,31 @@ ${complimentsText}
     aiFeedbackText = data.choices[0].message.content;
   } catch (err) {
     aiFeedbackText = consistency.issues.length > 0
-      ? `자연어 기획서와 비교했을 때 보완할 점이 있어요: ${consistency.issues[0]} 기호 보관함에서 필요한 기호를 추가해 보세요!`
-      : `자연어 기획서와 순서도 블록이 단계별로 일관되게 잘 구성되어 있습니다. 완성 후 [띵커보드 제출]을 진행해 보세요!`;
+      ? `[판정: 보완 필요]\n자연어 기획서와 비교했을 때 보완할 점이 있어요: ${consistency.issues[0]} 기호 보관함에서 필요한 기호를 추가하거나 내용을 수정해 보세요!`
+      : `[판정: 통과]\n자연어 기획서와 순서도 블록이 단계별로 일관되게 잘 구성되어 있습니다. 완성 후 [띵커보드 제출]을 진행해 보세요!`;
   }
 
-  const isGood = consistency.isConsistent;
+  // 💡 Solar AI 판정 태그 파싱 및 정밀 보정
+  let aiJudgmentPassed = consistency.isConsistent; // 기본값
+  if (aiFeedbackText.includes("[판정: 통과]")) {
+    aiJudgmentPassed = true;
+  } else if (aiFeedbackText.includes("[판정: 보완 필요]") || aiFeedbackText.includes("보완 필요")) {
+    aiJudgmentPassed = false;
+  } else {
+    // 키워드 기반 스마트 보정 (LLM이 태그를 누락했을 때의 안전망)
+    const needFixKeywords = ["빠져 있으니", "빠져 있어", "채워 넣으", "추가해 보세요", "보완할 점", "수정해"];
+    if (needFixKeywords.some(kw => aiFeedbackText.includes(kw))) {
+      aiJudgmentPassed = false;
+    }
+  }
+
+  // 💡 양방향 합의(Consensus) 합격제: JS 정량 검사 통과 AND Solar AI 판정 통과
+  const isGood = consistency.isConsistent && aiJudgmentPassed;
   window.isFlowchartAiPassed = isGood;
   if (typeof updateThinkerToolbarButton === 'function') updateThinkerToolbarButton();
+
+  // 학생에게 보여줄 피드백 텍스트에서는 [판정: ...] 태그를 깔끔하게 분리/제거
+  const cleanFeedbackText = aiFeedbackText.replace(/\[판정:\s*(통과|보완 필요)\]\s*/g, '').trim();
 
   // 헤더 배너
   const headerHtml = isGood ? `
@@ -3502,9 +3550,9 @@ ${complimentsText}
         <div>
           <div class="text-sm font-black text-amber-950 flex items-center gap-1.5">
             <span>알고리즘 보완 권장</span>
-            <span class="px-2 py-0.5 bg-amber-200/80 text-amber-800 text-[10px] rounded-md font-bold">기호 보완 필요</span>
+            <span class="px-2 py-0.5 bg-amber-200/80 text-amber-800 text-[10px] rounded-md font-bold">기호 및 내용 보완 필요</span>
           </div>
-          <div class="text-xs text-amber-700 font-medium mt-0.5">기획서의 단계에 비해 순서도 캔버스에 누락된 기호가 있습니다.</div>
+          <div class="text-xs text-amber-700 font-medium mt-0.5">자연어 기획서의 단계와 순서도 캔버스 내용이 완전히 일치하지 않습니다.</div>
         </div>
       </div>
       <span class="hidden sm:inline-flex px-3 py-1.5 bg-amber-500 text-white font-black rounded-xl text-xs shadow-sm">
@@ -3554,12 +3602,17 @@ ${complimentsText}
             ${consistency.issues.map(iss => `<li>${escapeHtml(iss)}</li>`).join('')}
           </ul>
         </div>
-      ` : `
+      ` : (aiJudgmentPassed ? `
         <div class="p-2 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] font-bold text-emerald-800 flex items-center gap-1.5">
           <i class="fa-solid fa-circle-check text-emerald-600"></i>
           <span>자연어와 순서도 기호가 빠짐없이 완벽하게 대응되었습니다.</span>
         </div>
-      `}
+      ` : `
+        <div class="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[11px] font-bold text-amber-800 flex items-center gap-1.5">
+          <i class="fa-solid fa-lightbulb text-amber-600"></i>
+          <span>기호 개수는 구성되었으나 자연어 단계의 세부 내용 반영이 필요합니다.</span>
+        </div>
+      `)}
     </div>
   `;
 
@@ -3576,7 +3629,7 @@ ${complimentsText}
         <span>${adviceTitle}</span>
       </div>
       <div class="text-xs sm:text-sm text-slate-800 leading-relaxed font-medium">
-        ${aiFeedbackText.replace(/\n/g, '<br>')}
+        ${cleanFeedbackText.replace(/\n/g, '<br>')}
       </div>
     </div>
   `;
