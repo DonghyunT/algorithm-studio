@@ -3434,7 +3434,7 @@ function initDebugger() {
   }
   
   // 기존 오버레이 정리
-  document.querySelectorAll('.sim-choice-overlay').forEach(el => el.remove());
+  document.querySelectorAll('.sim-choice-overlay, .sim-input-overlay, .sim-output-bubble').forEach(el => el.remove());
 
   debuggerExec = {
     curId: startBlock.id,
@@ -3661,33 +3661,100 @@ function stepDebugger() {
       nextId = outConns[0].to;
     } else if (curBlock.shape === 'io') {
       const rawText = (curBlock.text || '').trim();
-      if (rawText.startsWith('입력')) {
-        const varName = rawText.slice(2).trim() || 'x';
+      const isInput = /입력|받기|센서|측정|감지/.test(rawText) && !/출력|표시/.test(rawText);
+      const isOutput = /출력|표시|말하기|안내|띄우기|보여주기/.test(rawText);
+
+      if (isInput) {
+        // [입력 인터랙션] 캔버스 평행사변형 블록 위에 대화형 인풋 팝업 띄우기
+        const wasContinuous = !!debuggerTimer;
         pauseDebugger();
-        const inputValStr = window.prompt(`[입력 기호] '${varName}'에 넣을 숫자 값을 입력하세요:`, '0');
-        if (inputValStr === null) {
-          logDebugConsole(`[입력 취소] 사용자가 입력을 취소했습니다.`, true);
-          return;
+        debuggerExec.wasContinuousRunning = wasContinuous;
+        debuggerExec.isWaitingUserChoice = true;
+        setDebuggerStatus("입력값 대기");
+
+        const varName = parseIoInputVarName(rawText);
+        logDebugConsole(`📥 [입력 대기] '${rawText}' ➔ [${varName}] 값을 입력해 주세요.`);
+
+        const blockEl = document.getElementById(`free-blk-${curBlock.id}`) || document.getElementById(curBlock.id);
+        if (blockEl) {
+          document.querySelectorAll('.sim-choice-overlay, .sim-input-overlay, .sim-output-bubble').forEach(el => el.remove());
+          const overlay = document.createElement('div');
+          overlay.className = 'sim-input-overlay';
+          overlay.id = `sim-input-overlay-${curBlock.id}`;
+
+          let defaultVal = "24";
+          if (varName in debuggerExec.vars) {
+            defaultVal = debuggerExec.vars[varName];
+          } else {
+            if (/온도|기온/.test(varName)) defaultVal = "24";
+            else if (/점수|성적/.test(varName)) defaultVal = "85";
+            else if (/나이|연령/.test(varName)) defaultVal = "15";
+            else if (/금액|돈|가격|동전/.test(varName)) defaultVal = "1000";
+            else if (/키|신장/.test(varName)) defaultVal = "165";
+            else defaultVal = "10";
+          }
+
+          overlay.innerHTML = `
+            <span class="text-xs font-black text-emerald-950 flex items-center gap-1 shrink-0">
+              <i class="fa-solid fa-keyboard text-emerald-600"></i>
+              <span>[${escapeHtml(varName)}] 입력:</span>
+            </span>
+            <input type="text" id="sim-input-box-${curBlock.id}" value="${escapeHtml(String(defaultVal))}" class="w-16 px-2 py-0.5 text-xs font-black text-slate-800 bg-emerald-50/50 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-400 focus:outline-none text-center" placeholder="값" />
+            <button onclick="handleSimInputSubmit('${curBlock.id}', '${escapeHtml(varName)}')" class="px-3 py-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-full text-xs font-black shadow-xs transition active:scale-95 flex items-center gap-1 shrink-0 cursor-pointer">
+              <span>입력 완료</span>
+            </button>
+          `;
+          blockEl.appendChild(overlay);
+
+          const inputEl = overlay.querySelector('input');
+          if (inputEl) {
+            setTimeout(() => {
+              inputEl.focus();
+              inputEl.select();
+            }, 30);
+            inputEl.addEventListener('keydown', (ke) => {
+              if (ke.key === 'Enter') {
+                ke.preventDefault();
+                handleSimInputSubmit(curBlock.id, varName);
+              }
+            });
+          }
         }
-        const numVal = parseFloat(inputValStr);
-        if (isNaN(numVal)) throw new Error(`숫자만 입력할 수 있습니다: '${inputValStr}'`);
-        if (varName in debuggerExec.vars) {
-          debuggerExec.prevVars[varName] = debuggerExec.vars[varName];
-        }
-        debuggerExec.vars[varName] = numVal;
-        debuggerExec.lastChanged = varName;
-        logDebugConsole(`[입력] ${varName} = ${numVal}`);
-      } else if (rawText.startsWith('출력')) {
-        const exprStr = rawText.slice(2).trim();
-        let printVal;
+        return;
+      } else if (isOutput) {
+        // [출력 인터랙션] 수식 계산 및 블록 위 애니메이션 말풍선 피드백
+        const exprStr = parseIoOutputExpr(rawText);
+        let printVal = exprStr;
         try {
-          const tk = tokenizeFlowchartExpr(exprStr);
-          const ast = makeFlowchartParser(tk).expr();
-          printVal = evalFlowchartAST(ast, debuggerExec.vars);
+          if (exprStr && exprStr in debuggerExec.vars) {
+            printVal = debuggerExec.vars[exprStr];
+          } else if (exprStr) {
+            const tk = tokenizeFlowchartExpr(exprStr);
+            const ast = makeFlowchartParser(tk).expr();
+            printVal = evalFlowchartAST(ast, debuggerExec.vars);
+          }
         } catch (e) {
-          printVal = debuggerExec.vars[exprStr] !== undefined ? debuggerExec.vars[exprStr] : exprStr;
+          printVal = exprStr || rawText;
         }
+
+        if (typeof printVal === 'string') {
+          printVal = printVal.replace(/^["']|["']$/g, '');
+        }
+
         logDebugConsole(`📢 [출력] 결과: ${printVal}`);
+
+        // 캔버스 블록 위 애니메이션 말풍선 피드백
+        const blockEl = document.getElementById(`free-blk-${curBlock.id}`) || document.getElementById(curBlock.id);
+        if (blockEl) {
+          document.querySelectorAll('.sim-output-bubble').forEach(el => el.remove());
+          const bubble = document.createElement('div');
+          bubble.className = 'sim-output-bubble';
+          bubble.innerHTML = `<span>📢 ${escapeHtml(String(printVal))}</span>`;
+          blockEl.appendChild(bubble);
+          setTimeout(() => {
+            if (bubble) bubble.remove();
+          }, 2400);
+        }
       } else {
         logDebugConsole(`[자료] '${rawText}' 확인`);
       }
@@ -3830,6 +3897,78 @@ function handleSimDecisionChoice(blockId, choice) {
 }
 window.handleSimDecisionChoice = handleSimDecisionChoice;
 
+function parseIoInputVarName(text) {
+  let clean = text.replace(/[:：]/g, ' ')
+                  .replace(/입력받기|입력받는다|입력하기|입력받음|입력|값/g, '')
+                  .replace(/[을를이가은는]/g, ' ')
+                  .trim();
+  const match = clean.match(/[a-zA-Z_가-힣][a-zA-Z0-9_가-힣]*/);
+  return match ? match[0] : 'x';
+}
+
+function parseIoOutputExpr(text) {
+  let clean = text.replace(/[:：]/g, ' ')
+                  .replace(/출력하기|출력받기|출력함|출력|보여주기|표시하기|표시/g, '')
+                  .replace(/[을를이가은는]/g, ' ')
+                  .trim();
+  return clean;
+}
+
+function handleSimInputSubmit(blockId, varName) {
+  const overlay = document.getElementById(`sim-input-overlay-${blockId}`);
+  const inputEl = document.getElementById(`sim-input-box-${blockId}`);
+  let valStr = inputEl ? inputEl.value.trim() : "0";
+  if (overlay) overlay.remove();
+
+  if (!debuggerExec) return;
+  debuggerExec.isWaitingUserChoice = false;
+  const resumeContinuous = !!debuggerExec.wasContinuousRunning;
+  debuggerExec.wasContinuousRunning = false;
+
+  let finalVal = parseFloat(valStr);
+  if (isNaN(finalVal)) {
+    finalVal = valStr; // 문자열 허용
+  }
+
+  if (varName in debuggerExec.vars) {
+    debuggerExec.prevVars[varName] = debuggerExec.vars[varName];
+  }
+  debuggerExec.vars[varName] = finalVal;
+  debuggerExec.lastChanged = varName;
+  logDebugConsole(`📥 [입력 완료] ${varName} = ${finalVal}`);
+
+  const curBlock = freeBlocks.find(b => b.id === blockId);
+  const outConns = freeConnections.filter(c => c.from === blockId);
+  if (outConns.length === 0) {
+    logDebugConsole(`❌ 오류: 기호 다음에 연결된 화살표가 없습니다.`, true);
+    setDebuggerStatus("오류 멈춤");
+    return;
+  }
+
+  // 연결선 하이라이트 애니메이션
+  const nextId = outConns[0].to;
+  const pathEl = document.getElementById(`conn-path-${blockId}-${nextId}`);
+  if (pathEl) {
+    pathEl.classList.add('flowchart-path-simulating');
+    setTimeout(() => {
+      if (pathEl) pathEl.classList.remove('flowchart-path-simulating');
+    }, 500);
+  }
+
+  debuggerExec.prevId = blockId;
+  debuggerExec.curId = nextId;
+  renderVariableWatcher();
+
+  stepDebugger();
+
+  if (resumeContinuous && debuggerExec && !debuggerExec.done && !debuggerExec.isWaitingUserChoice) {
+    startDebuggerContinuousTimer();
+  }
+}
+window.parseIoInputVarName = parseIoInputVarName;
+window.parseIoOutputExpr = parseIoOutputExpr;
+window.handleSimInputSubmit = handleSimInputSubmit;
+
 function startDebuggerContinuousTimer() {
   if (debuggerTimer) clearInterval(debuggerTimer);
   syncExecutionButtonUI(true);
@@ -3866,7 +4005,7 @@ function pauseDebugger() {
 
 function resetDebugger() {
   pauseDebugger();
-  document.querySelectorAll('.sim-choice-overlay').forEach(el => el.remove());
+  document.querySelectorAll('.sim-choice-overlay, .sim-input-overlay, .sim-output-bubble').forEach(el => el.remove());
   if (debuggerExec) {
     debuggerExec.wasContinuousRunning = false;
   }
