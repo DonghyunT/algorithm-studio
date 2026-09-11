@@ -237,9 +237,9 @@ function updateAllUnitStepHeaders(activeUnitId, activeStep) {
 
       const isCurrentActive = (u === activeUnitId && s === activeStep);
       if (isCurrentActive) {
-        btn.className = "px-2 py-0.5 rounded-md font-black bg-indigo-600 text-white shadow-xs";
+        btn.className = "px-2.5 sm:px-3 py-1 rounded-md font-black transition flex items-center gap-1 bg-indigo-600 text-white shadow-xs";
       } else {
-        btn.className = "px-2 py-0.5 rounded-md font-bold text-slate-600 hover:text-slate-900";
+        btn.className = "px-2.5 sm:px-3 py-1 rounded-md font-bold transition flex items-center gap-1 text-slate-600 hover:text-slate-900 hover:bg-slate-200/50";
       }
     });
   });

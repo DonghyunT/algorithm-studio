@@ -455,8 +455,8 @@
   display: grid;
   grid-template-columns: 320px 108px 1fr 280px;
   gap: 0;
-  height: calc(100vh - 165px);
-  min-height: 600px;
+  height: calc(100vh - 150px);
+  min-height: 0;
   width: 100%;
   border: 1px solid #cbd5e1;
   border-radius: 0.85rem;
@@ -483,22 +483,34 @@
 
 @media (max-width: 1400px) {
   .entry-studio-container {
-    grid-template-columns: 290px 100px 1fr 260px;
-    height: calc(100vh - 170px);
-    min-height: 580px;
+    grid-template-columns: 290px 96px 1fr 260px;
+    height: calc(100vh - 150px);
+    min-height: 0;
   }
   .entry-studio-container.panel-collapsed {
-    grid-template-columns: 48px 100px 1fr 260px;
+    grid-template-columns: 48px 96px 1fr 260px;
   }
   .entry-studio-container.debugger-collapsed {
-    grid-template-columns: 290px 100px 1fr 40px;
+    grid-template-columns: 290px 96px 1fr 40px;
   }
   .entry-studio-container.panel-collapsed.debugger-collapsed {
-    grid-template-columns: 48px 100px 1fr 40px;
+    grid-template-columns: 48px 96px 1fr 40px;
   }
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1200px) {
+  .entry-studio-container {
+    grid-template-columns: 260px 84px 1fr 240px;
+  }
+  .entry-studio-container.panel-collapsed {
+    grid-template-columns: 44px 84px 1fr 240px;
+  }
+  .entry-studio-container.debugger-collapsed {
+    grid-template-columns: 260px 84px 1fr 36px;
+  }
+}
+
+@media (max-width: 768px) {
   .entry-studio-container,
   .entry-studio-container.panel-collapsed,
   .entry-studio-container.debugger-collapsed,
@@ -523,9 +535,9 @@ body.studio-mode > footer {
 
 body.studio-mode #view-lab {
   max-width: 100% !important;
-  padding: 0.25rem 0.5rem 0 0.5rem !important;
+  padding: 0.25rem 0.5rem 0.25rem 0.5rem !important;
   margin: 0 !important;
-  height: calc(100vh - 60px) !important;
+  height: calc(100vh - 58px) !important;
   overflow: hidden !important;
   display: flex !important;
   flex-direction: column !important;
@@ -535,23 +547,63 @@ body.studio-mode #lab-flowchart-content {
   height: 100% !important;
   display: flex !important;
   flex-direction: column !important;
+  margin: 0 !important;
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  gap: 0.25rem !important;
+}
+
+body.studio-mode #view-lab > * + *,
+body.studio-mode #lab-flowchart-content > * + *,
+body.studio-mode #fc-level3-view > * + * {
+  margin-top: 0.25rem !important;
+}
+
+body.studio-mode #lab-flowchart-content > div:first-child {
+  padding-top: 0.25rem !important;
+  padding-bottom: 0.25rem !important;
+  flex-shrink: 0 !important;
   margin-bottom: 0 !important;
 }
 
-body.studio-mode #fc-level3-view {
-  flex: 1 1 auto !important;
+body.studio-mode #fc-level3-view:not(.hidden) {
+  flex: 1 1 0 !important;
   min-height: 0 !important;
   display: flex !important;
   flex-direction: column !important;
-  margin-bottom: 0 !important;
+  margin: 0 !important;
+  height: 100% !important;
+}
+
+body.studio-mode #fc-level1-view.hidden,
+body.studio-mode #fc-level2-view.hidden,
+body.studio-mode #fc-level3-view.hidden {
+  display: none !important;
 }
 
 body.studio-mode .entry-studio-container {
   height: 100% !important;
   min-height: 0 !important;
-  flex: 1 1 auto !important;
+  max-height: 100% !important;
+  flex: 1 1 0 !important;
   border-radius: 0.75rem !important;
-  margin-bottom: 0.25rem !important;
+  margin: 0 !important;
+}
+
+/* 좌측 자연어 카드 컨테이너 커스텀 스크롤바 */
+#nl-cards-container::-webkit-scrollbar {
+  width: 6px;
+}
+#nl-cards-container::-webkit-scrollbar-track {
+  background: #f8fafc;
+  border-radius: 9999px;
+}
+#nl-cards-container::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 9999px;
+}
+#nl-cards-container::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
 }
 
 /* 변수 변경 실시간 강조 펄스 */
@@ -571,9 +623,9 @@ body.studio-mode .entry-studio-container {
 .entry-studio-l2-container {
   display: grid;
   grid-template-columns: 380px 1fr;
-  gap: 14px;
-  height: calc(100vh - 125px);
-  min-height: 680px;
+  gap: 12px;
+  height: calc(100vh - 140px);
+  min-height: 0;
   width: 100%;
   transition: grid-template-columns 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -591,13 +643,92 @@ body.studio-mode .entry-studio-container {
   }
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 768px) {
   .entry-studio-l2-container,
   .entry-studio-l2-container.panel-collapsed {
     grid-template-columns: 1fr;
     height: auto;
     min-height: auto;
   }
+}
+
+body.studio-mode #fc-level2-view:not(.hidden) {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  margin: 0 !important;
+  height: 100% !important;
+}
+
+body.studio-mode .entry-studio-l2-container {
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: 100% !important;
+  flex: 1 1 0 !important;
+  border-radius: 0.75rem !important;
+  margin: 0 !important;
+}
+
+/* Step 4 시뮬레이션 시 좌측 자연어 카드 하이라이트 */
+.l2-card-simulating {
+  border-color: #6366f1 !important;
+  background-color: #eef2ff !important;
+  transform: scale(1.02);
+  box-shadow: 0 0 0 3.5px rgba(99, 102, 241, 0.45), 0 8px 24px rgba(99, 102, 241, 0.25) !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Step 4 시뮬레이션 시 우측 SVG 순서도 기호 네온 하이라이트 */
+.l2-svg-simulating {
+  filter: drop-shadow(0 0 12px rgba(16, 185, 129, 0.95)) drop-shadow(0 0 24px rgba(5, 150, 105, 0.8)) !important;
+  animation: simSvgPulse 0.8s infinite alternate ease-in-out !important;
+}
+.l2-svg-simulating rect,
+.l2-svg-simulating polygon {
+  stroke: #10b981 !important;
+  stroke-width: 4.5px !important;
+  fill: #ecfdf5 !important;
+  filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.9)) !important;
+  transition: all 0.2s ease !important;
+}
+.l2-svg-simulating text {
+  font-weight: 900 !important;
+  fill: #065f46 !important;
+}
+
+@keyframes simSvgPulse {
+  from {
+    filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.7));
+  }
+  to {
+    filter: drop-shadow(0 0 24px rgba(52, 211, 153, 0.98));
+  }
+}
+
+/* Step 4 시뮬레이션 시 연결 화살표 애니메이션 */
+.l2-line-simulating {
+  stroke: #10b981 !important;
+  stroke-width: 5px !important;
+  filter: drop-shadow(0 0 8px #10b981) !important;
+  stroke-dasharray: 8, 4;
+  animation: simFlowLine 0.5s linear infinite !important;
+}
+
+/* Step 4 자연어 카드 스크롤바 */
+#l2-natural-card-list::-webkit-scrollbar {
+  width: 6px;
+}
+#l2-natural-card-list::-webkit-scrollbar-track {
+  background: #f8fafc;
+  border-radius: 9999px;
+}
+#l2-natural-card-list::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 9999px;
+}
+#l2-natural-card-list::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
 }
 
 /* 좌측 기획서 패널 접힘 상태 스타일 */
@@ -883,6 +1014,77 @@ body.studio-mode .entry-studio-container {
 .sim-choice-overlay span,
 .sim-choice-overlay button {
   white-space: nowrap !important;
+}
+
+/* Step 4 예시 공방 판단 블록 분기 인터랙션 팝업 */
+.l2-choice-overlay {
+  position: absolute !important;
+  top: 320px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  background: #ffffff !important;
+  border: 2.5px solid #f59e0b !important;
+  border-radius: 9999px !important;
+  padding: 8px 18px !important;
+  box-shadow: 0 12px 30px rgba(245, 158, 11, 0.4), 0 4px 12px rgba(0, 0, 0, 0.12) !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 10px !important;
+  white-space: nowrap !important;
+  min-width: 290px !important;
+  width: max-content !important;
+  z-index: 60 !important;
+  animation: simBadgePop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  pointer-events: auto !important;
+}
+
+.l2-choice-overlay span,
+.l2-choice-overlay button {
+  white-space: nowrap !important;
+}
+
+/* Step 5 나만의 백지 캔버스 내부 마우스 드래그 플로팅 실행 제어기 */
+#sim-drag-floating-bar {
+  position: absolute;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 45;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(10px);
+  border: 1.5px solid #cbd5e1;
+  border-radius: 9999px;
+  padding: 6px 14px;
+  box-shadow: 0 12px 32px -4px rgba(15, 23, 42, 0.18), 0 4px 12px rgba(15, 23, 42, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
+  touch-action: none;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+#sim-drag-floating-bar:hover {
+  border-color: #94a3b8;
+  box-shadow: 0 16px 36px -4px rgba(15, 23, 42, 0.22), 0 6px 16px rgba(15, 23, 42, 0.1);
+}
+
+#sim-drag-floating-bar .drag-handle {
+  cursor: grab;
+  padding: 4px 6px;
+  border-radius: 6px;
+  color: #94a3b8;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+#sim-drag-floating-bar .drag-handle:hover {
+  color: #475569;
+  background-color: #f1f5f9;
+}
+
+#sim-drag-floating-bar .drag-handle:active {
+  cursor: grabbing;
 }
 
 /* ========================================== */

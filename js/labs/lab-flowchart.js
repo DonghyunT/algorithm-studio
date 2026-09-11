@@ -839,7 +839,7 @@ function renderL2NaturalCards() {
 
     if (s.symbolType === 'decision') {
       return `
-        <div onclick="revealL2Step(${sNum})" class="p-4 border-2 ${borderClass} rounded-2xl cursor-pointer transition shadow-xs space-y-2 hover:shadow-md">
+        <div id="l2-card-step-${sNum}" onclick="revealL2Step(${sNum})" class="p-4 border-2 ${borderClass} rounded-2xl cursor-pointer transition shadow-xs space-y-2 hover:shadow-md">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               ${checkBadge}
@@ -851,8 +851,8 @@ function renderL2NaturalCards() {
             만약 [ <strong class="text-amber-800">${s.condition}</strong> ] 라면?
           </div>
           <div class="pl-7 space-y-1 text-xs sm:text-sm">
-            <div class="text-emerald-700 font-bold">• ${s.yesAction}</div>
-            <div class="text-rose-600 font-bold">• ${s.noAction}</div>
+            <div id="l2-card-yes-action" class="text-emerald-700 font-bold">• ${s.yesAction}</div>
+            <div id="l2-card-no-action" class="text-rose-600 font-bold">• ${s.noAction}</div>
           </div>
           <div class="pl-7 text-xs text-slate-600 leading-relaxed font-normal">${s.explanation}</div>
           <div class="pl-7">${clickGuide}</div>
@@ -860,7 +860,7 @@ function renderL2NaturalCards() {
       `;
     } else {
       return `
-        <div onclick="revealL2Step(${sNum})" class="p-4 border-2 ${borderClass} rounded-2xl cursor-pointer transition shadow-xs space-y-2 hover:shadow-md">
+        <div id="l2-card-step-${sNum}" onclick="revealL2Step(${sNum})" class="p-4 border-2 ${borderClass} rounded-2xl cursor-pointer transition shadow-xs space-y-2 hover:shadow-md">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               ${checkBadge}
@@ -899,7 +899,7 @@ function renderL2Canvas() {
 
   // 0. 단말: 시작 (항상 표시, 1.35배 확대)
   content += `
-    <g class="pop-in">
+    <g id="l2-blk-0" class="pop-in">
       <rect x="235" y="16" width="230" height="48" rx="24" fill="#faf5ff" stroke="#a855f7" stroke-width="3" />
       <text x="350" y="46" fill="#581c87" font-size="15" font-weight="900" text-anchor="middle">⬭ 시작</text>
     </g>
@@ -909,10 +909,10 @@ function renderL2Canvas() {
   if (l2RevealedStep >= 1) {
     content += `
       <!-- 0 -> 1 연결선 -->
-      <line x1="350" y1="64" x2="350" y2="100" stroke="#64748b" stroke-width="3.5" marker-end="url(#arrow-l2)" />
+      <line id="l2-line-0-1" x1="350" y1="64" x2="350" y2="100" stroke="#64748b" stroke-width="3.5" marker-end="url(#arrow-l2)" />
 
       <!-- 평행사변형 (입출력) -->
-      <g class="pop-in">
+      <g id="l2-blk-1" class="pop-in">
         <polygon points="230,102 485,102 455,152 200,152" fill="#ecfdf5" stroke="#10b981" stroke-width="3" />
         <text x="342" y="132" fill="#064e3b" font-size="14" font-weight="800" text-anchor="middle">▱ 현재 시각 확인</text>
       </g>
@@ -923,10 +923,10 @@ function renderL2Canvas() {
   if (l2RevealedStep >= 2) {
     content += `
       <!-- 1 -> 2 연결선 -->
-      <line x1="350" y1="152" x2="350" y2="188" stroke="#64748b" stroke-width="3.5" marker-end="url(#arrow-l2)" />
+      <line id="l2-line-1-2" x1="350" y1="152" x2="350" y2="188" stroke="#64748b" stroke-width="3.5" marker-end="url(#arrow-l2)" />
 
       <!-- 직사각형 (처리) -->
-      <g class="pop-in">
+      <g id="l2-blk-2" class="pop-in">
         <rect x="235" y="190" width="230" height="48" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="3" />
         <text x="350" y="219" fill="#1e3a8a" font-size="14" font-weight="800" text-anchor="middle">▭ 기상 및 세수하기</text>
       </g>
@@ -937,28 +937,32 @@ function renderL2Canvas() {
   if (l2RevealedStep >= 3) {
     content += `
       <!-- 2 -> 3 연결선 -->
-      <line x1="350" y1="238" x2="350" y2="276" stroke="#64748b" stroke-width="3.5" marker-end="url(#arrow-l2)" />
+      <line id="l2-line-2-3" x1="350" y1="238" x2="350" y2="276" stroke="#64748b" stroke-width="3.5" marker-end="url(#arrow-l2)" />
 
       <!-- 마름모 (판단) -->
-      <g class="pop-in">
+      <g id="l2-blk-3" class="pop-in">
         <polygon points="350,278 495,325 350,372 205,325" fill="#fffbeb" stroke="#f59e0b" stroke-width="3" />
         <text x="350" y="330" fill="#78350f" font-size="14" font-weight="900" text-anchor="middle">◇ 현재 시각 &lt;= 07:30?</text>
       </g>
 
       <!-- [예] 좌측 분기선 및 직사각형 -->
-      <g class="pop-in">
-        <path d="M 205 325 L 120 325 L 120 392" stroke="#10b981" stroke-width="3.5" fill="none" marker-end="url(#arrow-l2-yes)" />
+      <g id="l2-blk-yes-wrap" class="pop-in">
+        <path id="l2-line-yes" d="M 205 325 L 120 325 L 120 392" stroke="#10b981" stroke-width="3.5" fill="none" marker-end="url(#arrow-l2-yes)" />
         <text x="162" y="315" fill="#10b981" font-size="12" font-weight="900" text-anchor="middle">[예]</text>
-        <rect x="15" y="396" width="210" height="48" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="3" />
-        <text x="120" y="425" fill="#1e3a8a" font-size="13" font-weight="800" text-anchor="middle">▭ 아침밥 든든히 먹기</text>
+        <g id="l2-blk-yes">
+          <rect x="15" y="396" width="210" height="48" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="3" />
+          <text x="120" y="425" fill="#1e3a8a" font-size="13" font-weight="800" text-anchor="middle">▭ 아침밥 든든히 먹기</text>
+        </g>
       </g>
 
       <!-- [아니오] 우측 분기선 및 직사각형 -->
-      <g class="pop-in">
-        <path d="M 495 325 L 580 325 L 580 392" stroke="#f43f5e" stroke-width="3.5" fill="none" marker-end="url(#arrow-l2-no)" />
+      <g id="l2-blk-no-wrap" class="pop-in">
+        <path id="l2-line-no" d="M 495 325 L 580 325 L 580 392" stroke="#f43f5e" stroke-width="3.5" fill="none" marker-end="url(#arrow-l2-no)" />
         <text x="538" y="315" fill="#f43f5e" font-size="12" font-weight="900" text-anchor="middle">[아니오]</text>
-        <rect x="475" y="396" width="210" height="48" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="3" />
-        <text x="580" y="425" fill="#1e3a8a" font-size="13" font-weight="800" text-anchor="middle">▭ 서둘러 즉시 출발</text>
+        <g id="l2-blk-no">
+          <rect x="475" y="396" width="210" height="48" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="3" />
+          <text x="580" y="425" fill="#1e3a8a" font-size="13" font-weight="800" text-anchor="middle">▭ 서둘러 즉시 출발</text>
+        </g>
       </g>
     `;
   }
@@ -968,26 +972,256 @@ function renderL2Canvas() {
     content += `
       <!-- 분기 합류선 -->
       <g class="pop-in">
-        <path d="M 120 444 L 120 480 L 290 510" stroke="#64748b" stroke-width="3" fill="none" />
-        <path d="M 580 444 L 580 480 L 410 510" stroke="#64748b" stroke-width="3" fill="none" />
-        <line x1="350" y1="495" x2="350" y2="522" stroke="#64748b" stroke-width="3.5" marker-end="url(#arrow-l2)" />
+        <path id="l2-line-merge-yes" d="M 120 444 L 120 480 L 290 510" stroke="#64748b" stroke-width="3" fill="none" />
+        <path id="l2-line-merge-no" d="M 580 444 L 580 480 L 410 510" stroke="#64748b" stroke-width="3" fill="none" />
+        <line id="l2-line-merge-center" x1="350" y1="495" x2="350" y2="522" stroke="#64748b" stroke-width="3.5" marker-end="url(#arrow-l2)" />
 
         <!-- 직사각형 (처리): 등교 버스 탑승 -->
-        <rect x="235" y="525" width="230" height="48" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="3" />
-        <text x="350" y="554" fill="#1e3a8a" font-size="14" font-weight="800" text-anchor="middle">▭ 등교 버스 탑승</text>
+        <g id="l2-blk-4">
+          <rect x="235" y="525" width="230" height="48" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="3" />
+          <text x="350" y="554" fill="#1e3a8a" font-size="14" font-weight="800" text-anchor="middle">▭ 등교 버스 탑승</text>
+        </g>
 
         <!-- 종료 단말 연결 -->
-        <line x1="350" y1="573" x2="350" y2="608" stroke="#64748b" stroke-width="3.5" marker-end="url(#arrow-l2)" />
+        <line id="l2-line-4-end" x1="350" y1="573" x2="350" y2="608" stroke="#64748b" stroke-width="3.5" marker-end="url(#arrow-l2)" />
 
         <!-- 타원 (단말): 종료 -->
-        <rect x="235" y="610" width="230" height="48" rx="24" fill="#faf5ff" stroke="#a855f7" stroke-width="3" />
-        <text x="350" y="640" fill="#581c87" font-size="15" font-weight="900" text-anchor="middle">⬭ 종료 (등교 성공)</text>
+        <g id="l2-blk-end">
+          <rect x="235" y="610" width="230" height="48" rx="24" fill="#faf5ff" stroke="#a855f7" stroke-width="3" />
+          <text x="350" y="640" fill="#581c87" font-size="15" font-weight="900" text-anchor="middle">⬭ 종료 (등교 성공)</text>
+        </g>
       </g>
     `;
   }
 
   svg.innerHTML = content;
 }
+
+// --------------------------------------------------
+// [Level 2] 예시 공방 알고리즘 가상 실행 시뮬레이터 (1:1 자연어 비교)
+// --------------------------------------------------
+let isL2Simulating = false;
+let l2SimAbortController = null;
+
+async function runL2WalkthroughSimulation() {
+  const btn = document.getElementById('btn-l2-sim-run');
+
+  // 이미 실행 중이면 중지 처리
+  if (isL2Simulating) {
+    if (l2SimAbortController) {
+      l2SimAbortController.abort();
+    }
+    isL2Simulating = false;
+    clearL2SimulationHighlights();
+    if (btn) {
+      btn.innerHTML = `<i class="fa-solid fa-play text-[10px]"></i> <span>실행 시뮬레이션</span>`;
+      btn.className = "entry-btn-play px-3.5 py-1.5 text-xs flex items-center gap-1.5 cursor-pointer shadow-xs";
+    }
+    return;
+  }
+
+  isL2Simulating = true;
+  l2SimAbortController = new AbortController();
+  const signal = l2SimAbortController.signal;
+
+  if (btn) {
+    btn.innerHTML = `<i class="fa-solid fa-stop text-[10px]"></i> <span>시뮬레이션 중지</span>`;
+    btn.className = "px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-xl text-xs transition flex items-center gap-1.5 shadow-xs cursor-pointer";
+  }
+
+  // 1. 전체 블록 드러내기
+  revealAllL2Steps();
+  clearL2SimulationHighlights();
+
+  const delay = (ms) => new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    signal.addEventListener('abort', () => {
+      clearTimeout(timer);
+      reject(new Error('aborted'));
+    }, { once: true });
+  });
+
+  const highlightCard = (cardId) => {
+    document.querySelectorAll('.l2-card-simulating').forEach(el => el.classList.remove('l2-card-simulating'));
+    if (cardId) {
+      const cardEl = document.getElementById(cardId);
+      if (cardEl) {
+        cardEl.classList.add('l2-card-simulating');
+        cardEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+  };
+
+  const highlightSvg = (blockId, lineId = null) => {
+    document.querySelectorAll('.l2-svg-simulating').forEach(el => el.classList.remove('l2-svg-simulating'));
+    document.querySelectorAll('.l2-line-simulating').forEach(el => el.classList.remove('l2-line-simulating'));
+    if (blockId) {
+      const bEl = document.getElementById(blockId);
+      if (bEl) bEl.classList.add('l2-svg-simulating');
+    }
+    if (lineId) {
+      const lEl = document.getElementById(lineId);
+      if (lEl) lEl.classList.add('l2-line-simulating');
+    }
+  };
+
+  try {
+    // 0. 시작 단말
+    highlightSvg('l2-blk-0');
+    if (typeof playSfx === 'function') playSfx('step');
+    await delay(600);
+
+    highlightSvg('l2-blk-0', 'l2-line-0-1');
+    await delay(400);
+
+    // 1. 입출력: 현재 시각 확인
+    highlightCard('l2-card-step-1');
+    highlightSvg('l2-blk-1');
+    if (typeof playSfx === 'function') playSfx('step');
+    await delay(700);
+
+    highlightSvg('l2-blk-1', 'l2-line-1-2');
+    await delay(400);
+
+    // 2. 처리: 기상 및 세수하기
+    highlightCard('l2-card-step-2');
+    highlightSvg('l2-blk-2');
+    if (typeof playSfx === 'function') playSfx('step');
+    await delay(700);
+
+    highlightSvg('l2-blk-2', 'l2-line-2-3');
+    await delay(400);
+
+    // 3. 판단: 현재 시각 <= 07:30 ?
+    highlightCard('l2-card-step-3');
+    highlightSvg('l2-blk-3');
+    if (typeof playSfx === 'function') playSfx('step');
+
+    // 캔버스 중앙에 대화형 분기 선택 팝업 오버레이 표시
+    const canvasWrap = document.getElementById('l2-canvas');
+    let userChoice = '예';
+
+    if (canvasWrap) {
+      // 마름모 판단 기호로 캔버스 스크롤 부드럽게 자동 포커싱 (확장 제안 3)
+      const decisionSvg = document.getElementById('l2-blk-3');
+      if (decisionSvg) {
+        decisionSvg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+
+      const overlay = document.createElement('div');
+      overlay.className = 'l2-choice-overlay';
+      overlay.id = 'l2-sim-choice-overlay';
+      overlay.innerHTML = `
+        <span class="text-xs font-black text-amber-950 flex items-center gap-1 shrink-0">
+          <i class="fa-solid fa-clock text-amber-600"></i>
+          <span>등교 시각 분기 선택:</span>
+        </span>
+        <button id="l2-btn-opt-yes" class="px-3.5 py-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-full text-xs font-black shadow-xs transition active:scale-95 cursor-pointer flex items-center gap-1">
+          <span>✓ 07:20 (예 ➔ 밥 먹기)</span>
+        </button>
+        <button id="l2-btn-opt-no" class="px-3.5 py-1 bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-600 hover:to-rose-700 text-white rounded-full text-xs font-black shadow-xs transition active:scale-95 cursor-pointer flex items-center gap-1">
+          <span>✗ 07:45 (아니오 ➔ 즉시 출발)</span>
+        </button>
+      `;
+      canvasWrap.appendChild(overlay);
+
+      userChoice = await new Promise((resolve, reject) => {
+        const onAbort = () => {
+          overlay.remove();
+          reject(new Error('aborted'));
+        };
+        signal.addEventListener('abort', onAbort, { once: true });
+
+        const btnYes = overlay.querySelector('#l2-btn-opt-yes');
+        const btnNo = overlay.querySelector('#l2-btn-opt-no');
+        if (btnYes) {
+          btnYes.onclick = (e) => {
+            e.stopPropagation();
+            overlay.remove();
+            resolve('예');
+          };
+        }
+        if (btnNo) {
+          btnNo.onclick = (e) => {
+            e.stopPropagation();
+            overlay.remove();
+            resolve('아니오');
+          };
+        }
+      });
+    }
+
+    if (userChoice === '예') {
+      const yesActionEl = document.getElementById('l2-card-yes-action');
+      if (yesActionEl) yesActionEl.classList.add('bg-emerald-100', 'px-2', 'py-1', 'rounded-md', 'border', 'border-emerald-300');
+      highlightSvg(null, 'l2-line-yes');
+      await delay(400);
+
+      highlightSvg('l2-blk-yes');
+      if (typeof playSfx === 'function') playSfx('step');
+      await delay(800);
+
+      highlightSvg('l2-blk-yes', 'l2-line-merge-yes');
+      await delay(400);
+      if (yesActionEl) yesActionEl.classList.remove('bg-emerald-100', 'px-2', 'py-1', 'rounded-md', 'border', 'border-emerald-300');
+    } else {
+      const noActionEl = document.getElementById('l2-card-no-action');
+      if (noActionEl) noActionEl.classList.add('bg-rose-100', 'px-2', 'py-1', 'rounded-md', 'border', 'border-rose-300');
+      highlightSvg(null, 'l2-line-no');
+      await delay(400);
+
+      highlightSvg('l2-blk-no');
+      if (typeof playSfx === 'function') playSfx('step');
+      await delay(800);
+
+      highlightSvg('l2-blk-no', 'l2-line-merge-no');
+      await delay(400);
+      if (noActionEl) noActionEl.classList.remove('bg-rose-100', 'px-2', 'py-1', 'rounded-md', 'border', 'border-rose-300');
+    }
+
+    highlightSvg(null, 'l2-line-merge-center');
+    await delay(300);
+
+    // 4. 합류 & 등교 버스 탑승
+    highlightCard('l2-card-step-4');
+    highlightSvg('l2-blk-4');
+    if (typeof playSfx === 'function') playSfx('step');
+    await delay(700);
+
+    highlightSvg('l2-blk-4', 'l2-line-4-end');
+    await delay(400);
+
+    // 종료
+    highlightSvg('l2-blk-end');
+    if (typeof playSfx === 'function') playSfx('success');
+    await delay(1200);
+
+    alert("🎉 [예시 공방 실행 시뮬레이션 완료!]\n좌측 자연어 명령어 레시피와 우측 순서도 기호가 1:1로 일치하며 등교 성공까지 완벽히 동작했습니다!");
+  } catch (err) {
+    // 중지됨 (사용자 취소 또는 오류)
+  } finally {
+    isL2Simulating = false;
+    l2SimAbortController = null;
+    clearL2SimulationHighlights();
+    if (btn) {
+      btn.innerHTML = `<i class="fa-solid fa-play text-[10px]"></i> <span>실행 시뮬레이션</span>`;
+      btn.className = "entry-btn-play px-3.5 py-1.5 text-xs flex items-center gap-1.5 cursor-pointer shadow-xs";
+    }
+  }
+}
+
+function clearL2SimulationHighlights() {
+  document.querySelectorAll('.l2-card-simulating').forEach(el => el.classList.remove('l2-card-simulating'));
+  document.querySelectorAll('.l2-svg-simulating').forEach(el => el.classList.remove('l2-svg-simulating'));
+  document.querySelectorAll('.l2-line-simulating').forEach(el => el.classList.remove('l2-line-simulating'));
+  document.querySelectorAll('.l2-choice-overlay, #l2-sim-choice-overlay').forEach(el => el.remove());
+  const yesActionEl = document.getElementById('l2-card-yes-action');
+  if (yesActionEl) yesActionEl.classList.remove('bg-emerald-100', 'px-2', 'py-1', 'rounded-md', 'border', 'border-emerald-300');
+  const noActionEl = document.getElementById('l2-card-no-action');
+  if (noActionEl) noActionEl.classList.remove('bg-rose-100', 'px-2', 'py-1', 'rounded-md', 'border', 'border-rose-300');
+}
+
+window.runL2WalkthroughSimulation = runL2WalkthroughSimulation;
 
 // ==========================================
 // 4. [Level 3] 나만의 백지 공방 & 자연어 카드 빌더 엔진
@@ -1081,11 +1315,12 @@ function initCanvasPanning() {
   window._canvasPanningInitialized = true;
 
   canvas.addEventListener('mousedown', (e) => {
-    // 블록, 포트, 휴지통, 상단 툴바, 폼 입력 요소 클릭 시 팬 모드 제외
+    // 블록, 포트, 휴지통, 플로팅 제어기, 상단 툴바, 폼 입력 요소 클릭 시 팬 모드 제외
     if (
       e.target.closest('.free-block') || 
       e.target.closest('.flow-port') || 
       e.target.closest('#entry-trash-zone') ||
+      e.target.closest('#sim-drag-floating-bar') ||
       e.target.closest('button') ||
       e.target.closest('input') ||
       e.target.closest('textarea')
@@ -1119,11 +1354,103 @@ function initCanvasPanning() {
   });
 }
 
+function initDraggableSimFloatingBar() {
+  const bar = document.getElementById('sim-drag-floating-bar');
+  const canvas = document.getElementById('free-flowchart-canvas');
+  if (!bar || !canvas || bar._draggableInitialized) return;
+  bar._draggableInitialized = true;
+
+  let isDragging = false;
+  let startX = 0;
+  let startY = 0;
+  let barStartLeft = 0;
+  let barStartTop = 0;
+
+  const onDragStart = (e) => {
+    // 버튼, 인풋 등 내부 인터랙티브 요소 클릭 시에는 드래그 방지
+    if (
+      e.target.closest('button') || 
+      e.target.closest('input') || 
+      e.target.closest('a') || 
+      e.target.closest('select')
+    ) {
+      return;
+    }
+
+    isDragging = true;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+    const canvasRect = canvas.getBoundingClientRect();
+    const barRect = bar.getBoundingClientRect();
+
+    // 캔버스 좌상단 기준 현재 바의 상대 좌표(px) 계산
+    barStartLeft = barRect.left - canvasRect.left;
+    barStartTop = barRect.top - canvasRect.top;
+    startX = clientX;
+    startY = clientY;
+
+    // CSS bottom/translateX 기반에서 명시적인 left/top 픽셀 좌표계로 전환
+    bar.style.bottom = 'auto';
+    bar.style.transform = 'none';
+    bar.style.left = `${barStartLeft}px`;
+    bar.style.top = `${barStartTop}px`;
+
+    document.body.style.userSelect = 'none';
+    bar.classList.add('is-dragging');
+  };
+
+  const onDragMove = (e) => {
+    if (!isDragging) return;
+    e.preventDefault();
+
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+    const dx = clientX - startX;
+    const dy = clientY - startY;
+
+    const canvasRect = canvas.getBoundingClientRect();
+    const barWidth = bar.offsetWidth;
+    const barHeight = bar.offsetHeight;
+
+    // 캔버스 경계(안쪽 마진 8px) 내에서만 자유 이동
+    const minX = 8;
+    const maxX = Math.max(minX, canvasRect.width - barWidth - 8);
+    const minY = 8;
+    const maxY = Math.max(minY, canvasRect.height - barHeight - 8);
+
+    const targetX = Math.max(minX, Math.min(maxX, barStartLeft + dx));
+    const targetY = Math.max(minY, Math.min(maxY, barStartTop + dy));
+
+    bar.style.left = `${targetX}px`;
+    bar.style.top = `${targetY}px`;
+  };
+
+  const onDragEnd = () => {
+    if (!isDragging) return;
+    isDragging = false;
+    document.body.style.userSelect = '';
+    bar.classList.remove('is-dragging');
+  };
+
+  bar.addEventListener('mousedown', onDragStart);
+  bar.addEventListener('touchstart', onDragStart, { passive: false });
+
+  window.addEventListener('mousemove', onDragMove);
+  window.addEventListener('touchmove', onDragMove, { passive: false });
+
+  window.addEventListener('mouseup', onDragEnd);
+  window.addEventListener('touchend', onDragEnd);
+}
+window.initDraggableSimFloatingBar = initDraggableSimFloatingBar;
+
 function initLevel3FreeStudio() {
   renderNlCards();
   renderFreeCanvas();
   renderPresetBadges();
   initCanvasPanning();
+  initDraggableSimFloatingBar();
 }
 
 function autoResizePresTextarea(el) {
@@ -3066,6 +3393,16 @@ let debuggerSpeed = 3;
 
 function updateDebuggerSpeed(val) {
   debuggerSpeed = parseInt(val, 10) || 3;
+  const chip = document.getElementById('btn-floating-speed-chip');
+  if (chip) {
+    if (debuggerSpeed >= 4) chip.textContent = '2x';
+    else if (debuggerSpeed <= 2) chip.textContent = '0.5x';
+    else chip.textContent = '1x';
+  }
+  const slider = document.getElementById('sim-speed-slider');
+  if (slider && slider.value !== String(debuggerSpeed)) {
+    slider.value = String(debuggerSpeed);
+  }
   if (debuggerTimer) {
     clearInterval(debuggerTimer);
     const intervals = [1000, 750, 500, 300, 150];
@@ -3075,6 +3412,19 @@ function updateDebuggerSpeed(val) {
     }, delay);
   }
 }
+window.updateDebuggerSpeed = updateDebuggerSpeed;
+
+function cycleFloatingSpeed() {
+  // 1x (속도 3) -> 2x (속도 5) -> 0.5x (속도 1) -> 1x (속도 3) 순환
+  if (debuggerSpeed === 3) {
+    updateDebuggerSpeed(5);
+  } else if (debuggerSpeed >= 4) {
+    updateDebuggerSpeed(1);
+  } else {
+    updateDebuggerSpeed(3);
+  }
+}
+window.cycleFloatingSpeed = cycleFloatingSpeed;
 
 function initDebugger() {
   const startBlock = freeBlocks.find(b => b.shape === 'terminal' && (b.text || '').includes('시작')) || freeBlocks.find(b => b.id === 'blk-start');
@@ -3083,20 +3433,65 @@ function initDebugger() {
     return false;
   }
   
+  // 기존 오버레이 정리
+  document.querySelectorAll('.sim-choice-overlay').forEach(el => el.remove());
+
   debuggerExec = {
     curId: startBlock.id,
+    prevId: null,
     vars: {},
     prevVars: {},
     lastChanged: null,
     steps: 0,
-    done: false
+    done: false,
+    isWaitingUserChoice: false,
+    wasContinuousRunning: false
   };
 
   renderVariableWatcher();
   logDebugConsole("🚀 디버그 세션을 시작합니다. [한 단계] 또는 [실행]을 누르세요.");
   setDebuggerStatus("대기 중");
   updateBlockHighlights(startBlock.id);
+  syncExecutionButtonUI(false);
   return true;
+}
+
+function syncExecutionButtonUI(isRunning) {
+  const btnToolbar = document.getElementById('btn-toolbar-sim-run');
+  const btnBottom = document.getElementById('btn-sim-run');
+  const txtBottom = document.getElementById('txt-sim-run');
+  const btnFloating = document.getElementById('btn-floating-sim-run');
+
+  if (btnToolbar) {
+    if (isRunning) {
+      btnToolbar.innerHTML = `<i class="fa-solid fa-pause text-[10px]"></i> <span>일시정지</span>`;
+      btnToolbar.className = "px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-xl text-xs transition flex items-center gap-1.5 shadow-xs cursor-pointer";
+      btnToolbar.title = "시뮬레이션 일시정지";
+    } else {
+      btnToolbar.innerHTML = `<i class="fa-solid fa-play text-[10px]"></i> <span>실행 검증</span>`;
+      btnToolbar.className = "entry-btn-play px-3.5 py-1.5 text-xs flex items-center gap-1.5 cursor-pointer";
+      btnToolbar.title = "순서도 가상 실행 검증";
+    }
+  }
+
+  if (btnFloating) {
+    if (isRunning) {
+      btnFloating.innerHTML = `<i class="fa-solid fa-pause text-[10px]"></i> <span>일시정지</span>`;
+      btnFloating.className = "px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-full text-xs transition flex items-center gap-1.5 shadow-xs cursor-pointer";
+      btnFloating.title = "시뮬레이션 일시정지";
+    } else {
+      btnFloating.innerHTML = `<i class="fa-solid fa-play text-[10px]"></i> <span>실행 검증</span>`;
+      btnFloating.className = "entry-btn-play px-3.5 py-1.5 text-xs flex items-center gap-1.5 cursor-pointer shadow-xs rounded-full";
+      btnFloating.title = "순서도 가상 실행 검증";
+    }
+  }
+
+  if (txtBottom) {
+    txtBottom.textContent = isRunning ? '일시정지' : '실행';
+  }
+  if (btnBottom) {
+    btnBottom.innerHTML = `<i class="fa-solid fa-${isRunning ? 'pause' : 'play'} text-[10px]"></i> <span id="txt-sim-run">${isRunning ? '일시정지' : '실행'}</span>`;
+  }
 }
 
 function logDebugConsole(msg, isErr = false) {
@@ -3149,14 +3544,41 @@ function renderVariableWatcher() {
 function setDebuggerStatus(statusText) {
   const badge = document.getElementById('sim-status-badge');
   if (badge) badge.textContent = statusText;
+  const badgeFloating = document.getElementById('floating-sim-status-badge');
+  if (badgeFloating) {
+    badgeFloating.textContent = statusText;
+    if (statusText.includes('완주') || statusText.includes('성공')) {
+      badgeFloating.className = "text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-300 whitespace-nowrap animate-bounce";
+    } else if (statusText.includes('실행') || statusText.includes('진행')) {
+      badgeFloating.className = "text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-300 whitespace-nowrap";
+    } else if (statusText.includes('대기') || statusText.includes('선택')) {
+      badgeFloating.className = "text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-300 whitespace-nowrap animate-pulse";
+    } else if (statusText.includes('오류') || statusText.includes('초과')) {
+      badgeFloating.className = "text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-300 whitespace-nowrap";
+    } else {
+      badgeFloating.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 whitespace-nowrap";
+    }
+  }
 }
 
-function updateBlockHighlights(activeId) {
+function updateBlockHighlights(activeId, prevId = null) {
   document.querySelectorAll('.flowchart-block-simulating').forEach(el => el.classList.remove('flowchart-block-simulating'));
+  document.querySelectorAll('.flowchart-path-simulating').forEach(el => el.classList.remove('flowchart-path-simulating'));
+
   if (activeId) {
-    const el = document.getElementById(activeId);
+    const el = document.getElementById(`free-blk-${activeId}`) || document.getElementById(activeId);
     if (el) {
       el.classList.add('flowchart-block-simulating');
+    }
+  }
+
+  if (prevId && activeId) {
+    const pathEl = document.getElementById(`conn-path-${prevId}-${activeId}`);
+    if (pathEl) {
+      pathEl.classList.add('flowchart-path-simulating');
+      setTimeout(() => {
+        if (pathEl) pathEl.classList.remove('flowchart-path-simulating');
+      }, 500);
     }
   }
 }
@@ -3164,6 +3586,9 @@ function updateBlockHighlights(activeId) {
 function stepDebugger() {
   if (!debuggerExec) {
     if (!initDebugger()) return;
+  }
+  if (debuggerExec.isWaitingUserChoice) {
+    return;
   }
   if (debuggerExec.done) {
     logDebugConsole("실행이 이미 완료되었습니다. [초기화] 후 다시 실행하세요.");
@@ -3188,7 +3613,8 @@ function stepDebugger() {
     return;
   }
 
-  updateBlockHighlights(curBlock.id);
+  updateBlockHighlights(curBlock.id, debuggerExec.prevId);
+  if (typeof playSfx === 'function') playSfx('step');
   debuggerExec.lastChanged = null;
   let nextId = null;
 
@@ -3207,8 +3633,13 @@ function stepDebugger() {
         debuggerExec.done = true;
         setDebuggerStatus("완주 성공");
         pauseDebugger();
+        window.isFlowchartSimValidated = true;
+        if (typeof updateThinkerToolbarButton === 'function') updateThinkerToolbarButton();
         if (typeof playSfx === 'function') playSfx('success');
-        updateBlockHighlights(null);
+        updateBlockHighlights(curBlock.id, debuggerExec.prevId);
+        setTimeout(() => {
+          alert(`🎉 [실행 검증 완료] 순서도가 '시작'부터 '종료'까지 완벽하게 완주되었습니다!\n우측 디버그 스튜디오의 실행 기록과 변수 상태를 확인해 보세요.`);
+        }, 300);
         return;
       }
     } else if (curBlock.shape === 'process') {
@@ -3258,7 +3689,7 @@ function stepDebugger() {
         }
         logDebugConsole(`📢 [출력] 결과: ${printVal}`);
       } else {
-        logDebugConsole(`[입출력] '${rawText}' 완료`);
+        logDebugConsole(`[자료] '${rawText}' 확인`);
       }
       const outConns = freeConnections.filter(c => c.from === curBlock.id);
       if (outConns.length === 0) throw new Error(`'${rawText}' 기호 다음에 연결된 화살표가 없습니다.`);
@@ -3266,26 +3697,73 @@ function stepDebugger() {
     } else if (curBlock.shape === 'decision') {
       const rawText = (curBlock.text || '').trim();
       const outConns = freeConnections.filter(c => c.from === curBlock.id);
-      let conditionResult = true;
+      if (outConns.length === 0) throw new Error(`'${rawText}' 판단 기호에서 나가는 연결 화살표가 없습니다.`);
+
+      let isNumericCond = false;
+      let conditionResult = null;
 
       if (/[<>=!]/.test(rawText)) {
         try {
           const cond = parseFlowchartCond(rawText);
-          conditionResult = evalFlowchartCond(cond, debuggerExec.vars);
+          const identifiers = (rawText.match(/[a-zA-Z_가-힣][a-zA-Z0-9_가-힣]*/g) || [])
+            .filter(w => !['true', 'false', '예', '아니오', '참', '거짓'].includes(w));
+          const hasVars = identifiers.some(id => id in debuggerExec.vars);
+
+          if (hasVars || Object.keys(debuggerExec.vars).length > 0) {
+            conditionResult = evalFlowchartCond(cond, debuggerExec.vars);
+            isNumericCond = true;
+          }
         } catch (e) {
-          conditionResult = true;
+          isNumericCond = false;
         }
       }
 
-      const branchChoice = conditionResult ? '예' : '아니오';
-      logDebugConsole(`[판단] '${rawText}' ➔ 판정: [${branchChoice}]`);
+      if (isNumericCond && conditionResult !== null) {
+        // 숫자/변수 조건식: Opus AST 자동 평가
+        const branchChoice = conditionResult ? '예' : '아니오';
+        logDebugConsole(`[판단 자동평가] '${rawText}' ➔ [${branchChoice}] 판정`);
 
-      let targetConn = outConns.find(c => (c.branchLabel || c.label) === branchChoice);
-      if (!targetConn && outConns.length > 0) {
-        targetConn = conditionResult ? outConns[0] : (outConns[1] || outConns[0]);
+        let targetConn = outConns.find(c => (c.branchLabel || c.label) === branchChoice);
+        if (!targetConn) {
+          if (branchChoice === '예') {
+            targetConn = outConns.find(c => c.fromPort === 'yes' || c.fromPort === 'bottom') || outConns[0];
+          } else {
+            targetConn = outConns.find(c => c.fromPort === 'no' || c.fromPort === 'right' || c.fromPort === 'left') || (outConns[1] || outConns[0]);
+          }
+        }
+        if (!targetConn) throw new Error(`'${branchChoice}' 방향으로 나가는 연결선이 없습니다.`);
+        nextId = targetConn.to;
+      } else {
+        // 중학생 일상 자연어 알고리즘: 직접 블록 위에서 참(예)/거짓(아니오) 선택 인터랙션
+        const wasContinuous = !!debuggerTimer;
+        pauseDebugger();
+        debuggerExec.wasContinuousRunning = wasContinuous;
+        debuggerExec.isWaitingUserChoice = true;
+        setDebuggerStatus("분기 선택 대기");
+        logDebugConsole(`🤔 [판단] '${rawText}' ➔ [예] 또는 [아니오] 분기를 직접 선택하세요.`);
+
+        const blockEl = document.getElementById(`free-blk-${curBlock.id}`) || document.getElementById(curBlock.id);
+        if (blockEl) {
+          document.querySelectorAll('.sim-choice-overlay').forEach(el => el.remove());
+          const overlay = document.createElement('div');
+          overlay.className = 'sim-choice-overlay';
+          overlay.id = `sim-choice-overlay-${curBlock.id}`;
+          overlay.innerHTML = `
+            <span class="text-xs font-black text-amber-950 flex items-center gap-1 shrink-0">
+              <i class="fa-solid fa-code-branch text-amber-600"></i>
+              <span>조건 분기:</span>
+            </span>
+            <button onclick="handleSimDecisionChoice('${curBlock.id}', '예')" class="px-3 py-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-full text-xs font-black shadow-xs transition active:scale-95 flex items-center gap-1 shrink-0 cursor-pointer">
+              <span>✓ 참 (예)</span>
+            </button>
+            <button onclick="handleSimDecisionChoice('${curBlock.id}', '아니오')" class="px-3 py-1 bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-600 hover:to-rose-700 text-white rounded-full text-xs font-black shadow-xs transition active:scale-95 flex items-center gap-1 shrink-0 cursor-pointer">
+              <span>✗ 거짓 (아니오)</span>
+            </button>
+          `;
+          blockEl.appendChild(overlay);
+        }
+        return;
       }
-      if (!targetConn) throw new Error(`'${branchChoice}' 방향으로 나가는 연결선이 없습니다.`);
-      nextId = targetConn.to;
     }
   } catch (err) {
     logDebugConsole(`❌ 오류 발생: ${err.message}`, true);
@@ -3295,9 +3773,73 @@ function stepDebugger() {
     return;
   }
 
+  debuggerExec.prevId = curBlock.id;
   debuggerExec.curId = nextId;
   renderVariableWatcher();
   setDebuggerStatus(`실행 중 (${debuggerExec.steps}단계)`);
+}
+
+function handleSimDecisionChoice(blockId, choice) {
+  const overlay = document.getElementById(`sim-choice-overlay-${blockId}`);
+  if (overlay) overlay.remove();
+
+  if (!debuggerExec) return;
+  debuggerExec.isWaitingUserChoice = false;
+  const resumeContinuous = !!debuggerExec.wasContinuousRunning;
+  debuggerExec.wasContinuousRunning = false;
+
+  const curBlock = freeBlocks.find(b => b.id === blockId);
+  const outConns = freeConnections.filter(c => c.from === blockId);
+
+  let targetConn = outConns.find(c => (c.branchLabel || c.label) === choice);
+  if (!targetConn) {
+    if (choice === '예') {
+      targetConn = outConns.find(c => c.fromPort === 'yes' || c.fromPort === 'bottom') || outConns[0];
+    } else {
+      targetConn = outConns.find(c => c.fromPort === 'no' || c.fromPort === 'right' || c.fromPort === 'left') || (outConns[1] || outConns[0]);
+    }
+  }
+
+  if (!targetConn) {
+    logDebugConsole(`⚠️ '${choice}' 방향으로 나가는 연결 화살표를 찾을 수 없습니다.`, true);
+    setDebuggerStatus("오류 멈춤");
+    return;
+  }
+
+  logDebugConsole(`👉 [분기 선택] '${curBlock ? curBlock.text : blockId}' ➔ [${choice}] 선택 완료!`);
+
+  // 연결선 하이라이트 애니메이션
+  const pathEl = document.getElementById(`conn-path-${targetConn.from}-${targetConn.to}`);
+  if (pathEl) {
+    pathEl.classList.add('flowchart-path-simulating');
+    setTimeout(() => {
+      if (pathEl) pathEl.classList.remove('flowchart-path-simulating');
+    }, 500);
+  }
+
+  debuggerExec.prevId = blockId;
+  debuggerExec.curId = targetConn.to;
+
+  // 다음 단계로 자동 진행
+  stepDebugger();
+
+  // 만약 연속 실행 중이었고 아직 완주되지 않았고 또 다른 분기 선택을 기다리지 않는다면 연속 실행 자동 재개!
+  if (resumeContinuous && debuggerExec && !debuggerExec.done && !debuggerExec.isWaitingUserChoice) {
+    startDebuggerContinuousTimer();
+  }
+}
+window.handleSimDecisionChoice = handleSimDecisionChoice;
+
+function startDebuggerContinuousTimer() {
+  if (debuggerTimer) clearInterval(debuggerTimer);
+  syncExecutionButtonUI(true);
+  setDebuggerStatus('연속 실행 중');
+
+  const intervals = [1000, 750, 500, 300, 150];
+  const delay = intervals[debuggerSpeed - 1] || 500;
+  debuggerTimer = setInterval(() => {
+    stepDebugger();
+  }, delay);
 }
 
 function toggleDebuggerRun() {
@@ -3307,15 +3849,7 @@ function toggleDebuggerRun() {
     if (!debuggerExec || debuggerExec.done) {
       if (!initDebugger()) return;
     }
-    const btnRunTxt = document.getElementById('txt-sim-run');
-    if (btnRunTxt) btnRunTxt.textContent = '일시정지';
-    setDebuggerStatus('연속 실행 중');
-
-    const intervals = [1000, 750, 500, 300, 150];
-    const delay = intervals[debuggerSpeed - 1] || 500;
-    debuggerTimer = setInterval(() => {
-      stepDebugger();
-    }, delay);
+    startDebuggerContinuousTimer();
   }
 }
 
@@ -3324,8 +3858,7 @@ function pauseDebugger() {
     clearInterval(debuggerTimer);
     debuggerTimer = null;
   }
-  const btnRunTxt = document.getElementById('txt-sim-run');
-  if (btnRunTxt) btnRunTxt.textContent = '실행';
+  syncExecutionButtonUI(false);
   if (debuggerExec && !debuggerExec.done) {
     setDebuggerStatus('일시정지');
   }
@@ -3333,11 +3866,16 @@ function pauseDebugger() {
 
 function resetDebugger() {
   pauseDebugger();
+  document.querySelectorAll('.sim-choice-overlay').forEach(el => el.remove());
+  if (debuggerExec) {
+    debuggerExec.wasContinuousRunning = false;
+  }
   debuggerExec = null;
   updateBlockHighlights(null);
   clearDebugConsole();
   renderVariableWatcher();
   setDebuggerStatus('초기화됨');
+  syncExecutionButtonUI(false);
   logDebugConsole('준비 완료. [한 단계] 또는 [실행]을 누르세요.');
 }
 
@@ -3406,8 +3944,6 @@ function escapeHtml(str) {
  * 캔버스의 입출력(io) 블록을 스캔하여 입력값 설정 모달을 띄우거나 바로 실행
  */
 function playFreeFlowchartSimulation() {
-  if (isSimulatingFlowchart) return;
-
   if (freeBlocks.length === 0) {
     alert("실행할 순서도 블록이 없습니다. 가운데 기호 보관함에서 기호 블록을 캔버스에 추가해 보세요!");
     return;
@@ -3450,6 +3986,11 @@ function playFreeFlowchartSimulation() {
   }
   toggleDebuggerRun();
 }
+window.playFreeFlowchartSimulation = playFreeFlowchartSimulation;
+window.toggleDebuggerRun = toggleDebuggerRun;
+window.stepDebugger = stepDebugger;
+window.pauseDebugger = pauseDebugger;
+window.resetDebugger = resetDebugger;
 
 /**
  * 입출력 블록 값 설정 모달 열기
