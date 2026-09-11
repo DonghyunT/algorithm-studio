@@ -1016,6 +1016,67 @@ body.studio-mode .entry-studio-l2-container {
   white-space: nowrap !important;
 }
 
+/* 평행사변형(자료) 입력 블록 인터랙션 팝업 (초록/에메랄드 테마) */
+.sim-input-overlay {
+  position: absolute !important;
+  top: -46px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  background: #ffffff !important;
+  border: 2.5px solid #10b981 !important;
+  border-radius: 9999px !important;
+  padding: 5px 12px !important;
+  box-shadow: 0 10px 25px -3px rgba(16, 185, 129, 0.45), 0 4px 10px rgba(0, 0, 0, 0.1) !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  white-space: nowrap !important;
+  min-width: 260px !important;
+  width: max-content !important;
+  z-index: 55 !important;
+  animation: simBadgePop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  pointer-events: auto !important;
+}
+
+.sim-input-overlay span,
+.sim-input-overlay button,
+.sim-input-overlay input {
+  white-space: nowrap !important;
+}
+
+/* 평행사변형(자료) 출력 블록 말풍선 피드백 */
+.sim-output-bubble {
+  position: absolute !important;
+  top: -42px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  background: linear-gradient(135deg, #4f46e5, #3b82f6) !important;
+  color: #ffffff !important;
+  border: 2px solid #818cf8 !important;
+  padding: 5px 14px !important;
+  border-radius: 9999px !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  white-space: nowrap !important;
+  box-shadow: 0 8px 24px rgba(79, 70, 229, 0.4) !important;
+  z-index: 55 !important;
+  pointer-events: none !important;
+  animation: simBadgePop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+.sim-output-bubble::after {
+  content: '' !important;
+  position: absolute !important;
+  bottom: -6px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  border-width: 6px 6px 0 6px !important;
+  border-style: solid !important;
+  border-color: #4f46e5 transparent transparent transparent !important;
+}
+
 /* Step 4 예시 공방 판단 블록 분기 인터랙션 팝업 */
 .l2-choice-overlay {
   position: absolute !important;

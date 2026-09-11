@@ -1962,7 +1962,7 @@
             <section class="bg-white flex flex-col h-full overflow-hidden relative min-w-0">
               
               <!-- 상단 순서도 액션 툴바 -->
-              <div class="flex items-center justify-between gap-2 border-b border-slate-200 py-2 px-3 shrink-0 bg-white">
+              <div class="h-12 flex items-center justify-between gap-2 border-b border-slate-200 px-3 shrink-0 bg-white">
                 <div class="flex items-center gap-1.5 shrink-0">
                   <span class="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs font-bold"><i class="fa-solid fa-cubes"></i></span>
                   <h4 class="text-xs sm:text-sm font-black text-slate-900 whitespace-nowrap">순서도 자유 캔버스</h4>
@@ -2039,22 +2039,15 @@
             <section id="debugger-studio-panel" class="bg-slate-50 flex flex-col h-full overflow-hidden border-l border-slate-200 relative min-w-0">
               <!-- 펼침 뷰 -->
               <div class="debugger-panel-full-view flex flex-col min-h-0 overflow-hidden flex-1">
-                <!-- 헤더 -->
-                <div class="flex items-center justify-between px-3 py-2 border-b border-slate-200 bg-white shrink-0">
+                <!-- 헤더 (캔버스 상단 툴바와 완벽한 h-12 수평 일치 & 깔끔한 여백) -->
+                <div class="h-12 flex items-center justify-between px-3 border-b border-slate-200 bg-white shrink-0">
                   <div class="flex items-center gap-1.5 shrink-0">
                     <span class="w-6 h-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold"><i class="fa-solid fa-bug"></i></span>
-                    <h3 class="text-xs font-black text-slate-900 whitespace-nowrap">🐞 디버그 스튜디오</h3>
+                    <h3 class="text-xs font-black text-slate-900 whitespace-nowrap">디버그 스튜디오</h3>
                   </div>
-                  <div class="flex items-center gap-1.5 shrink-0">
-                    <label class="flex items-center gap-1 text-[10px] font-bold text-slate-500" title="실행 속도">
-                      <span class="hidden 2xl:inline">속도</span>
-                      <input type="range" id="sim-speed-slider" min="1" max="5" value="3" oninput="updateDebuggerSpeed(this.value)" class="w-10 sm:w-12 h-1 bg-slate-200 rounded cursor-pointer accent-indigo-600">
-                    </label>
-                    <span id="sim-status-badge" class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 whitespace-nowrap">대기 중</span>
-                    <button onclick="toggleDebuggerPanel()" class="w-6 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-xs transition cursor-pointer" title="디버거 패널 접기">
-                      <i class="fa-solid fa-angles-right text-[10px]"></i>
-                    </button>
-                  </div>
+                  <button onclick="toggleDebuggerPanel()" class="w-7 h-7 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-xs transition cursor-pointer" title="디버거 패널 접기">
+                    <i class="fa-solid fa-angles-right text-[10px]"></i>
+                  </button>
                 </div>
 
                 <!-- 상단부: 실시간 변수 추적기 (Variable Watcher) -->
