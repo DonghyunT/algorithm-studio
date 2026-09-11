@@ -28,10 +28,10 @@ function switchFlowchartStep(stepNum) {
       }
 
       if (i === stepNum) {
-        btn.className = "px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-black transition flex items-center gap-1 whitespace-nowrap bg-indigo-600 text-white shadow-xs";
+        btn.className = "subbar-step-btn px-2.5 sm:px-3 rounded-lg text-xs font-black transition flex items-center gap-1 whitespace-nowrap bg-indigo-600 text-white shadow-xs";
       } else {
         const bgClass = isCompleted ? "bg-emerald-50 text-emerald-800 border border-emerald-200" : "text-slate-600 hover:text-slate-900 hover:bg-slate-200";
-        btn.className = `px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 whitespace-nowrap ${bgClass}`;
+        btn.className = `subbar-step-btn px-2.5 sm:px-3 rounded-lg text-xs font-bold transition flex items-center gap-1 whitespace-nowrap ${bgClass}`;
       }
     }
   }
@@ -899,7 +899,7 @@ function renderL2Canvas() {
 
   // 0. 단말: 시작 (항상 표시, 1.35배 확대)
   content += `
-    <g id="l2-blk-0" class="pop-in">
+    <g id="l2-blk-0">
       <rect x="235" y="16" width="230" height="48" rx="24" fill="#faf5ff" stroke="#a855f7" stroke-width="3" />
       <text x="350" y="46" fill="#581c87" font-size="15" font-weight="900" text-anchor="middle">⬭ 시작</text>
     </g>
@@ -912,7 +912,7 @@ function renderL2Canvas() {
       <line id="l2-line-0-1" x1="350" y1="64" x2="350" y2="100" stroke="#64748b" stroke-width="3.5" marker-end="url(#arrow-l2)" />
 
       <!-- 평행사변형 (입출력) -->
-      <g id="l2-blk-1" class="pop-in">
+      <g id="l2-blk-1">
         <polygon points="230,102 485,102 455,152 200,152" fill="#ecfdf5" stroke="#10b981" stroke-width="3" />
         <text x="342" y="132" fill="#064e3b" font-size="14" font-weight="800" text-anchor="middle">▱ 현재 시각 확인</text>
       </g>
@@ -926,7 +926,7 @@ function renderL2Canvas() {
       <line id="l2-line-1-2" x1="350" y1="152" x2="350" y2="188" stroke="#64748b" stroke-width="3.5" marker-end="url(#arrow-l2)" />
 
       <!-- 직사각형 (처리) -->
-      <g id="l2-blk-2" class="pop-in">
+      <g id="l2-blk-2">
         <rect x="235" y="190" width="230" height="48" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="3" />
         <text x="350" y="219" fill="#1e3a8a" font-size="14" font-weight="800" text-anchor="middle">▭ 기상 및 세수하기</text>
       </g>
@@ -937,31 +937,31 @@ function renderL2Canvas() {
   if (l2RevealedStep >= 3) {
     content += `
       <!-- 2 -> 3 연결선 -->
-      <line id="l2-line-2-3" x1="350" y1="238" x2="350" y2="276" stroke="#64748b" stroke-width="3.5" marker-end="url(#arrow-l2)" />
+      <line id="l2-line-2-3" x1="350" y1="238" x2="350" y2="314" stroke="#64748b" stroke-width="3.5" marker-end="url(#arrow-l2)" />
 
       <!-- 마름모 (판단) -->
-      <g id="l2-blk-3" class="pop-in">
-        <polygon points="350,278 495,325 350,372 205,325" fill="#fffbeb" stroke="#f59e0b" stroke-width="3" />
-        <text x="350" y="330" fill="#78350f" font-size="14" font-weight="900" text-anchor="middle">◇ 현재 시각 &lt;= 07:30?</text>
+      <g id="l2-blk-3">
+        <polygon points="350,316 495,363 350,410 205,363" fill="#fffbeb" stroke="#f59e0b" stroke-width="3" />
+        <text x="350" y="368" fill="#78350f" font-size="14" font-weight="900" text-anchor="middle">◇ 현재 시각 &lt;= 07:30?</text>
       </g>
 
       <!-- [예] 좌측 분기선 및 직사각형 -->
-      <g id="l2-blk-yes-wrap" class="pop-in">
-        <path id="l2-line-yes" d="M 205 325 L 120 325 L 120 392" stroke="#10b981" stroke-width="3.5" fill="none" marker-end="url(#arrow-l2-yes)" />
-        <text x="162" y="315" fill="#10b981" font-size="12" font-weight="900" text-anchor="middle">[예]</text>
+      <g id="l2-blk-yes-wrap">
+        <path id="l2-line-yes" d="M 205 363 L 120 363 L 120 428" stroke="#10b981" stroke-width="3.5" fill="none" marker-end="url(#arrow-l2-yes)" />
+        <text x="162" y="353" fill="#10b981" font-size="12" font-weight="900" text-anchor="middle">[예]</text>
         <g id="l2-blk-yes">
-          <rect x="15" y="396" width="210" height="48" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="3" />
-          <text x="120" y="425" fill="#1e3a8a" font-size="13" font-weight="800" text-anchor="middle">▭ 아침밥 든든히 먹기</text>
+          <rect x="15" y="432" width="210" height="48" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="3" />
+          <text x="120" y="461" fill="#1e3a8a" font-size="13" font-weight="800" text-anchor="middle">▭ 아침밥 든든히 먹기</text>
         </g>
       </g>
 
       <!-- [아니오] 우측 분기선 및 직사각형 -->
-      <g id="l2-blk-no-wrap" class="pop-in">
-        <path id="l2-line-no" d="M 495 325 L 580 325 L 580 392" stroke="#f43f5e" stroke-width="3.5" fill="none" marker-end="url(#arrow-l2-no)" />
-        <text x="538" y="315" fill="#f43f5e" font-size="12" font-weight="900" text-anchor="middle">[아니오]</text>
+      <g id="l2-blk-no-wrap">
+        <path id="l2-line-no" d="M 495 363 L 580 363 L 580 428" stroke="#f43f5e" stroke-width="3.5" fill="none" marker-end="url(#arrow-l2-no)" />
+        <text x="538" y="353" fill="#f43f5e" font-size="12" font-weight="900" text-anchor="middle">[아니오]</text>
         <g id="l2-blk-no">
-          <rect x="475" y="396" width="210" height="48" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="3" />
-          <text x="580" y="425" fill="#1e3a8a" font-size="13" font-weight="800" text-anchor="middle">▭ 서둘러 즉시 출발</text>
+          <rect x="475" y="432" width="210" height="48" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="3" />
+          <text x="580" y="461" fill="#1e3a8a" font-size="13" font-weight="800" text-anchor="middle">▭ 서둘러 즉시 출발</text>
         </g>
       </g>
     `;
@@ -971,24 +971,24 @@ function renderL2Canvas() {
   if (l2RevealedStep >= 4) {
     content += `
       <!-- 분기 합류선 -->
-      <g class="pop-in">
-        <path id="l2-line-merge-yes" d="M 120 444 L 120 480 L 290 510" stroke="#64748b" stroke-width="3" fill="none" />
-        <path id="l2-line-merge-no" d="M 580 444 L 580 480 L 410 510" stroke="#64748b" stroke-width="3" fill="none" />
-        <line id="l2-line-merge-center" x1="350" y1="495" x2="350" y2="522" stroke="#64748b" stroke-width="3.5" marker-end="url(#arrow-l2)" />
+      <g>
+        <path id="l2-line-merge-yes" d="M 120 480 L 120 515 L 350 535" stroke="#64748b" stroke-width="3" fill="none" />
+        <path id="l2-line-merge-no" d="M 580 480 L 580 515 L 350 535" stroke="#64748b" stroke-width="3" fill="none" />
+        <line id="l2-line-merge-center" x1="350" y1="535" x2="350" y2="558" stroke="#64748b" stroke-width="3.5" marker-end="url(#arrow-l2)" />
 
         <!-- 직사각형 (처리): 등교 버스 탑승 -->
         <g id="l2-blk-4">
-          <rect x="235" y="525" width="230" height="48" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="3" />
-          <text x="350" y="554" fill="#1e3a8a" font-size="14" font-weight="800" text-anchor="middle">▭ 등교 버스 탑승</text>
+          <rect x="235" y="560" width="230" height="48" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="3" />
+          <text x="350" y="589" fill="#1e3a8a" font-size="14" font-weight="800" text-anchor="middle">▭ 등교 버스 탑승</text>
         </g>
 
         <!-- 종료 단말 연결 -->
-        <line id="l2-line-4-end" x1="350" y1="573" x2="350" y2="608" stroke="#64748b" stroke-width="3.5" marker-end="url(#arrow-l2)" />
+        <line id="l2-line-4-end" x1="350" y1="608" x2="350" y2="640" stroke="#64748b" stroke-width="3.5" marker-end="url(#arrow-l2)" />
 
         <!-- 타원 (단말): 종료 -->
         <g id="l2-blk-end">
-          <rect x="235" y="610" width="230" height="48" rx="24" fill="#faf5ff" stroke="#a855f7" stroke-width="3" />
-          <text x="350" y="640" fill="#581c87" font-size="15" font-weight="900" text-anchor="middle">⬭ 종료 (등교 성공)</text>
+          <rect x="235" y="642" width="230" height="48" rx="24" fill="#faf5ff" stroke="#a855f7" stroke-width="3" />
+          <text x="350" y="672" fill="#581c87" font-size="15" font-weight="900" text-anchor="middle">⬭ 종료 (등교 성공)</text>
         </g>
       </g>
     `;
@@ -1069,45 +1069,39 @@ async function runL2WalkthroughSimulation() {
     // 0. 시작 단말
     highlightSvg('l2-blk-0');
     if (typeof playSfx === 'function') playSfx('step');
-    await delay(600);
+    await delay(500);
 
     highlightSvg('l2-blk-0', 'l2-line-0-1');
-    await delay(400);
+    await delay(350);
 
     // 1. 입출력: 현재 시각 확인
     highlightCard('l2-card-step-1');
     highlightSvg('l2-blk-1');
     if (typeof playSfx === 'function') playSfx('step');
-    await delay(700);
+    await delay(600);
 
     highlightSvg('l2-blk-1', 'l2-line-1-2');
-    await delay(400);
+    await delay(350);
 
     // 2. 처리: 기상 및 세수하기
     highlightCard('l2-card-step-2');
     highlightSvg('l2-blk-2');
     if (typeof playSfx === 'function') playSfx('step');
-    await delay(700);
+    await delay(600);
 
     highlightSvg('l2-blk-2', 'l2-line-2-3');
-    await delay(400);
+    await delay(350);
 
-    // 3. 판단: 현재 시각 <= 07:30 ?
+    // 3. 판단: 현재 시각 <= 07:30 ? (마름모 점등)
     highlightCard('l2-card-step-3');
     highlightSvg('l2-blk-3');
     if (typeof playSfx === 'function') playSfx('step');
 
-    // 캔버스 중앙에 대화형 분기 선택 팝업 오버레이 표시
+    // 마름모 블록 바로 위에 대화형 분기 선택 팝업 표시 (Step 5와 1:1 일치, 상단 플로팅)
     const canvasWrap = document.getElementById('l2-canvas');
     let userChoice = '예';
 
     if (canvasWrap) {
-      // 마름모 판단 기호로 캔버스 스크롤 부드럽게 자동 포커싱 (확장 제안 3)
-      const decisionSvg = document.getElementById('l2-blk-3');
-      if (decisionSvg) {
-        decisionSvg.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-
       const overlay = document.createElement('div');
       overlay.className = 'l2-choice-overlay';
       overlay.id = 'l2-sim-choice-overlay';
@@ -1153,34 +1147,47 @@ async function runL2WalkthroughSimulation() {
 
     if (userChoice === '예') {
       const yesActionEl = document.getElementById('l2-card-yes-action');
-      if (yesActionEl) yesActionEl.classList.add('bg-emerald-100', 'px-2', 'py-1', 'rounded-md', 'border', 'border-emerald-300');
-      highlightSvg(null, 'l2-line-yes');
-      await delay(400);
+      if (yesActionEl) yesActionEl.classList.add('bg-emerald-100', 'px-2', 'py-1', 'rounded-md', 'border', 'border-emerald-300', 'shadow-xs');
+      
+      // 마름모에서 좌측 [예] 분기선으로 자연스럽게 흐름
+      highlightSvg('l2-blk-3', 'l2-line-yes');
+      await delay(450);
 
+      // 좌측 '아침밥 먹기' 블록 도달
       highlightSvg('l2-blk-yes');
       if (typeof playSfx === 'function') playSfx('step');
-      await delay(800);
+      await delay(700);
 
+      // 합류선 및 중심선 연속 점등
       highlightSvg('l2-blk-yes', 'l2-line-merge-yes');
       await delay(400);
-      if (yesActionEl) yesActionEl.classList.remove('bg-emerald-100', 'px-2', 'py-1', 'rounded-md', 'border', 'border-emerald-300');
+
+      highlightSvg(null, 'l2-line-merge-center');
+      await delay(350);
+
+      if (yesActionEl) yesActionEl.classList.remove('bg-emerald-100', 'px-2', 'py-1', 'rounded-md', 'border', 'border-emerald-300', 'shadow-xs');
     } else {
       const noActionEl = document.getElementById('l2-card-no-action');
-      if (noActionEl) noActionEl.classList.add('bg-rose-100', 'px-2', 'py-1', 'rounded-md', 'border', 'border-rose-300');
-      highlightSvg(null, 'l2-line-no');
-      await delay(400);
+      if (noActionEl) noActionEl.classList.add('bg-rose-100', 'px-2', 'py-1', 'rounded-md', 'border', 'border-rose-300', 'shadow-xs');
+      
+      // 마름모에서 우측 [아니오] 분기선으로 자연스럽게 흐름
+      highlightSvg('l2-blk-3', 'l2-line-no');
+      await delay(450);
 
+      // 우측 '서둘러 즉시 출발' 블록 도달
       highlightSvg('l2-blk-no');
       if (typeof playSfx === 'function') playSfx('step');
-      await delay(800);
+      await delay(700);
 
+      // 합류선 및 중심선 연속 점등
       highlightSvg('l2-blk-no', 'l2-line-merge-no');
       await delay(400);
-      if (noActionEl) noActionEl.classList.remove('bg-rose-100', 'px-2', 'py-1', 'rounded-md', 'border', 'border-rose-300');
-    }
 
-    highlightSvg(null, 'l2-line-merge-center');
-    await delay(300);
+      highlightSvg(null, 'l2-line-merge-center');
+      await delay(350);
+
+      if (noActionEl) noActionEl.classList.remove('bg-rose-100', 'px-2', 'py-1', 'rounded-md', 'border', 'border-rose-300', 'shadow-xs');
+    }
 
     // 4. 합류 & 등교 버스 탑승
     highlightCard('l2-card-step-4');
@@ -1194,9 +1201,10 @@ async function runL2WalkthroughSimulation() {
     // 종료
     highlightSvg('l2-blk-end');
     if (typeof playSfx === 'function') playSfx('success');
-    await delay(1200);
+    await delay(500);
 
-    alert("🎉 [예시 공방 실행 시뮬레이션 완료!]\n좌측 자연어 명령어 레시피와 우측 순서도 기호가 1:1로 일치하며 등교 성공까지 완벽히 동작했습니다!");
+    // 투박한 alert 대신 세련된 플로팅 완주 축하 토스트 뱃지 표시
+    showL2CompletionToast("🎉 등교 알고리즘 완주 성공! 자연어 레시피와 순서도가 완벽히 일치합니다.");
   } catch (err) {
     // 중지됨 (사용자 취소 또는 오류)
   } finally {
@@ -1210,15 +1218,35 @@ async function runL2WalkthroughSimulation() {
   }
 }
 
+function showL2CompletionToast(message) {
+  const canvasWrap = document.getElementById('l2-canvas');
+  if (!canvasWrap) return;
+  document.querySelectorAll('.l2-sim-complete-toast').forEach(el => el.remove());
+  const toast = document.createElement('div');
+  toast.className = 'l2-sim-complete-toast';
+  toast.innerHTML = `
+    <i class="fa-solid fa-circle-check text-emerald-200 text-sm"></i>
+    <span>${message}</span>
+    <button onclick="this.parentElement.remove()" class="ml-2 text-white/80 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-xs"></i></button>
+  `;
+  canvasWrap.appendChild(toast);
+  setTimeout(() => {
+    toast.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+    toast.style.opacity = '0';
+    toast.style.transform = 'translate(-50%, -10px)';
+    setTimeout(() => toast.remove(), 500);
+  }, 4500);
+}
+
 function clearL2SimulationHighlights() {
   document.querySelectorAll('.l2-card-simulating').forEach(el => el.classList.remove('l2-card-simulating'));
   document.querySelectorAll('.l2-svg-simulating').forEach(el => el.classList.remove('l2-svg-simulating'));
   document.querySelectorAll('.l2-line-simulating').forEach(el => el.classList.remove('l2-line-simulating'));
-  document.querySelectorAll('.l2-choice-overlay, #l2-sim-choice-overlay').forEach(el => el.remove());
+  document.querySelectorAll('.l2-choice-overlay, #l2-sim-choice-overlay, .l2-sim-complete-toast').forEach(el => el.remove());
   const yesActionEl = document.getElementById('l2-card-yes-action');
-  if (yesActionEl) yesActionEl.classList.remove('bg-emerald-100', 'px-2', 'py-1', 'rounded-md', 'border', 'border-emerald-300');
+  if (yesActionEl) yesActionEl.classList.remove('bg-emerald-100', 'px-2', 'py-1', 'rounded-md', 'border', 'border-emerald-300', 'shadow-xs');
   const noActionEl = document.getElementById('l2-card-no-action');
-  if (noActionEl) noActionEl.classList.remove('bg-rose-100', 'px-2', 'py-1', 'rounded-md', 'border', 'border-rose-300');
+  if (noActionEl) noActionEl.classList.remove('bg-rose-100', 'px-2', 'py-1', 'rounded-md', 'border', 'border-rose-300', 'shadow-xs');
 }
 
 window.runL2WalkthroughSimulation = runL2WalkthroughSimulation;

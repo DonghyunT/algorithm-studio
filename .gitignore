@@ -4,13 +4,17 @@
 # 백업 폴더 (원본 보존용, 배포 불필요)
 백업용/
 
-# 임시 파일
+# 임시 파일 및 폴더
 temp_results.txt
 temp_*.txt
+temp/
+*.tmp
 
-# 스크린샷 (개발용)
+# 스크린샷 및 개발 검증용 이미지
 screenshot_*.png
 step5_*.png
+test_*.png
+*.png.tmp
 
 # OS/IDE 관련
 .DS_Store

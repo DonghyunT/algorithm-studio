@@ -141,3 +141,67 @@ html {
   transform: rotate(180deg);
 }
 
+/* ==========================================
+   🎯 전체 단원 공통 서브바 픽셀 퍼펙트 섬 (Zero-Jitter Subbar Island)
+   기준: 순서도 5단계 나만의 백지 스펙 (높이 56px, 수직 중앙 정렬)
+   ========================================== */
+.subbar-island {
+  min-height: 56px !important;
+  height: 56px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 0.625rem !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important; /* border-slate-200 */
+  border-radius: 0.75rem !important;    /* rounded-xl */
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important; /* shadow-xs */
+  box-sizing: border-box !important;
+  flex-shrink: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+/* 서브바 좌측 타이틀 박스 고정 폭 (단원명 글자수에 따른 X오프셋 시프트 원천 방지) */
+.subbar-title-zone {
+  width: 145px !important;
+  flex-shrink: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+}
+
+/* 3단계 퀵 전환 알약 버튼 바 (개념/퀴즈/실습) 높이 통일 */
+.subbar-quick-pill-btn {
+  height: 28px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  line-height: 1 !important;
+}
+
+/* 서브바 우측 스텝 알약 버튼 높이 고정 (활성/비활성 2px 차이 원천 방지) */
+.subbar-step-btn {
+  height: 32px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  line-height: 1 !important;
+}
+
+/* 서브바 우측 안내 배지 세로 중앙 정렬 및 높이 고정 */
+.subbar-info-badge {
+  height: 32px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  line-height: 1 !important;
+}
+
+

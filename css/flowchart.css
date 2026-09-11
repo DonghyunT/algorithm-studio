@@ -524,6 +524,11 @@
 /* ==========================================
    🚀 [모드 2] 풀스크린 스튜디오 모드 (Zero Margin Edge-to-Edge)
    ========================================== */
+/* html 스크롤바 유무에 따른 15px 레이아웃 흔들림(Jitter) 원천 방지 */
+html {
+  scrollbar-gutter: stable;
+}
+
 body.studio-mode {
   overflow: hidden !important;
   height: 100vh !important;
@@ -533,14 +538,33 @@ body.studio-mode > footer {
   display: none !important;
 }
 
+/* 스튜디오 모드에서도 헤더/일반모드와 100% 동일한 컨테이너 규격 유지 (Zero-Jitter Island) */
 body.studio-mode #view-lab {
-  max-width: 100% !important;
-  padding: 0.25rem 0.5rem 0.25rem 0.5rem !important;
-  margin: 0 !important;
-  height: calc(100vh - 58px) !important;
+  max-width: 1720px !important;
+  width: 100% !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+  padding-top: 1rem !important;
+  padding-bottom: 0.5rem !important;
+  height: calc(100vh - 71px) !important;
   overflow: hidden !important;
   display: flex !important;
   flex-direction: column !important;
+}
+
+@media (min-width: 640px) {
+  body.studio-mode #view-lab {
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
+  }
+}
+
+@media (min-width: 1536px) {
+  body.studio-mode #view-lab {
+    max-width: 1840px !important;
+  }
 }
 
 body.studio-mode #lab-flowchart-content {
@@ -550,18 +574,24 @@ body.studio-mode #lab-flowchart-content {
   margin: 0 !important;
   flex: 1 1 0 !important;
   min-height: 0 !important;
-  gap: 0.25rem !important;
+  gap: 0.5rem !important;
 }
 
 body.studio-mode #view-lab > * + *,
 body.studio-mode #lab-flowchart-content > * + *,
+body.studio-mode #fc-level2-view > * + *,
 body.studio-mode #fc-level3-view > * + * {
-  margin-top: 0.25rem !important;
+  margin-top: 0.5rem !important;
 }
 
+/* 상단 서브바 높이와 안쪽 패딩 1px 고정 (Step 1~5 완전 일치, 기준 56px) */
 body.studio-mode #lab-flowchart-content > div:first-child {
-  padding-top: 0.25rem !important;
-  padding-bottom: 0.25rem !important;
+  min-height: 56px !important;
+  height: 56px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
   flex-shrink: 0 !important;
   margin-bottom: 0 !important;
 }
@@ -679,31 +709,24 @@ body.studio-mode .entry-studio-l2-container {
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Step 4 시뮬레이션 시 우측 SVG 순서도 기호 네온 하이라이트 */
+/* Step 4 시뮬레이션 시 우측 SVG 순서도 기호 하이라이트 (Step 5 나만의 백지와 동일하게 제자리에서 부드럽게 살짝 확대) */
 .l2-svg-simulating {
-  filter: drop-shadow(0 0 12px rgba(16, 185, 129, 0.95)) drop-shadow(0 0 24px rgba(5, 150, 105, 0.8)) !important;
-  animation: simSvgPulse 0.8s infinite alternate ease-in-out !important;
+  transform-box: fill-box !important;
+  transform-origin: center center !important;
+  transform: scale(1.06) !important;
+  filter: drop-shadow(0 0 16px rgba(16, 185, 129, 0.95)) drop-shadow(0 0 28px rgba(5, 150, 105, 0.75)) !important;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.25s ease !important;
 }
 .l2-svg-simulating rect,
 .l2-svg-simulating polygon {
   stroke: #10b981 !important;
-  stroke-width: 4.5px !important;
+  stroke-width: 4px !important;
   fill: #ecfdf5 !important;
-  filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.9)) !important;
-  transition: all 0.2s ease !important;
+  transition: stroke 0.2s ease, fill 0.2s ease !important;
 }
 .l2-svg-simulating text {
   font-weight: 900 !important;
   fill: #065f46 !important;
-}
-
-@keyframes simSvgPulse {
-  from {
-    filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.7));
-  }
-  to {
-    filter: drop-shadow(0 0 24px rgba(52, 211, 153, 0.98));
-  }
 }
 
 /* Step 4 시뮬레이션 시 연결 화살표 애니메이션 */
@@ -1077,32 +1100,68 @@ body.studio-mode .entry-studio-l2-container {
   border-color: #4f46e5 transparent transparent transparent !important;
 }
 
-/* Step 4 예시 공방 판단 블록 분기 인터랙션 팝업 */
+/* Step 4 예시 공방 판단 블록 분기 인터랙션 팝업 (Step 5 sim-choice-overlay와 1:1 완벽 일치) */
 .l2-choice-overlay {
   position: absolute !important;
-  top: 320px !important;
+  top: 258px !important;
   left: 50% !important;
   transform: translateX(-50%) !important;
   background: #ffffff !important;
   border: 2.5px solid #f59e0b !important;
   border-radius: 9999px !important;
-  padding: 8px 18px !important;
-  box-shadow: 0 12px 30px rgba(245, 158, 11, 0.4), 0 4px 12px rgba(0, 0, 0, 0.12) !important;
+  padding: 6px 16px !important;
+  box-shadow: 0 10px 25px -3px rgba(245, 158, 11, 0.45), 0 4px 10px rgba(0, 0, 0, 0.1) !important;
   display: flex !important;
   flex-direction: row !important;
   align-items: center !important;
+  justify-content: center !important;
   gap: 10px !important;
   white-space: nowrap !important;
-  min-width: 290px !important;
+  min-width: 280px !important;
   width: max-content !important;
   z-index: 60 !important;
   animation: simBadgePop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
   pointer-events: auto !important;
 }
 
+/* Step 5와 일치하는 마름모 상단 플로팅 꼬리표 */
+.l2-choice-overlay::after {
+  content: '' !important;
+  position: absolute !important;
+  bottom: -7px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  border-width: 7px 7px 0 7px !important;
+  border-style: solid !important;
+  border-color: #f59e0b transparent transparent transparent !important;
+}
+
 .l2-choice-overlay span,
 .l2-choice-overlay button {
   white-space: nowrap !important;
+}
+
+/* Step 4 실행 완료 축하 토스트 (alert 대체) */
+.l2-sim-complete-toast {
+  position: absolute !important;
+  top: 14px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  background: linear-gradient(135deg, #059669, #0d9488) !important;
+  color: #ffffff !important;
+  border: 2px solid #34d399 !important;
+  border-radius: 9999px !important;
+  padding: 8px 22px !important;
+  font-size: 13px !important;
+  font-weight: 900 !important;
+  box-shadow: 0 10px 30px rgba(5, 150, 105, 0.45), 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+  z-index: 70 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  animation: simBadgePop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  pointer-events: auto !important;
+  cursor: pointer;
 }
 
 /* Step 5 나만의 백지 캔버스 내부 마우스 드래그 플로팅 실행 제어기 */

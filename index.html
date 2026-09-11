@@ -378,31 +378,31 @@
 
     </main>
 <!-- [TAB 2] 📚 알고리즘 개념 학습 (오버플로우 완벽 해결 & 인용부호 제거) -->
-    <main id="view-concept" class="max-w-[1720px] 2xl:max-w-[1840px] mx-auto w-full px-4 sm:px-8 py-6 flex-1 flex flex-col gap-5 hidden">
+    <main id="view-concept" class="max-w-[1720px] 2xl:max-w-[1840px] mx-auto w-full px-4 sm:px-8 py-4 flex-1 flex flex-col gap-4 hidden">
       
-      <!-- [초슬림 일체형 서브 바: 38px] -->
-      <div id="concept-header-bar" class="bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-xs flex flex-wrap items-center justify-between gap-2.5">
+      <!-- [초슬림 일체형 서브 바: 56px Zero-Jitter Island] -->
+      <div id="concept-header-bar" class="subbar-island">
         <div class="flex items-center gap-2.5 sm:gap-3 shrink-0">
-          <div class="flex items-center gap-2 w-[130px] sm:w-[145px] shrink-0">
+          <div class="subbar-title-zone">
             <div id="concept-header-icon" class="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-black shrink-0">💡</div>
             <span id="concept-header-title" class="text-xs sm:text-sm font-black text-slate-800 truncate">문제 추상화</span>
           </div>
           <div class="w-[1px] h-4 bg-slate-200 shrink-0"></div>
           <!-- 3단계 퀵 전환 알약 버튼 바 (모든 뷰에서 동일한 X 오프셋!) -->
           <div class="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs shrink-0">
-            <button onclick="switchUnitStep(currentActiveUnit === 'roadmap' ? 'unit1' : currentActiveUnit, 'concept')" id="concept-step-btn-concept" class="px-2.5 sm:px-3 py-1 rounded-md font-black transition flex items-center gap-1 bg-indigo-600 text-white shadow-xs">
+            <button onclick="switchUnitStep(currentActiveUnit === 'roadmap' ? 'unit1' : currentActiveUnit, 'concept')" id="concept-step-btn-concept" class="subbar-quick-pill-btn px-2.5 sm:px-3 rounded-md font-black transition flex items-center gap-1 bg-indigo-600 text-white shadow-xs">
               📖 개념
             </button>
-            <button onclick="switchUnitStep(currentActiveUnit === 'roadmap' ? 'unit1' : currentActiveUnit, 'quiz')" id="concept-step-btn-quiz" class="px-2.5 sm:px-3 py-1 rounded-md font-bold transition flex items-center gap-1 text-slate-600 hover:text-slate-900 hover:bg-slate-200/50">
+            <button onclick="switchUnitStep(currentActiveUnit === 'roadmap' ? 'unit1' : currentActiveUnit, 'quiz')" id="concept-step-btn-quiz" class="subbar-quick-pill-btn px-2.5 sm:px-3 rounded-md font-bold transition flex items-center gap-1 text-slate-600 hover:text-slate-900 hover:bg-slate-200/50">
               📝 퀴즈
             </button>
-            <button onclick="switchUnitStep(currentActiveUnit === 'roadmap' ? 'unit1' : currentActiveUnit, 'lab')" id="concept-step-btn-lab" class="px-2.5 sm:px-3 py-1 rounded-md font-bold transition flex items-center gap-1 text-slate-600 hover:text-slate-900 hover:bg-slate-200/50">
+            <button onclick="switchUnitStep(currentActiveUnit === 'roadmap' ? 'unit1' : currentActiveUnit, 'lab')" id="concept-step-btn-lab" class="subbar-quick-pill-btn px-2.5 sm:px-3 rounded-md font-bold transition flex items-center gap-1 text-slate-600 hover:text-slate-900 hover:bg-slate-200/50">
               🚀 실습
             </button>
           </div>
         </div>
         <!-- 우측 배지 -->
-        <div class="hidden sm:flex items-center gap-1.5 text-xs text-indigo-700 font-bold bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-lg shrink-0">
+        <div class="hidden sm:flex items-center gap-1.5 text-xs text-indigo-700 font-bold bg-indigo-50 border border-indigo-200 px-3 rounded-lg shrink-0 subbar-info-badge">
           <i class="fa-solid fa-graduation-cap text-indigo-500"></i>
           <span>1. 핵심 개념 배움터</span>
         </div>
@@ -954,30 +954,30 @@
     </main>
 
     <!-- [TAB 2.5] 📝 단원별 쏙쏙 퀴즈 뷰 -->
-    <main id="view-quiz" class="max-w-[1720px] 2xl:max-w-[1840px] mx-auto w-full px-4 sm:px-8 py-6 flex-1 hidden">
-      <!-- [초슬림 일체형 서브 바: 38px] -->
-      <div id="quiz-header-bar" class="mb-4 bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-xs flex flex-wrap items-center justify-between gap-2.5">
+    <main id="view-quiz" class="max-w-[1720px] 2xl:max-w-[1840px] mx-auto w-full px-4 sm:px-8 py-4 space-y-4 flex-1 hidden">
+      <!-- [초슬림 일체형 서브 바: 56px Zero-Jitter Island] -->
+      <div id="quiz-header-bar" class="subbar-island">
         <div class="flex items-center gap-2.5 sm:gap-3 shrink-0">
-          <div class="flex items-center gap-2 w-[130px] sm:w-[145px] shrink-0">
+          <div class="subbar-title-zone">
             <div id="quiz-header-icon" class="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-black shrink-0">📝</div>
             <span id="quiz-header-title" class="text-xs sm:text-sm font-black text-slate-800 truncate">문제 추상화</span>
           </div>
           <div class="w-[1px] h-4 bg-slate-200 shrink-0"></div>
           <!-- 3단계 퀵 전환 알약 버튼 바 (모든 뷰에서 동일한 X 오프셋!) -->
           <div class="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs shrink-0">
-            <button onclick="switchUnitStep(currentActiveUnit === 'roadmap' ? 'unit1' : currentActiveUnit, 'concept')" id="quiz-step-btn-concept" class="px-2.5 sm:px-3 py-1 rounded-md font-bold transition flex items-center gap-1 text-slate-600 hover:text-slate-900 hover:bg-slate-200/50">
+            <button onclick="switchUnitStep(currentActiveUnit === 'roadmap' ? 'unit1' : currentActiveUnit, 'concept')" id="quiz-step-btn-concept" class="subbar-quick-pill-btn px-2.5 sm:px-3 rounded-md font-bold transition flex items-center gap-1 text-slate-600 hover:text-slate-900 hover:bg-slate-200/50">
               📖 개념
             </button>
-            <button onclick="switchUnitStep(currentActiveUnit === 'roadmap' ? 'unit1' : currentActiveUnit, 'quiz')" id="quiz-step-btn-quiz" class="px-2.5 sm:px-3 py-1 rounded-md font-black transition flex items-center gap-1 bg-indigo-600 text-white shadow-xs">
+            <button onclick="switchUnitStep(currentActiveUnit === 'roadmap' ? 'unit1' : currentActiveUnit, 'quiz')" id="quiz-step-btn-quiz" class="subbar-quick-pill-btn px-2.5 sm:px-3 rounded-md font-black transition flex items-center gap-1 bg-indigo-600 text-white shadow-xs">
               📝 퀴즈
             </button>
-            <button onclick="switchUnitStep(currentActiveUnit === 'roadmap' ? 'unit1' : currentActiveUnit, 'lab')" id="quiz-step-btn-lab" class="px-2.5 sm:px-3 py-1 rounded-md font-bold transition flex items-center gap-1 text-slate-600 hover:text-slate-900 hover:bg-slate-200/50">
+            <button onclick="switchUnitStep(currentActiveUnit === 'roadmap' ? 'unit1' : currentActiveUnit, 'lab')" id="quiz-step-btn-lab" class="subbar-quick-pill-btn px-2.5 sm:px-3 rounded-md font-bold transition flex items-center gap-1 text-slate-600 hover:text-slate-900 hover:bg-slate-200/50">
               🚀 실습
             </button>
           </div>
         </div>
         <!-- 우측 배지 -->
-        <div class="hidden sm:flex items-center gap-1.5 text-xs text-indigo-700 font-bold bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-lg shrink-0">
+        <div class="hidden sm:flex items-center gap-1.5 text-xs text-indigo-700 font-bold bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-lg shrink-0 subbar-info-badge">
           <i class="fa-solid fa-circle-check text-indigo-500"></i>
           <span>2. 쏙쏙 퀴즈 풀이</span>
         </div>
@@ -996,30 +996,30 @@
       <!-- ============================================================= -->
       <section id="lab-abstraction-content" class="space-y-3.5 fade-enter">
         
-        <!-- [초슬림 일체형 추상화 실습 헤더 바: 40px] -->
-        <div class="bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-xs flex flex-wrap items-center justify-between gap-2.5">
+        <!-- [초슬림 일체형 추상화 실습 헤더 바: 56px Zero-Jitter Island] -->
+        <div class="subbar-island">
           <!-- 좌측: 고정존 -->
           <div class="flex items-center gap-2.5 sm:gap-3 shrink-0">
-            <div class="flex items-center gap-2 w-[130px] sm:w-[145px] shrink-0">
+            <div class="subbar-title-zone">
               <div class="w-7 h-7 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center text-sm font-black shrink-0">💡</div>
               <span class="text-xs sm:text-sm font-black text-slate-800 truncate">문제 추상화</span>
             </div>
             <div class="w-[1px] h-4 bg-slate-200 shrink-0"></div>
             <!-- 3단계 퀵 전환 알약 버튼 바 -->
             <div class="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs shrink-0">
-              <button onclick="switchUnitStep('unit1', 'concept')" id="unit-step-unit1-concept" class="px-2.5 sm:px-3 py-1 rounded-md font-bold transition flex items-center gap-1 text-slate-600 hover:text-slate-900 hover:bg-slate-200/50">📖 개념</button>
-              <button onclick="switchUnitStep('unit1', 'quiz')" id="unit-step-unit1-quiz" class="px-2.5 sm:px-3 py-1 rounded-md font-bold transition flex items-center gap-1 text-slate-600 hover:text-slate-900 hover:bg-slate-200/50">📝 퀴즈</button>
-              <button onclick="switchUnitStep('unit1', 'lab')" id="unit-step-unit1-lab" class="px-2.5 sm:px-3 py-1 rounded-md font-black transition flex items-center gap-1 bg-indigo-600 text-white shadow-xs">🚀 실습</button>
+              <button onclick="switchUnitStep('unit1', 'concept')" id="unit-step-unit1-concept" class="subbar-quick-pill-btn px-2.5 sm:px-3 rounded-md font-bold transition flex items-center gap-1 text-slate-600 hover:text-slate-900 hover:bg-slate-200/50">📖 개념</button>
+              <button onclick="switchUnitStep('unit1', 'quiz')" id="unit-step-unit1-quiz" class="subbar-quick-pill-btn px-2.5 sm:px-3 rounded-md font-bold transition flex items-center gap-1 text-slate-600 hover:text-slate-900 hover:bg-slate-200/50">📝 퀴즈</button>
+              <button onclick="switchUnitStep('unit1', 'lab')" id="unit-step-unit1-lab" class="subbar-quick-pill-btn px-2.5 sm:px-3 rounded-md font-black transition flex items-center gap-1 bg-indigo-600 text-white shadow-xs">🚀 실습</button>
             </div>
           </div>
 
           <!-- 우측: 30초 맛보기 vs 실전 워크북 모드 알약 버튼 바 -->
-          <div class="flex items-center gap-1.5 bg-violet-50/70 p-1 rounded-xl border border-violet-200 text-xs shrink-0">
-            <button onclick="switchAbstractionSubTab('tutorial')" id="abs-subtab-tutorial" class="px-3 py-1 rounded-lg font-bold transition bg-violet-600 text-white shadow-xs flex items-center gap-1">
+          <div class="flex items-center gap-1.5 bg-violet-50/70 p-0.5 rounded-xl border border-violet-200 text-xs shrink-0">
+            <button onclick="switchAbstractionSubTab('tutorial')" id="abs-subtab-tutorial" class="subbar-step-btn px-3 rounded-lg font-bold transition bg-violet-600 text-white shadow-xs flex items-center gap-1">
               <i class="fa-solid fa-gamepad"></i> <span>1단계: 30초 맛보기</span>
               <span id="tut-badge" class="ml-1 text-[9px] bg-amber-400 text-slate-900 px-1.5 py-0.2 rounded-full font-black">필수</span>
             </button>
-            <button onclick="switchAbstractionSubTab('workspace')" id="abs-subtab-workspace" class="px-3 py-1 rounded-lg font-bold transition text-slate-400 bg-slate-100 cursor-not-allowed flex items-center gap-1" disabled>
+            <button onclick="switchAbstractionSubTab('workspace')" id="abs-subtab-workspace" class="subbar-step-btn px-3 rounded-lg font-bold transition text-slate-400 bg-slate-100 cursor-not-allowed flex items-center gap-1" disabled>
               <i class="fa-solid fa-lock text-[10px]" id="lock-icon"></i>
               <span>2단계: 실전 워크북</span>
             </button>
@@ -1332,25 +1332,25 @@
       </section>
 
 <div id="lab-sandwich-content" class="space-y-3.5 fade-enter hidden">
-        <!-- [초슬림 일체형 샌드위치 실습 헤더 바: 40px] -->
-        <div class="bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-xs flex flex-wrap items-center justify-between gap-2.5">
+        <!-- [초슬림 일체형 샌드위치 실습 헤더 바: 56px Zero-Jitter Island] -->
+        <div class="subbar-island">
           <!-- 좌측: 고정존 -->
           <div class="flex items-center gap-2.5 sm:gap-3 shrink-0">
-            <div class="flex items-center gap-2 w-[130px] sm:w-[145px] shrink-0">
+            <div class="subbar-title-zone">
               <div class="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-sm font-black shrink-0">🤖</div>
               <span class="text-xs sm:text-sm font-black text-slate-800 truncate">알고리즘 설계</span>
             </div>
             <div class="w-[1px] h-4 bg-slate-200 shrink-0"></div>
             <!-- 3단계 퀵 전환 알약 버튼 바 -->
             <div class="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs shrink-0">
-              <button onclick="switchUnitStep('unit2', 'concept')" id="unit-step-unit2-concept" class="px-2.5 sm:px-3 py-1 rounded-md font-bold transition flex items-center gap-1 text-slate-600 hover:text-slate-900 hover:bg-slate-200/50">📖 개념</button>
-              <button onclick="switchUnitStep('unit2', 'quiz')" id="unit-step-unit2-quiz" class="px-2.5 sm:px-3 py-1 rounded-md font-bold transition flex items-center gap-1 text-slate-600 hover:text-slate-900 hover:bg-slate-200/50">📝 퀴즈</button>
-              <button onclick="switchUnitStep('unit2', 'lab')" id="unit-step-unit2-lab" class="px-2.5 sm:px-3 py-1 rounded-md font-black transition flex items-center gap-1 bg-indigo-600 text-white shadow-xs">🚀 실습</button>
+              <button onclick="switchUnitStep('unit2', 'concept')" id="unit-step-unit2-concept" class="subbar-quick-pill-btn px-2.5 sm:px-3 rounded-md font-bold transition flex items-center gap-1 text-slate-600 hover:text-slate-900 hover:bg-slate-200/50">📖 개념</button>
+              <button onclick="switchUnitStep('unit2', 'quiz')" id="unit-step-unit2-quiz" class="subbar-quick-pill-btn px-2.5 sm:px-3 rounded-md font-bold transition flex items-center gap-1 text-slate-600 hover:text-slate-900 hover:bg-slate-200/50">📝 퀴즈</button>
+              <button onclick="switchUnitStep('unit2', 'lab')" id="unit-step-unit2-lab" class="subbar-quick-pill-btn px-2.5 sm:px-3 rounded-md font-black transition flex items-center gap-1 bg-indigo-600 text-white shadow-xs">🚀 실습</button>
             </div>
           </div>
 
           <!-- 우측: 5대 조건 점검 안내 배지 -->
-          <div class="text-xs text-slate-600 font-medium flex items-center gap-1.5 bg-amber-50/80 border border-amber-200 px-3 py-1 rounded-lg shrink-0">
+          <div class="text-xs text-slate-600 font-medium flex items-center gap-1.5 bg-amber-50/80 border border-amber-200 px-3 py-1 rounded-lg shrink-0 subbar-info-badge">
             <span class="text-amber-800 font-bold">🥪 5대 조건 점검:</span>
             <span class="text-amber-950 font-semibold hidden sm:inline">입력·출력·명확성·유한성·수행가능성 순서 조립</span>
           </div>
@@ -1596,43 +1596,43 @@
       <!-- [실습 3코스] 📊 순서도 만들기 스튜디오 (네이티브 인라인) -->
       <!-- ============================================================= -->
       <section id="lab-flowchart-content" class="space-y-4 fade-enter hidden">
-        <!-- [초슬림 일체형 순서도 연구소 헤더 바: 40px] -->
-        <div class="bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-xs flex flex-wrap items-center justify-between gap-2.5">
+        <!-- [초슬림 일체형 순서도 연구소 헤더 바: 56px Zero-Jitter Island] -->
+        <div class="subbar-island">
           <!-- 좌측: 고정존 -->
           <div class="flex items-center gap-2.5 sm:gap-3 shrink-0">
-            <div class="flex items-center gap-2 w-[130px] sm:w-[145px] shrink-0">
+            <div class="subbar-title-zone">
               <div class="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-black shrink-0">📐</div>
               <span class="text-xs sm:text-sm font-black text-slate-800 truncate">순서도 연구소</span>
             </div>
             <div class="w-[1px] h-4 bg-slate-200 shrink-0"></div>
             <!-- 3단계 퀵 전환 알약 버튼 바 -->
             <div class="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs shrink-0">
-              <button onclick="switchUnitStep('unit3', 'concept')" id="unit-step-unit3-concept" class="px-2.5 sm:px-3 py-1 rounded-md font-bold transition flex items-center gap-1 text-slate-600 hover:text-slate-900 hover:bg-slate-200/50">📖 개념</button>
-              <button onclick="switchUnitStep('unit3', 'quiz')" id="unit-step-unit3-quiz" class="px-2.5 sm:px-3 py-1 rounded-md font-bold transition flex items-center gap-1 text-slate-600 hover:text-slate-900 hover:bg-slate-200/50">📝 퀴즈</button>
-              <button onclick="switchUnitStep('unit3', 'lab')" id="unit-step-unit3-lab" class="px-2.5 sm:px-3 py-1 rounded-md font-black transition flex items-center gap-1 bg-indigo-600 text-white shadow-xs">🚀 실습</button>
+              <button onclick="switchUnitStep('unit3', 'concept')" id="unit-step-unit3-concept" class="subbar-quick-pill-btn px-2.5 sm:px-3 rounded-md font-bold transition flex items-center gap-1 text-slate-600 hover:text-slate-900 hover:bg-slate-200/50">📖 개념</button>
+              <button onclick="switchUnitStep('unit3', 'quiz')" id="unit-step-unit3-quiz" class="subbar-quick-pill-btn px-2.5 sm:px-3 rounded-md font-bold transition flex items-center gap-1 text-slate-600 hover:text-slate-900 hover:bg-slate-200/50">📝 퀴즈</button>
+              <button onclick="switchUnitStep('unit3', 'lab')" id="unit-step-unit3-lab" class="subbar-quick-pill-btn px-2.5 sm:px-3 rounded-md font-black transition flex items-center gap-1 bg-indigo-600 text-white shadow-xs">🚀 실습</button>
             </div>
           </div>
 
           <!-- 우측: 5단계 스텝 네비게이션 알약형 버튼 바 -->
-          <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 overflow-x-auto shrink-0">
-            <button onclick="switchFlowchartStep(1)" id="fc-step-btn-1" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 whitespace-nowrap bg-indigo-600 text-white shadow-xs">
+          <div class="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl border border-slate-200 overflow-x-auto shrink-0">
+            <button onclick="switchFlowchartStep(1)" id="fc-step-btn-1" class="subbar-step-btn px-2.5 sm:px-3 rounded-lg text-xs font-bold transition flex items-center gap-1 whitespace-nowrap bg-indigo-600 text-white shadow-xs">
               <span>🍜 1. 순차 (라면)</span>
               <span id="fc-check-1" class="hidden text-[9px] bg-emerald-500 text-white rounded-full w-3.5 h-3.5 inline-flex items-center justify-center font-black">✓</span>
             </button>
-            <button onclick="switchFlowchartStep(2)" id="fc-step-btn-2" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 whitespace-nowrap text-slate-600 hover:text-slate-900 hover:bg-slate-200">
+            <button onclick="switchFlowchartStep(2)" id="fc-step-btn-2" class="subbar-step-btn px-2.5 sm:px-3 rounded-lg text-xs font-bold transition flex items-center gap-1 whitespace-nowrap text-slate-600 hover:text-slate-900 hover:bg-slate-200">
               <span>🎡 2. 선택 (놀이기구)</span>
               <span id="fc-check-2" class="hidden text-[9px] bg-emerald-500 text-white rounded-full w-3.5 h-3.5 inline-flex items-center justify-center font-black">✓</span>
             </button>
-            <button onclick="switchFlowchartStep(3)" id="fc-step-btn-3" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 whitespace-nowrap text-slate-600 hover:text-slate-900 hover:bg-slate-200">
+            <button onclick="switchFlowchartStep(3)" id="fc-step-btn-3" class="subbar-step-btn px-2.5 sm:px-3 rounded-lg text-xs font-bold transition flex items-center gap-1 whitespace-nowrap text-slate-600 hover:text-slate-900 hover:bg-slate-200">
               <span>🔒 3. 반복 (비밀번호)</span>
               <span id="fc-check-3" class="hidden text-[9px] bg-emerald-500 text-white rounded-full w-3.5 h-3.5 inline-flex items-center justify-center font-black">✓</span>
             </button>
             <div class="w-[1px] h-4 bg-slate-300 mx-0.5 hidden sm:block"></div>
-            <button onclick="switchFlowchartStep(4)" id="fc-step-btn-4" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 whitespace-nowrap text-slate-600 hover:text-slate-900 hover:bg-slate-200">
+            <button onclick="switchFlowchartStep(4)" id="fc-step-btn-4" class="subbar-step-btn px-2.5 sm:px-3 rounded-lg text-xs font-bold transition flex items-center gap-1 whitespace-nowrap text-slate-600 hover:text-slate-900 hover:bg-slate-200">
               <span>🛠️ 4. 예시 공방</span>
               <span id="fc-check-4" class="hidden text-[9px] bg-emerald-500 text-white rounded-full w-3.5 h-3.5 inline-flex items-center justify-center font-black">✓</span>
             </button>
-            <button onclick="switchFlowchartStep(5)" id="fc-step-btn-5" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 whitespace-nowrap text-slate-600 hover:text-slate-900 hover:bg-slate-200">
+            <button onclick="switchFlowchartStep(5)" id="fc-step-btn-5" class="subbar-step-btn px-2.5 sm:px-3 rounded-lg text-xs font-bold transition flex items-center gap-1 whitespace-nowrap text-slate-600 hover:text-slate-900 hover:bg-slate-200">
               <span>🚀 5. 나만의 백지</span>
             </button>
           </div>
@@ -1831,7 +1831,7 @@
 
               <!-- 캔버스 영역 (화면을 꽉 채우는 도트 모눈 그리드) -->
               <div id="l2-canvas" class="w-full flex-1 entry-canvas-grid rounded-xl border-2 border-slate-200 p-4 relative overflow-auto flex flex-col items-center justify-start min-h-0">
-                <svg id="l2-svg" viewBox="0 0 700 680" class="w-full max-w-[760px] h-[660px] overflow-visible"></svg>
+                <svg id="l2-svg" viewBox="0 0 700 705" class="w-full max-w-[760px] h-[685px] overflow-visible"></svg>
               </div>
             </section>
 
