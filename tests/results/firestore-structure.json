@@ -1,0 +1,131 @@
+{
+  "at": "2026-09-12T16:13:38.710Z",
+  "project": "donghyun-algo",
+  "readOnly": true,
+  "classrooms": [
+    {
+      "classId": "2-1",
+      "status": "in_progress",
+      "questionVersion": 1,
+      "childCollections": [
+        "archives",
+        "students"
+      ],
+      "currentStudents": 1,
+      "archives": 1,
+      "archivedStudents": 2,
+      "archiveKinds": {
+        "new-session": 1
+      }
+    },
+    {
+      "classId": "2-2",
+      "status": "waiting",
+      "questionVersion": 1,
+      "childCollections": [],
+      "currentStudents": 0,
+      "archives": 0,
+      "archivedStudents": 0,
+      "archiveKinds": {}
+    },
+    {
+      "classId": "2-3",
+      "status": "waiting",
+      "questionVersion": 1,
+      "childCollections": [
+        "students"
+      ],
+      "currentStudents": 1,
+      "archives": 0,
+      "archivedStudents": 0,
+      "archiveKinds": {}
+    },
+    {
+      "classId": "2-4",
+      "status": "waiting",
+      "questionVersion": 1,
+      "childCollections": [],
+      "currentStudents": 0,
+      "archives": 0,
+      "archivedStudents": 0,
+      "archiveKinds": {}
+    },
+    {
+      "classId": "2-5",
+      "status": "waiting",
+      "questionVersion": 1,
+      "childCollections": [],
+      "currentStudents": 0,
+      "archives": 0,
+      "archivedStudents": 0,
+      "archiveKinds": {}
+    },
+    {
+      "classId": "2-6",
+      "status": "waiting",
+      "questionVersion": 1,
+      "childCollections": [],
+      "currentStudents": 0,
+      "archives": 0,
+      "archivedStudents": 0,
+      "archiveKinds": {}
+    },
+    {
+      "classId": "2-7",
+      "status": "waiting",
+      "questionVersion": 1,
+      "childCollections": [],
+      "currentStudents": 0,
+      "archives": 0,
+      "archivedStudents": 0,
+      "archiveKinds": {}
+    },
+    {
+      "classId": "2-8",
+      "status": "waiting",
+      "questionVersion": 1,
+      "childCollections": [],
+      "currentStudents": 0,
+      "archives": 0,
+      "archivedStudents": 0,
+      "archiveKinds": {}
+    },
+    {
+      "classId": "2-9",
+      "status": "waiting",
+      "questionVersion": 1,
+      "childCollections": [],
+      "currentStudents": 0,
+      "archives": 0,
+      "archivedStudents": 0,
+      "archiveKinds": {}
+    },
+    {
+      "classId": "2-10",
+      "status": "waiting",
+      "questionVersion": 1,
+      "childCollections": [],
+      "currentStudents": 0,
+      "archives": 0,
+      "archivedStudents": 0,
+      "archiveKinds": {}
+    },
+    {
+      "classId": "2-11",
+      "status": "waiting",
+      "questionVersion": 1,
+      "childCollections": [],
+      "currentStudents": 0,
+      "archives": 0,
+      "archivedStudents": 0,
+      "archiveKinds": {}
+    }
+  ],
+  "issues": [],
+  "rules": {
+    "release": "projects/donghyun-algo/rulesets/8dad671d-0d38-4df2-be58-ec0fcd7f47eb",
+    "matchLocal": true,
+    "sha256": "3542a4d1cfbb7ade4a88fb77bfe0d2a04685f401b017a98a0c083ef469948b64"
+  },
+  "legacyEvalSessionDocuments": 2
+}
