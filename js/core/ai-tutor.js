@@ -61,24 +61,14 @@
 4. 중학생 눈높이에 맞추어 핵심 위주로 이해하기 쉽게 2~3문장 내외로 이모지를 곁들여 간결하고 친절하게 답변하세요.`;
 
       try {
-        const resp = await fetch("https://api.upstage.ai/v1/solar/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${UPSTAGE_API_KEY}`
-          },
-          body: JSON.stringify({
-            model: typeof SOLAR_MODEL !== 'undefined' ? SOLAR_MODEL : "solar-pro4",
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: query }
-            ],
-            temperature: 0.3
-          })
-        });
+        const reply = (await callSolarAI({
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: query }
+          ],
+          temperature: 0.3
+        })).trim();
 
-        const data = await resp.json();
-        const reply = data.choices[0].message.content.trim();
         loadingDiv.remove();
 
         const botDiv = document.createElement('div');

@@ -732,22 +732,10 @@ ${studentState}
 3. 총 3문장 이내로 다정하게 작성하세요.`;
 
   try {
-    const res = await fetch("https://api.upstage.ai/v1/solar/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${UPSTAGE_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: typeof SOLAR_MODEL !== 'undefined' ? SOLAR_MODEL : "solar-pro4",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.5
-      })
+    const feedback = await callSolarAI({
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.5
     });
-
-    if (!res.ok) throw new Error("API Response Error");
-    const data = await res.json();
-    const feedback = data.choices[0].message.content;
 
     card.className = "p-4 rounded-2xl border border-rose-300 bg-rose-50 text-xs sm:text-sm space-y-1.5";
     text.innerHTML = `
@@ -2013,22 +2001,10 @@ async function requestSolarPrescription() {
 }`;
 
   try {
-    const res = await fetch("https://api.upstage.ai/v1/solar/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${UPSTAGE_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: typeof SOLAR_MODEL !== 'undefined' ? SOLAR_MODEL : "solar-pro4",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.4
-      })
+    const raw = await callSolarAI({
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.4
     });
-
-    if (!res.ok) throw new Error("API Response Error");
-    const data = await res.json();
-    const raw = data.choices[0].message.content;
 
     let parsed = null;
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
@@ -4687,22 +4663,10 @@ ${complimentsText}
 
   let aiFeedbackText = "";
   try {
-    const res = await fetch("https://api.upstage.ai/v1/solar/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${UPSTAGE_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: typeof SOLAR_MODEL !== 'undefined' ? SOLAR_MODEL : "solar-pro4",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.4
-      })
+    aiFeedbackText = await callSolarAI({
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.4
     });
-
-    if (!res.ok) throw new Error("API Error");
-    const data = await res.json();
-    aiFeedbackText = data.choices[0].message.content;
   } catch (err) {
     aiFeedbackText = consistency.issues.length > 0
       ? `[판정: 보완 필요]\n자연어 기획서와 비교했을 때 보완할 점이 있어요: ${consistency.issues[0]} 기호 보관함에서 필요한 기호를 추가하거나 내용을 수정해 보세요!`

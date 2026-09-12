@@ -327,14 +327,37 @@
    * 합류선(`l2-line-merge-yes/no`)과 중앙선(`l2-line-merge-center`)이 논리적으로 자연스럽게 이어지도록 좌표 및 점등 시퀀스 재편.
    * 브라우저 기본의 화면 동결 `alert()`를 퇴출하고, 캔버스 상단에 애니메이션 완주 축하 토스트 뱃지(`.l2-sim-complete-toast`)를 자동 노출.
 
+### 3.19 🛡️ 하이브리드 Solar AI 보안 통신 및 Vercel 배포 아키텍처
+1. **GitHub 및 학생 브라우저 API 키 노출 0% 원칙**:
+   * 클라이언트 사이드 코드 및 Git 저장소에 실제 Upstage Solar API 키가 노출되지 않도록 전면 격리.
+   * 실제 키 파일인 `js/data/config.js`를 `.gitignore`에 등록하고 Git 캐시에서 제외(`git rm --cached`).
+   * GitHub에는 `js/data/config.example.js` 템플릿만 업로드하여 오픈소스/배포 시 키 유출 원천 차단.
+2. **Vercel Zero-Config 서버리스 프록시 (`api/chat.js`)**:
+   * Vercel 배포 시 `api/chat.js` Node.js 서버리스 함수가 Vercel 대시보드의 환경 변수(`UPSTAGE_API_KEY`)를 통해 Upstage API와 보안 통신.
+   * 학생이 브라우저 개발자 도구(`F12`)를 열어 네트워크를 검사해도 API 키가 노출되지 않고 `/api/chat` 엔드포인트만 노출되어 크레딧 도용 원천 방어.
+3. **통합 AI 통신 클라이언트 모듈 (`js/core/ai-service.js`)**:
+   * `ai-tutor.js`, `lab-abstraction.js`, `lab-flowchart.js`, `lab-sandwich.js` 4개 파일에 산재되어 있던 개별 `fetch('https://api.upstage.ai/...')` 통신을 `callSolarAI()` 단일 함수로 완전 통합.
+   * **지능형 환경 분기**:
+     - **Vercel 웹 배포 환경**: `/api/chat` 서버리스 프록시를 호출하여 키 은닉.
+     - **로컬 개발/오프라인 환경 (`file:///` or localhost)**: 로컬 `config.js`의 키를 사용해 Upstage API 직접 통신 (더블클릭 실행 보장).
+   * 3대 로컬 PC(학교 노트북/집 데스크탑/개인 노트북)는 동일한 OneDrive 폴더를 공유하므로, `config.js` 파일이 실시간 동기화되어 별도 재입력 없이 즉시 구동.
+
 ---
 
-## 4. 멀티 디바이스 원드라이브 워크플로우 가이드
+## 4. 멀티 디바이스 원드라이브 & Vercel 배포 워크플로우 가이드
 
-1. **설치 제로 (Zero-Setup)**:
+1. **설치 제로 (Zero-Setup) & 3대 PC 자동 동기화**:
    - 본 프로젝트는 순수 HTML/CSS/JS 기반이므로, 노트북이나 데스크탑 어디서든 폴더를 열고 `index.html`을 브라우저에 띄우면 100% 정상 작동합니다.
-2. **동기화 확인**:
-   - 컴퓨터를 바꿀 때는 OneDrive 작업 표시줄 아이콘의 동기화 완료 여부를 확인합니다.
-3. **AI 인수인계**:
+   - 로컬 `js/data/config.js`는 OneDrive를 통해 학교 노트북, 집 데스크탑, 개인 노트북 3대에 자동으로 동기화되므로 각 컴퓨터마다 다시 설정할 필요가 없습니다.
+2. **Vercel 배포 환경 변수 설정**:
+   - Vercel 대시보드 ➔ 프로젝트 ➔ `Settings` ➔ `Environment Variables`에 이동하여:
+     - Key: `UPSTAGE_API_KEY`
+     - Value: 선생님의 Upstage API 키 (`up_...`)
+     - Environment: Production, Preview, Development 전체 체크 후 Save.
+3. **GitHub 푸시 시 안심 워크플로우**:
+   - `config.js`는 `.gitignore`로 보호받으므로, 언제든 `git push`를 실행해도 API 키가 GitHub에 올라가지 않습니다.
+   - Vercel은 GitHub 푸시를 감지하여 자동으로 무결점 보안 배포를 수행합니다.
+4. **AI 인수인계**:
    - 새 컴퓨터에서 AI를 켤 때: **`"AGENTS, INTENT, PRD 읽고 작업 이어가자"`** 한 문장으로 즉시 모든 맥락이 동기화됩니다.
+
 

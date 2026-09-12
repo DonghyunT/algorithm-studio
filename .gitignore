@@ -25,3 +25,10 @@ Thumbs.db
 
 # Antigravity AI 작업 폴더
 .gemini/
+
+# 🔑 환경설정 및 비밀 API 키 (GitHub 유출 방지)
+js/data/config.js
+.env
+.env.*
+!.env.example
+

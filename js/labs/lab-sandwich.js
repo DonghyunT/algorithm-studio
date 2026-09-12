@@ -633,24 +633,15 @@
 {"type": "ACTION", "actions": ["..."]} 또는 {"type": "CLARIFY", "clarify_message": "..."}`;
 
       try {
-        const resp = await fetch("https://api.upstage.ai/v1/solar/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${UPSTAGE_API_KEY}`
-          },
-          body: JSON.stringify({
-            model: typeof SOLAR_MODEL !== 'undefined' ? SOLAR_MODEL : "solar-pro4",
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userInput }
-            ],
-            temperature: 0.1
-          })
+        const reply = await callSolarAI({
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userInput }
+          ],
+          temperature: 0.1
         });
 
-        const data = await resp.json();
-        let content = data.choices[0].message.content.trim();
+        let content = reply.trim();
         content = content.replace(/```json/gi, '').replace(/```/g, '').trim();
 
         const match = content.match(/\{[\s\S]*\}/);

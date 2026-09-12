@@ -590,17 +590,10 @@ ${currentGeneratedPlans.join('\n')}
 반드시 options 배열 형태로만 출력하세요.`;
 
       try {
-        const res = await fetch('https://api.upstage.ai/v1/solar/chat/completions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${UPSTAGE_API_KEY}` },
-          body: JSON.stringify({
-            model: typeof SOLAR_MODEL !== 'undefined' ? SOLAR_MODEL : "solar-pro4",
-            messages: [{ role: "system", content: STEP_PROMPTS[3] }, { role: "user", content: prompt }],
-            temperature: 0.6
-          })
+        const raw = await callSolarAI({
+          messages: [{ role: "system", content: STEP_PROMPTS[3] }, { role: "user", content: prompt }],
+          temperature: 0.6
         });
-        const data = await res.json();
-        const raw = data.choices[0].message.content;
         
         const parsed = parseOptionsFromReply(raw);
         if (parsed.options && parsed.options.length > 0) {
@@ -657,19 +650,10 @@ ${currentGeneratedPlans.join('\n')}
       const loadingId = appendLoadingMessage();
 
       try {
-        const res = await fetch('https://api.upstage.ai/v1/solar/chat/completions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${UPSTAGE_API_KEY}` },
-          body: JSON.stringify({
-            model: typeof SOLAR_MODEL !== 'undefined' ? SOLAR_MODEL : "solar-pro4",
-            messages: [{ role: "system", content: STEP_PROMPTS[step] || STEP_PROMPTS[1] }, { role: "user", content: promptText }],
-            temperature: 0.6
-          })
+        const reply = await callSolarAI({
+          messages: [{ role: "system", content: STEP_PROMPTS[step] || STEP_PROMPTS[1] }, { role: "user", content: promptText }],
+          temperature: 0.6
         });
-
-        if (!res.ok) throw new Error(`API 오류 (${res.status})`);
-        const data = await res.json();
-        const reply = data.choices[0].message.content;
 
         removeChatMessage(loadingId);
 
@@ -873,19 +857,12 @@ ${currentGeneratedPlans.join('\n')}
 출력 형식:
 \`\`\`options
 ["1. 첫 번째 구체적 행동", "2. 두 번째 구체적 행동", "3. 세 번째 구체적 행동", "4. 네 번째 구체적 행동"]
-\`\`\``;
+\`\``;
 
-        const res = await fetch('https://api.upstage.ai/v1/solar/chat/completions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${UPSTAGE_API_KEY}` },
-          body: JSON.stringify({
-            model: typeof SOLAR_MODEL !== 'undefined' ? SOLAR_MODEL : "solar-pro4",
-            messages: [{ role: "system", content: "당신은 중2 정보 수업의 논리적 문제 해결 알고리즘 닥터입니다. 주어진 핵심 변수를 바탕으로 3~5개의 구체적 실행 단계 options 배열로만 답하세요." }, { role: "user", content: prompt }],
-            temperature: 0.5
-          })
+        const raw = await callSolarAI({
+          messages: [{ role: "system", content: "당신은 중2 정보 수업의 논리적 문제 해결 알고리즘 닥터입니다. 주어진 핵심 변수를 바탕으로 3~5개의 구체적 실행 단계 options 배열로만 답하세요." }, { role: "user", content: prompt }],
+          temperature: 0.5
         });
-        const data = await res.json();
-        const raw = data.choices[0].message.content;
         const parsed = parseOptionsFromReply(raw);
         if (parsed.options && parsed.options.length > 0) {
           plans = parsed.options;

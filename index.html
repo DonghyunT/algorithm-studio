@@ -2238,13 +2238,14 @@
   <!-- ========================================== -->
   <!-- 1. 설정 및 데이터 (문제를 수정할 때 여기를 편집하세요) -->
   <!-- ========================================== -->
-  <script src="js/data/config.js"></script>
+  <script src="js/data/config.js" onerror="console.info('로컬 config.js 미로드 (Vercel 배포 환경 /api/chat 모드로 동작)')"></script>
   <script src="js/data/abstraction-data.js"></script>
   <script src="js/data/flowchart-missions.js"></script>
 
   <!-- ========================================== -->
-  <!-- 2. 공통 엔진 (사운드 효과음, 네비게이션, AI 튜터) -->
+  <!-- 2. 공통 엔진 (사운드 효과음, 네비게이션, AI 통신 서비스, AI 튜터) -->
   <!-- ========================================== -->
+  <script src="js/core/ai-service.js"></script>
   <script src="js/core/audio.js"></script>
   <script src="js/core/navigation.js"></script>
   <script src="js/core/concept.js"></script>
