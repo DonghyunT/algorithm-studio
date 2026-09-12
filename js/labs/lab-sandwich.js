@@ -17,6 +17,17 @@
 
     let globalExecutionQueue = [];
     let validStudentPromptsLog = [];
+    let sandwichRunGeneration = 0;
+    const sandwichTimers = new Set();
+    function scheduleSandwich(callback, delay) {
+      const generation = sandwichRunGeneration;
+      const timer = window.setTimeout(() => {
+        sandwichTimers.delete(timer);
+        if (generation === sandwichRunGeneration) callback();
+      }, delay);
+      sandwichTimers.add(timer);
+      return timer;
+    }
 
     // audioCtx is shared globally via getAudioCtx()
         function playSound(type) {
@@ -210,7 +221,7 @@
         stageFrame.classList.add('shake-error', 'border-rose-400');
         caption.textContent = "❌ " + (errorMsg || "오류가 발생했습니다!");
         playSound('error');
-        setTimeout(() => {
+        scheduleSandwich(() => {
           errorMark.classList.add('opacity-0');
           stageFrame.classList.remove('shake-error', 'border-rose-400');
         }, 1500);
@@ -264,7 +275,7 @@
 
         case 'SCOOP_JAM':
           knife.setAttribute('transform', 'translate(835, 175) rotate(15)');
-          setTimeout(() => {
+          scheduleSandwich(() => {
             knifeBlob.setAttribute('fill', '#dc2626');
             knifeBlob.classList.remove('opacity-0');
             knife.setAttribute('transform', 'translate(800, 240) rotate(-15)');
@@ -274,7 +285,7 @@
 
         case 'SCOOP_PB':
           knife.setAttribute('transform', 'translate(740, 190) rotate(15)');
-          setTimeout(() => {
+          scheduleSandwich(() => {
             knifeBlob.setAttribute('fill', '#b45309');
             knifeBlob.classList.remove('opacity-0');
             knife.setAttribute('transform', 'translate(700, 240) rotate(-15)');
@@ -285,7 +296,7 @@
         // 식빵 1 도포
         case 'SPREAD_JAM_BREAD1_EDGE':
           knife.setAttribute('transform', 'translate(350, 235) rotate(-5)');
-          setTimeout(() => {
+          scheduleSandwich(() => {
             document.getElementById('g-jam-edge-1').classList.remove('opacity-0');
             knifeBlob.classList.add('opacity-0');
             knife.setAttribute('transform', 'translate(905, 290) rotate(-25)');
@@ -295,7 +306,7 @@
 
         case 'SPREAD_PB_BREAD1_EDGE':
           knife.setAttribute('transform', 'translate(350, 235) rotate(-5)');
-          setTimeout(() => {
+          scheduleSandwich(() => {
             document.getElementById('g-pb-edge-1').classList.remove('opacity-0');
             knifeBlob.classList.add('opacity-0');
             knife.setAttribute('transform', 'translate(905, 290) rotate(-25)');
@@ -305,7 +316,7 @@
 
         case 'SPREAD_JAM_BREAD1_FLAT':
           knife.setAttribute('transform', 'translate(350, 270) rotate(15)');
-          setTimeout(() => {
+          scheduleSandwich(() => {
             document.getElementById('g-jam-flat-1').classList.remove('opacity-0');
             knifeBlob.classList.add('opacity-0');
             knife.setAttribute('transform', 'translate(905, 290) rotate(-25)');
@@ -315,7 +326,7 @@
 
         case 'SPREAD_PB_BREAD1_FLAT':
           knife.setAttribute('transform', 'translate(350, 270) rotate(15)');
-          setTimeout(() => {
+          scheduleSandwich(() => {
             document.getElementById('g-pb-flat-1').classList.remove('opacity-0');
             knifeBlob.classList.add('opacity-0');
             knife.setAttribute('transform', 'translate(905, 290) rotate(-25)');
@@ -326,7 +337,7 @@
         // 식빵 2 도포
         case 'SPREAD_JAM_BREAD2_EDGE':
           knife.setAttribute('transform', 'translate(540, 235) rotate(-5)');
-          setTimeout(() => {
+          scheduleSandwich(() => {
             document.getElementById('g-jam-edge-2').classList.remove('opacity-0');
             knifeBlob.classList.add('opacity-0');
             knife.setAttribute('transform', 'translate(905, 290) rotate(-25)');
@@ -336,7 +347,7 @@
 
         case 'SPREAD_PB_BREAD2_EDGE':
           knife.setAttribute('transform', 'translate(540, 235) rotate(-5)');
-          setTimeout(() => {
+          scheduleSandwich(() => {
             document.getElementById('g-pb-edge-2').classList.remove('opacity-0');
             knifeBlob.classList.add('opacity-0');
             knife.setAttribute('transform', 'translate(905, 290) rotate(-25)');
@@ -346,7 +357,7 @@
 
         case 'SPREAD_JAM_BREAD2_FLAT':
           knife.setAttribute('transform', 'translate(540, 270) rotate(15)');
-          setTimeout(() => {
+          scheduleSandwich(() => {
             document.getElementById('g-jam-flat-2').classList.remove('opacity-0');
             knifeBlob.classList.add('opacity-0');
             knife.setAttribute('transform', 'translate(905, 290) rotate(-25)');
@@ -356,7 +367,7 @@
 
         case 'SPREAD_PB_BREAD2_FLAT':
           knife.setAttribute('transform', 'translate(540, 270) rotate(15)');
-          setTimeout(() => {
+          scheduleSandwich(() => {
             document.getElementById('g-pb-flat-2').classList.remove('opacity-0');
             knifeBlob.classList.add('opacity-0');
             knife.setAttribute('transform', 'translate(905, 290) rotate(-25)');
@@ -415,7 +426,7 @@
           
           document.getElementById('btn-reopen-summary').classList.remove('hidden');
 
-          setTimeout(() => {
+          scheduleSandwich(() => {
             openSummaryModal(result);
           }, 800);
           break;
@@ -461,7 +472,7 @@
       });
 
       modal.classList.remove('hidden');
-      setTimeout(() => {
+      scheduleSandwich(() => {
         modal.classList.remove('opacity-0');
         card.classList.remove('scale-95');
         card.classList.add('scale-100');
@@ -474,7 +485,7 @@
       modal.classList.add('opacity-0');
       card.classList.remove('scale-100');
       card.classList.add('scale-95');
-      setTimeout(() => {
+      scheduleSandwich(() => {
         modal.classList.add('hidden');
       }, 300);
     }
@@ -502,7 +513,7 @@
         btn.innerHTML = `<i class="fa-solid fa-check"></i> 복사 완료! 패들렛에 붙여넣기(Ctrl+V) 하세요!`;
         btn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
         btn.classList.add('bg-emerald-600');
-        setTimeout(() => {
+        scheduleSandwich(() => {
           btn.innerHTML = origHTML;
           btn.classList.remove('bg-emerald-600');
           btn.classList.add('bg-blue-600', 'hover:bg-blue-700');
@@ -512,6 +523,12 @@
 
     function fallbackRuleParser(text) {
       const t = text.trim();
+      const clauses = t.split(/(?:하고|한 뒤|한 후|다음에|그리고|,|\n)\s*/).filter(Boolean);
+      if (clauses.length > 1) {
+        const results = clauses.map(clause => fallbackRuleParser(clause));
+        if (results.some(result => !result || result.type !== 'ACTION')) return { type:'CLARIFY', clarify_message:'동작을 한 문장씩 나누어 입력해 주세요.' };
+        return { type:'ACTION', actions:results.flatMap(result=>result.actions) };
+      }
       const actions = [];
 
       if (t.includes('알아서') || t.includes('대충') || t.includes('맛있게') || (t.includes('샌드위치') && t.includes('만들어') && !t.includes('열') && !t.includes('발라'))) {
@@ -578,6 +595,7 @@
       }
 
       if (actions.length > 0) {
+        if (actions.length>1 && !actions.every(action=>action==='TAKE_BREAD')) return {type:'CLARIFY',clarify_message:'순서가 바뀌지 않도록 동작을 하나씩 나누어 입력해 주세요.'};
         return { type: 'ACTION', actions: actions };
       }
       return null;
@@ -858,7 +876,9 @@
       statusPill.textContent = "상태: 추론중";
       statusPill.className = "px-3 py-1 rounded-xl text-xs font-bold bg-indigo-50 text-indigo-600 border border-indigo-200";
 
+      const generation = sandwichRunGeneration;
       const parsedResult = await parseWithSolarAI(text);
+      if (generation !== sandwichRunGeneration) return;
       sendBtn.disabled = false;
       sendBtn.innerText = "실행";
 
@@ -932,13 +952,17 @@
         }
 
         curr++;
-        setTimeout(step, 950);
+        scheduleSandwich(step, 950);
       }
 
       step();
     }
 
     function resetWorkspace() {
+      sandwichRunGeneration++;
+      sandwichTimers.forEach(timer=>clearTimeout(timer)); sandwichTimers.clear();
+      const sendButton=document.getElementById('send-btn');
+      if(sendButton) {sendButton.disabled=false;sendButton.textContent='실행';}
       state = {
         bagOpened: false, breadOnPlate: 0, jamOpened: false, pbOpened: false,
         cheeseUnwrapped: false, cheeseOnBread: null, cheesePlasticIncluded: false,

@@ -1,287 +1,3 @@
-/**
- * ==============================================================================
- * 📝 [학생용 30분 실시간 수행평가 엔진 및 자동 채점기 (lab-eval.js)]
- * ==============================================================================
- * - 대상: 중학교 2학년 정보과 '알고리즘과 프로그래밍'
- * - 화면 모드: 풀페이지 전체 화면 (view-eval)
- * - 3단 문항 구성 (총점 100점 만점):
- *   * Part 1. 객관식 10문항 (30점 / 각 3점 / 핵심 개념 이해)
- *   * Part 2. 단답형 6문항 (30점 / 각 5점 / 알고리즘 핵심 용어)
- *   * Part 3. 순서도 나만의 백지 조립 실전 (40점 / 4대 표준 테마 선택 후 캔버스 직접 조립)
- */
-
-const EVAL_QUESTIONS = {
-  // Part 1. 객관식 10문항 (각 3점, 총 30점)
-  part1: [
-    {
-      id: "p1_q1",
-      title: "1. 문제 해결과 상태 분석",
-      desc: "어떤 문제를 해결하기 위해 현재의 조건과 상황인 '현재 상태'를 파악하고, 최종적으로 도달하고자 하는 바람직한 상태를 정하는 과정을 무엇이라고 할까요?",
-      options: [
-        "목표 상태 설정",
-        "순서도 기호 암기",
-        "프로그래밍 언어 번역",
-        "컴퓨터 하드웨어 점검"
-      ],
-      correctAnswer: 0,
-      points: 3
-    },
-    {
-      id: "p1_q2",
-      title: "2. 생각 다이어트 (추상화의 개념)",
-      desc: "지하철 노선도처럼 복잡한 지리적 곡선이나 지형 정보는 과감히 생략하고, 역의 순서와 환승 정보 등 문제 해결에 '꼭 필요한 핵심 요소만 단순화'하는 과정을 무엇이라고 할까요?",
-      options: [
-        "모듈화",
-        "추상화 (Abstraction)",
-        "디지털화",
-        "최적화"
-      ],
-      correctAnswer: 1,
-      points: 3
-    },
-    {
-      id: "p1_q3",
-      title: "3. 불필요한 정보(노이즈) 제거",
-      desc: "다음 중 '샌드위치 조리 로봇'을 만들기 위해 필요한 핵심 재료 정보가 아닌, 제거해야 할 불필요한 정보는 무엇일까요?",
-      options: [
-        "식빵 2장과 딸기잼의 양",
-        "치즈와 슬라이스 햄의 유무",
-        "도마의 색상과 주방 타일의 무늬",
-        "전자레인지 데우는 시간 (30초)"
-      ],
-      correctAnswer: 2,
-      points: 3
-    },
-    {
-      id: "p1_q4",
-      title: "4. 알고리즘의 정의",
-      desc: "주어진 문제를 해결하기 위해 문제를 단계별 명령으로 나누고, 명확한 순서대로 나열한 절차나 명령어의 모임을 무엇이라고 할까요?",
-      options: [
-        "데이터베이스",
-        "운영체제",
-        "알고리즘 (Algorithm)",
-        "컴파일러"
-      ],
-      correctAnswer: 2,
-      points: 3
-    },
-    {
-      id: "p1_q5",
-      title: "5. 알고리즘의 조건 - 명확성",
-      desc: "컴퓨터에게 명령을 내릴 때 지켜야 할 조건 중, 명령어의 뜻이 모호하거나 주관적이지 않고 '누가 읽어도 단 하나의 동작으로 실행'되어야 한다는 조건은 무엇일까요?",
-      options: [
-        "명확성 (Definiteness)",
-        "유한성 (Finiteness)",
-        "수행가능성 (Effectiveness)",
-        "입력 (Input)"
-      ],
-      correctAnswer: 0,
-      points: 3
-    },
-    {
-      id: "p1_q6",
-      title: "6. 알고리즘의 조건 - 유한성",
-      desc: "명령어가 끝없이 반복되어 컴퓨터가 멈추지 않는 무한 루프를 방지하고, '반드시 일정한 단계 후에 스스로 끝나야 한다'는 조건은 무엇일까요?",
-      options: [
-        "명확성",
-        "유한성 (Finiteness)",
-        "입력의 다양성",
-        "출력의 화려함"
-      ],
-      correctAnswer: 1,
-      points: 3
-    },
-    {
-      id: "p1_q7",
-      title: "7. 알고리즘의 조건 - 수행가능성",
-      desc: "제시된 모든 명령어는 컴퓨터나 실행 주체가 '실제로 물리적/논리적으로 실행할 수 있어야 한다'는 조건은 무엇일까요?",
-      options: [
-        "수행가능성 (Effectiveness)",
-        "보안성",
-        "확장성",
-        "심미성"
-      ],
-      correctAnswer: 0,
-      points: 3
-    },
-    {
-      id: "p1_q8",
-      title: "8. 순서도 4대 기호 - 단말 🟣",
-      desc: "순서도 기호 중 양 끝이 둥근 타원형(⬭) 기호로, 알고리즘의 '시작'과 '끝'을 나타내는 기호의 이름은 무엇일까요?",
-      options: [
-        "처리 기호",
-        "판단 기호",
-        "단말 기호",
-        "자료 기호"
-      ],
-      correctAnswer: 2,
-      points: 3
-    },
-    {
-      id: "p1_q9",
-      title: "9. 순서도 4대 기호 - 자료(입출력) 🟢",
-      desc: "순서도 기호 중 평행사변형(▱) 기호로, 센서 값 측정, 키보드 입력, 화면 출력 등 '데이터의 입력과 출력'을 나타내는 기호의 이름은 무엇일까요?",
-      options: [
-        "단말 기호",
-        "자료(입출력) 기호",
-        "처리 기호",
-        "반복 기호"
-      ],
-      correctAnswer: 1,
-      points: 3
-    },
-    {
-      id: "p1_q10",
-      title: "10. 순서도 4대 기호 - 처리 🔵",
-      desc: "순서도 기호 중 직사각형(▭) 기호로, 사칙연산, 값 계산, 모터 구동 등 '실제 연산이나 동작을 수행'하는 기호의 이름은 무엇일까요?",
-      options: [
-        "판단 기호",
-        "자료 기호",
-        "단말 기호",
-        "처리 기호"
-      ],
-      correctAnswer: 3,
-      points: 3
-    }
-  ],
-
-  // Part 2. 단답형 6문항 (각 5점, 총 30점) - 핵심 알고리즘 개념과 제어 구조
-  part2: [
-    {
-      id: "p2_q1",
-      title: "1. 알고리즘의 3대 제어 구조 (순서 실행)",
-      desc: "명령어가 위에서 아래로 한 줄씩 순서대로 차례차례 실행되는 가장 기본적인 알고리즘 구조의 이름은 무엇일까요? (단답형)",
-      placeholder: "예: OO 구조",
-      answers: ["순차", "순차구조", "순차 구조"],
-      points: 5
-    },
-    {
-      id: "p2_q2",
-      title: "2. 조건에 따른 두 갈래 길 (갈림길 실행)",
-      desc: "주어진 조건이 참(Yes)인지 거짓(No)인지에 따라 서로 다른 명령을 선택하여 실행하는 제어 구조의 이름은 무엇일까요? (단답형)",
-      placeholder: "예: OO 구조",
-      answers: ["선택", "선택구조", "선택 구조", "조건문"],
-      points: 5
-    },
-    {
-      id: "p2_q3",
-      title: "3. 되풀이 실행 제어 구조 (되돌아 실행)",
-      desc: "특정 조건을 만족하는 동안 정해진 명령 블록을 계속해서 되풀이하여 실행하는 제어 구조(루프)의 이름은 무엇일까요? (단답형)",
-      placeholder: "예: OO 구조",
-      answers: ["반복", "반복구조", "반복 구조", "루프"],
-      points: 5
-    },
-    {
-      id: "p2_q4",
-      title: "4. 순서도 4대 기호 중 마름모 기호",
-      desc: "순서도에서 조건을 검사하여 '예'와 '아니오'로 두 갈래의 분기선을 만들어내는 마름모꼴(◇) 기호의 이름은 무엇일까요? (단답형)",
-      placeholder: "예: OO 기호",
-      answers: ["판단", "판단기호", "판단 기호", "조건", "조건기호"],
-      points: 5
-    },
-    {
-      id: "p2_q5",
-      title: "5. 변하는 데이터 보관함",
-      desc: "프로그래밍과 알고리즘에서 온도, 점수, 나이처럼 실행 과정에서 계속 변하는 값을 임시로 저장해두는 기억 공간을 무엇이라고 부를까요? (단답형)",
-      placeholder: "두 글자 용어",
-      answers: ["변수"],
-      points: 5
-    },
-    {
-      id: "p2_q6",
-      title: "6. 알고리즘의 오류 찾기와 수정",
-      desc: "작성한 알고리즘이나 프로그램이 의도대로 동작하지 않을 때, 잘못된 원인을 찾아 바르게 고치는 과정을 무엇이라고 할까요? (단답형)",
-      placeholder: "예: OO 수정 또는 영어 용어",
-      answers: ["오류수정", "오류 수정", "디버깅", "디버그", "오류찾기와수정", "오류 찾기와 수정"],
-      points: 5
-    }
-  ],
-
-  // Part 3. 순서도 나만의 백지 조립 실전 (40점) - 난이도 균일 4대 표준 자연어 알고리즘 테마
-  part3Themes: [
-    {
-      id: "theme_greenhouse",
-      title: "🌡️ 스마트 온실 자동 환기 제어",
-      structure: "선택 구조 (Selection)",
-      summary: "온도 센서로부터 온도를 입력받아 28℃ 초과 시 창문을 열고, 그렇지 않으면 창문을 닫는 제어 시스템",
-      difficulty: "중2 표준 (난이도 균일)",
-      cards: [
-        { type: "seq", title: "1단계: 현재 기온 측정", desc: "온실 온도 센서로부터 현재 기온을 입력받는다." },
-        { type: "sel", title: "2단계: 28℃ 초과 판단", desc: "현재 기온이 28℃를 초과하는지 조건을 판단한다.", yesAction: "환기 창문을 열고 팬을 돌린다.", noAction: "환기 창문을 닫고 보온한다." },
-        { type: "seq", title: "3단계: 창문 동작 실행", desc: "판단 결과에 따라 알맞은 창문 제어 동작을 실행한다." },
-        { type: "seq", title: "4단계: 제어 완료", desc: "온도 조절 제어를 마치고 종료한다." }
-      ],
-      steps: [
-        "1단계: 온실 온도 센서로부터 현재 기온 입력 (▱ 자료 기호)",
-        "2단계: 현재 기온이 28℃를 초과하는지 조건 판단 (◇ 판단 기호)",
-        "3단계 [Yes 분기]: 환기 창문을 열고 팬 가동 (▭ 처리 기호)",
-        "4단계 [No 분기]: 환기 창문을 닫고 보온 유지 (▭ 처리 기호)",
-        "5단계: 합류 후 종료 단말로 이동 (⬭ 단말 기호)"
-      ]
-    },
-    {
-      id: "theme_vending",
-      title: "🥤 스마트 음료수 자동판매기",
-      structure: "선택 구조 (Selection)",
-      summary: "동전 투입구로부터 투입 금액을 입력받아 1,000원 이상이면 음료수를 배출하고, 부족하면 안내하는 시스템",
-      difficulty: "중2 표준 (난이도 균일)",
-      cards: [
-        { type: "seq", title: "1단계: 투입 금액 입력", desc: "동전 투입구로부터 투입 금액을 입력받는다." },
-        { type: "sel", title: "2단계: 1,000원 이상 판단", desc: "투입 금액이 1,000원 이상인지 조건을 판단한다.", yesAction: "시원한 캔 음료수를 배출한다.", noAction: "화면에 잔액 부족을 안내한다." },
-        { type: "seq", title: "3단계: 판매 동작 실행", desc: "판단 결과에 맞게 음료 배출 또는 안내 메시지를 출력한다." },
-        { type: "seq", title: "4단계: 판매 완료", desc: "자판기 판매 절차를 마치고 종료한다." }
-      ],
-      steps: [
-        "1단계: 동전 투입구로부터 투입 금액 입력 (▱ 자료 기호)",
-        "2단계: 투입 금액이 1,000원 이상인지 조건 판단 (◇ 판단 기호)",
-        "3단계 [Yes 분기]: 시원한 캔 음료수 배출 (▭ 처리 기호)",
-        "4단계 [No 분기]: 화면에 '잔액 부족' 메시지 출력 (▭ 처리 기호)",
-        "5단계: 합류 후 종료 단말로 이동 (⬭ 단말 기호)"
-      ]
-    },
-    {
-      id: "theme_transit",
-      title: "🚌 지하철 청소년 할인 요금 판별기",
-      structure: "선택 구조 (Selection)",
-      summary: "탑승객의 나이를 입력받아 만 13세~18세 청소년이면 할인 요금(720원), 아니면 일반 요금(1,400원)을 차감하는 개찰구",
-      difficulty: "중2 표준 (난이도 균일)",
-      cards: [
-        { type: "seq", title: "1단계: 탑승객 나이 입력", desc: "교통카드 단말기로부터 탑승객 나이를 입력받는다." },
-        { type: "sel", title: "2단계: 청소년(13~18세) 판단", desc: "나이가 13세 이상 18세 이하인지 조건을 판단한다.", yesAction: "청소년 할인 요금 720원을 차감한다.", noAction: "일반 성인 요금 1,400원을 차감한다." },
-        { type: "seq", title: "3단계: 요금 차감 실행", desc: "판단 결과에 따른 버스/지하철 요금을 결제한다." },
-        { type: "seq", title: "4단계: 개찰구 통과 완료", desc: "개찰구 게이트를 열고 탑승 절차를 완료한다." }
-      ],
-      steps: [
-        "1단계: 교통카드 단말기로부터 탑승객 나이 입력 (▱ 자료 기호)",
-        "2단계: 나이가 13세 이상 18세 이하인지 조건 판단 (◇ 판단 기호)",
-        "3단계 [Yes 분기]: 청소년 할인 요금 720원 차감 (▭ 처리 기호)",
-        "4단계 [No 분기]: 일반 성인 요금 1,400원 차감 (▭ 처리 기호)",
-        "5단계: 합류 후 종료 단말로 이동 (⬭ 단말 기호)"
-      ]
-    },
-    {
-      id: "theme_traffic",
-      title: "🚦 스마트 횡단보도 보행자 신호등",
-      structure: "선택 구조 (Selection)",
-      summary: "보행자 호출 버튼 입력을 감지하고 대기 시간 경과 여부를 판단하여 초록불을 켜거나 빨간불을 유지하는 제어기",
-      difficulty: "중2 표준 (난이도 균일)",
-      cards: [
-        { type: "seq", title: "1단계: 보행자 버튼 감지", desc: "횡단보도 보행자 호출 버튼 신호를 입력받는다." },
-        { type: "sel", title: "2단계: 대기 시간(30초) 판단", desc: "차량 통행 대기 시간 30초가 지났는지 판단한다.", yesAction: "보행자 신호등을 초록불로 바꾼다.", noAction: "차량 통행을 위해 빨간불을 유지한다." },
-        { type: "seq", title: "3단계: 신호등 점등 제어", desc: "판단 결과에 맞게 신호등 램프를 전환한다." },
-        { type: "seq", title: "4단계: 신호 제어 완료", desc: "보행자 횡단 주기를 마치고 종료한다." }
-      ],
-      steps: [
-        "1단계: 횡단보도 보행자 호출 버튼 신호 입력 (▱ 자료 기호)",
-        "2단계: 차량 통행 대기 시간 30초 경과 판단 (◇ 판단 기호)",
-        "3단계 [Yes 분기]: 보행자 신호등 초록불 켜기 (▭ 처리 기호)",
-        "4단계 [No 분기]: 차량 통행을 위해 빨간불 유지 (▭ 처리 기호)",
-        "5단계: 합류 후 종료 단말로 이동 (⬭ 단말 기호)"
-      ]
-    }
-  ]
-};
-
 class StudentEvalApp {
   constructor() {
     this.currentClass = "2-1";
@@ -318,18 +34,54 @@ class StudentEvalApp {
 
     this.studentUnsub = null;
     this.sessionUnsub = null;
+    this.isSubmitting = false;
+    this.joined = false;
+    this.lastResetAt = null;
+    this.deadlineMs = null;
+    window.addEventListener("beforeunload", () => this.saveDraft());
+    try { window.pendingAssessmentResume=!!sessionStorage.getItem('ALGO_ACTIVE_EXAM'); } catch {}
+    window.addEventListener('DOMContentLoaded',()=>this.resumeAssessment());
   }
 
+  async resumeAssessment() {
+    let identity;try{identity=JSON.parse(sessionStorage.getItem('ALGO_ACTIVE_EXAM'));}catch{}
+    if(!identity)return;
+    document.getElementById('eval-st-class').value=identity.classId;
+    document.getElementById('eval-st-num').value=identity.num;
+    document.getElementById('eval-st-name').value=identity.name;
+    switchUnit('eval');this.showScreen('lobby');
+    await this.enterWaitingRoom();
+  }
+  rememberAssessment() {
+    try {sessionStorage.setItem('ALGO_ACTIVE_EXAM',JSON.stringify({classId:this.currentClass,num:this.studentNum,name:this.studentName}));}catch{}
+  }
+
+  draftKey() { return "ALGO_EXAM_DRAFT_"+(this.ownerUid||'')+"_"+this.currentClass+"_"+this.studentNum; }
+  saveDraft() {
+    if (!this.joined || window.isSessionClosing) return;
+    try { sessionStorage.setItem(this.draftKey(), JSON.stringify({answers:this.answers,deadlineMs:this.deadlineMs,studentName:this.studentName,lastResetAt:this.lastResetAt,isSubmitted:this.isSubmitted})); } catch(error) { console.warn("임시 저장 실패",error); }
+  }
+  restoreDraft(student) {
+    let draft=null; try { draft=JSON.parse(sessionStorage.getItem(this.draftKey())); } catch {}
+    if (student?.status==="submitted") { this.answers=student.answers; this.isSubmitted=true; }
+    else if(draft && draft.studentName===this.studentName && draft.lastResetAt===(student?.resetAt||null)) { this.answers=draft.answers; this.deadlineMs=draft.deadlineMs; }
+    else if(student?.answers) this.answers=student.answers;
+    if(!this.answers.part3) this.answers.part3={selectedThemeId:"theme_greenhouse",blocks:[],connections:[],isVerified:false};
+    this.lastResetAt=student?.resetAt||null;
+    this.blockIdCounter=1+Math.max(0,...this.answers.part3.blocks.map(b=>Number(String(b.id).replace("eblk_",""))||0));
+  }
   // 1. 대기실 열기 (풀페이지 전환)
   openLobby() {
     if (typeof switchUnit === 'function') {
       switchUnit('eval');
     }
-    this.showScreen('lobby');
+    this.showScreen(this.isSubmitted ? 'result' : isAssessmentLocked() ? 'exam' : 'lobby');
   }
 
   // 풀페이지 내부 서브 화면 전환 (lobby | exam | result)
   showScreen(screenName) {
+    if(isAssessmentLocked() && this.joined && screenName==='lobby')screenName='exam';
+    updateAssessmentNavigation();
     const lobbyEl = document.getElementById('eval-screen-lobby');
     const examEl = document.getElementById('eval-screen-exam');
     const resultEl = document.getElementById('eval-screen-result');
@@ -350,7 +102,7 @@ class StudentEvalApp {
     const nameInp = document.getElementById('eval-st-name');
 
     this.currentClass = classSel ? classSel.value : "2-1";
-    this.studentNum = numInp ? parseInt(numInp.value, 10) : 1;
+    this.studentNum = numInp ? Number(numInp.value) : 1;
     this.studentName = nameInp ? nameInp.value.trim() : "";
 
     if (!this.studentName) {
@@ -359,7 +111,7 @@ class StudentEvalApp {
       return;
     }
 
-    if (isNaN(this.studentNum) || this.studentNum < 1 || this.studentNum > 27) {
+    if (!Number.isInteger(this.studentNum) || this.studentNum < 1 || this.studentNum > 27) {
       alert("⚠️ 번호는 1번부터 27번 사이로 입력해 주세요!");
       if (numInp) numInp.focus();
       return;
@@ -367,7 +119,11 @@ class StudentEvalApp {
 
     // 서버/세션에 대기실 입장 등록
     if (window.evalService) {
-      await window.evalService.joinWaitingRoom(this.currentClass, this.studentNum, this.studentName);
+      try {
+        const student=await window.evalService.joinWaitingRoom(this.currentClass,this.studentNum,this.studentName);
+        this.ownerUid=student.ownerUid; this.joined=true; this.restoreDraft(student);
+        this.sessionUnsub?.(); this.studentUnsub?.(); this.sessionUnsub=null; this.studentUnsub=null;
+      } catch(error) { alert(error.message); return; }
     }
 
     // 대기실 안내 뷰 업데이트
@@ -384,6 +140,14 @@ class StudentEvalApp {
     // 1) 전체 학급 세션 리스너 구독 (선생님이 [30분 동시 시작] 누를 시 시험장 진입)
     if (window.evalService && !this.sessionUnsub) {
       this.sessionUnsub = window.evalService.listenSession(this.currentClass, (sessionData) => {
+        this.latestSession=sessionData;
+        window.pendingAssessmentResume=false;
+        if(sessionData?.status==='waiting') {sessionStorage.removeItem('ALGO_ACTIVE_EXAM');updateAssessmentNavigation();}
+        if(sessionData?.status==="ended" && !this.isSubmitted) {
+          this.sessionStatus="ended"; clearInterval(this.timerInterval); this.timerInterval=null;
+          switchUnit('eval'); this.renderPartQuestions(); this.showScreen('exam');
+          this.submitExam(true); return;
+        }
         if (sessionData && sessionData.status === 'in_progress' && !this.isSubmitted) {
           this.startExam(sessionData);
         }
@@ -393,7 +157,8 @@ class StudentEvalApp {
     // 2) 학생 개별 상태 리스너 구독 (교사의 재시험 허용 실시간 감지 및 시험장 자동 복귀)
     if (window.evalService && !this.studentUnsub) {
       this.studentUnsub = window.evalService.listenStudent(this.currentClass, this.studentNum, (stData) => {
-        if (stData && stData.status === 'in_progress' && this.isSubmitted) {
+        if (stData?.resetAt && stData.resetAt !== this.lastResetAt) {
+          this.lastResetAt=stData.resetAt;
           alert("🔔 선생님께서 재시험을 허용하셨습니다!\n답안이 초기화되며 시험 화면으로 복귀합니다.");
           this.isSubmitted = false;
           this.sessionStatus = 'waiting';
@@ -402,18 +167,26 @@ class StudentEvalApp {
           this.answers.part3.blocks = [];
           this.answers.part3.connections = [];
           this.answers.part3.isVerified = false;
+          delete this.answers.part3.plan;
           this.scores = { part1: 0, part2: 0, part3: 0, total: 0, teacherOverride: null };
 
-          this.startExam();
+          this.isSubmitting=false;
+          if (this.latestSession?.status === 'in_progress') this.startExam(this.latestSession);
+          else this.showScreen('lobby');
+          this.saveDraft();
         }
       });
     }
+    if(this.isSubmitted) { this.calculateScores(); this.renderResult(); }
   }
 
   // 3. 시험장 진입 및 타이머 가동
   startExam(sessionData) {
     if (this.sessionStatus === 'in_progress') return;
     this.sessionStatus = 'in_progress';
+    window.pendingAssessmentResume=false;this.rememberAssessment();
+    switchUnit('eval');
+    document.body.classList.add('assessment-active');
     this.showScreen('exam');
 
     // 학생 헤더 정보 렌더링
@@ -433,14 +206,18 @@ class StudentEvalApp {
       this.remainingSeconds = 1800;
     }
 
+    this.deadlineMs = sessionData?.deadlineMs || (new Date(sessionData.startTime).getTime() + (sessionData.durationMinutes || 30)*60000);
+    this.remainingSeconds=Math.max(0,Math.ceil((this.deadlineMs-Date.now())/1000));
+    this.saveDraft();
     this.renderTimer();
     if (this.timerInterval) clearInterval(this.timerInterval);
     this.timerInterval = setInterval(() => {
-      this.remainingSeconds--;
+      this.remainingSeconds = Math.max(0, Math.ceil((this.deadlineMs-Date.now())/1000));
       this.renderTimer();
       if (this.remainingSeconds <= 0) {
         clearInterval(this.timerInterval);
-        alert("⏰ 30분 시험 시간이 만료되었습니다! 답안이 자동으로 제출됩니다.");
+        this.sessionStatus='ended';
+        alert("⏰ 시험 시간이 만료되었습니다. 서버에 저장된 답안을 제출합니다.");
         this.submitExam(true);
       }
     }, 1000);
@@ -475,6 +252,8 @@ class StudentEvalApp {
     ['part1', 'part2', 'part3'].forEach(p => {
       const btn = document.getElementById(`eval-tab-btn-${p}`);
       if (btn) {
+        btn.setAttribute('aria-selected',String(p===partName));
+        btn.setAttribute('role','tab');
         if (p === partName) {
           btn.className = "px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black bg-indigo-600 text-white shadow-xs transition cursor-pointer";
         } else {
@@ -488,6 +267,7 @@ class StudentEvalApp {
     if (p3Container) p3Container.classList.toggle('hidden', partName !== 'part3');
 
     if (partName === 'part3') {
+      this.renderAssessmentPlan();this.renderPart3Canvas();
       setTimeout(() => this.renderPart3Connections(), 50);
     }
   }
@@ -527,7 +307,7 @@ class StudentEvalApp {
           </div>
           <p class="text-xs sm:text-sm font-bold text-slate-800 leading-relaxed">${q.desc}</p>
           <div class="flex items-center gap-2 max-w-md">
-            <input type="text" id="${q.id}_input" value="${this.answers.part2[q.id] || ''}" oninput="window.studentEvalApp.onInputPart2('${q.id}', this.value)" class="flex-1 text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:border-indigo-500 focus:bg-white font-bold text-slate-800" placeholder="${q.placeholder}">
+            <input type="text" id="${q.id}_input" value="${escapeHtml(this.answers.part2[q.id] || '')}" oninput="window.studentEvalApp.onInputPart2('${q.id}', this.value)" class="flex-1 text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:border-indigo-500 focus:bg-white font-bold text-slate-800" placeholder="${q.placeholder}">
             <span class="text-xs font-bold text-slate-400">단답형</span>
           </div>
         </div>
@@ -536,11 +316,13 @@ class StudentEvalApp {
   }
 
   onSelectPart1(qId, val) {
+    if (this.isSubmitted || this.isSubmitting || this.sessionStatus === "ended") return;
     this.answers.part1[qId] = val;
     this.syncStudentProgress();
   }
 
   onInputPart2(qId, val) {
+    if (this.isSubmitted || this.isSubmitting || this.sessionStatus === "ended") return;
     this.answers.part2[qId] = val;
     this.syncStudentProgress();
   }
@@ -553,17 +335,12 @@ class StudentEvalApp {
     // 1. 4가지 균등 난이도 테마 선택기 렌더링
     const themeSelectBox = document.getElementById('eval-part3-theme-selector');
     if (themeSelectBox) {
-      themeSelectBox.innerHTML = EVAL_QUESTIONS.part3Themes.map(t => `
-        <button type="button" onclick="window.studentEvalApp.selectPart3Theme('${t.id}')" id="eval-btn-theme-${t.id}" class="p-3 rounded-2xl border text-left transition flex flex-col justify-between gap-1 cursor-pointer ${t.id === this.answers.part3.selectedThemeId ? 'bg-indigo-50 border-indigo-500 shadow-xs' : 'bg-white border-slate-200 hover:bg-slate-50'}">
-          <div class="text-xs font-black text-slate-900 truncate">${t.title}</div>
-          <div class="text-[11px] text-slate-500 flex items-center justify-between">
-            <span class="font-bold text-indigo-700">${t.structure}</span>
-            <span class="px-1.5 py-0.2 rounded-md bg-slate-100 text-[10px] font-mono">${t.difficulty}</span>
-          </div>
-        </button>
-      `).join('');
+      themeSelectBox.replaceChildren();
+      EVAL_QUESTIONS.part3Themes.forEach(theme=>{
+        const button=document.createElement('button');button.type='button';button.id='eval-btn-theme-'+theme.id;
+        button.textContent=theme.title;button.onclick=()=>this.selectPart3Theme(theme.id);themeSelectBox.appendChild(button);
+      });
     }
-
     // 2. 캔버스 마우스 드래그 및 포트 연결 이벤트 전역 바인딩 (최초 1회)
     if (!this.canvasEventsBound) {
       this.canvasEventsBound = true;
@@ -574,8 +351,8 @@ class StudentEvalApp {
           const b = this.answers.part3.blocks.find(x => x.id === this.draggedBlockId);
           if (b && canvasEl) {
             const rect = canvasEl.getBoundingClientRect();
-            b.x = Math.max(10, Math.min(rect.width - 210, e.clientX - rect.left - this.dragOffset.x));
-            b.y = Math.max(10, Math.min(rect.height - 80, e.clientY - rect.top - this.dragOffset.y));
+            b.x = Math.max(10, Math.min(canvasEl.scrollWidth - 230, e.clientX - rect.left + canvasEl.scrollLeft - this.dragOffset.x));
+            b.y = Math.max(10, Math.min(canvasEl.scrollHeight - 130, e.clientY - rect.top + canvasEl.scrollTop - this.dragOffset.y));
 
             const domEl = document.getElementById(`eval-blk-${b.id}`);
             if (domEl) {
@@ -606,86 +383,110 @@ class StudentEvalApp {
 
   // 테마 선택 시 좌측 자연어 카드 & 캔버스 초기화
   selectPart3Theme(themeId) {
+    if (this.isSubmitted || this.isSubmitting || this.sessionStatus === "ended") return;
+    if (!EVAL_QUESTIONS.part3Themes.some(theme=>theme.id===themeId)) return;
+    const sameTheme=this.answers.part3.selectedThemeId===themeId;
+    if (!sameTheme && (this.answers.part3.blocks.length>1 || this.hasAssessmentPlan()) && !confirm("다른 문제를 선택하면 작성한 처방전과 순서도가 초기화됩니다. 변경할까요?")) return;
     this.answers.part3.selectedThemeId = themeId;
     this.answers.part3.isVerified = false;
 
-    // 테마 버튼 하이라이트
-    EVAL_QUESTIONS.part3Themes.forEach(t => {
-      const btn = document.getElementById(`eval-btn-theme-${t.id}`);
-      if (btn) {
-        if (t.id === themeId) {
-          btn.className = "p-3 rounded-2xl border text-left transition flex flex-col justify-between gap-1 cursor-pointer bg-indigo-50 border-indigo-500 shadow-xs";
-        } else {
-          btn.className = "p-3 rounded-2xl border text-left transition flex flex-col justify-between gap-1 cursor-pointer bg-white border-slate-200 hover:bg-slate-50";
-        }
-      }
+    EVAL_QUESTIONS.part3Themes.forEach(theme=>{
+      const button=document.getElementById('eval-btn-theme-'+theme.id);
+      if(button){button.className='eval-theme-button';button.setAttribute('aria-pressed',String(theme.id===themeId));}
     });
-
-    const theme = EVAL_QUESTIONS.part3Themes.find(t => t.id === themeId);
-    if (!theme) return;
-
-    // 좌측 1단 패널: Step 5와 동일한 자연어 카드 리스트 렌더링
-    const recipeList = document.getElementById('eval-part3-recipe-list');
-    if (recipeList) {
-      recipeList.innerHTML = theme.cards.map((c, idx) => {
-        if (c.type === 'seq') {
-          return `
-            <div class="p-2.5 bg-blue-50/70 border border-blue-200 rounded-xl space-y-1">
-              <div class="flex items-center gap-1.5 text-xs font-black text-blue-800">
-                <span class="w-4 h-4 rounded bg-blue-600 text-white flex items-center justify-center text-[10px]">${idx + 1}</span>
-                <span>${c.title}</span>
-              </div>
-              <p class="text-[11px] font-bold text-slate-700 leading-tight pl-5">${c.desc}</p>
-            </div>
-          `;
-        } else if (c.type === 'sel') {
-          return `
-            <div class="p-2.5 bg-amber-50/70 border border-amber-200 rounded-xl space-y-1.5">
-              <div class="flex items-center gap-1.5 text-xs font-black text-amber-800">
-                <span class="w-4 h-4 rounded bg-amber-500 text-white flex items-center justify-center text-[10px]">${idx + 1}</span>
-                <span>${c.title}</span>
-              </div>
-              <div class="text-[11px] font-bold text-amber-950 bg-white/80 p-1.5 rounded-lg border border-amber-200 leading-tight">
-                🤔 ${c.desc}
-              </div>
-              <div class="grid grid-cols-2 gap-1 text-[10px] font-bold">
-                <div class="p-1 rounded bg-emerald-100/70 text-emerald-900 leading-tight">
-                  <span class="text-emerald-700 font-black">[예]</span> ${c.yesAction || '동작 실행'}
-                </div>
-                <div class="p-1 rounded bg-rose-100/70 text-rose-900 leading-tight">
-                  <span class="text-rose-700 font-black">[아니오]</span> ${c.noAction || '동작 실행'}
-                </div>
-              </div>
-            </div>
-          `;
-        }
-      }).join('');
-    }
-
+    if(!sameTheme) delete this.answers.part3.plan;
+    this.renderAssessmentPlan();
     // 캔버스 초기화: [시작] 단말 기호 하나만 기본 배치
-    this.answers.part3.blocks = [
-      { id: "eblk_start", shape: "terminal", type: "terminal", text: "시작", x: 220, y: 30 }
-    ];
-    this.answers.part3.connections = [];
-    this.blockIdCounter = 1;
+    if (!sameTheme || !this.answers.part3.blocks.length) {
+      this.answers.part3.blocks = [{id:"eblk_start",shape:"terminal",type:"terminal",text:"시작",x:220,y:30}];
+      this.answers.part3.connections=[]; this.blockIdCounter=1;
+    }
+    this.saveDraft();
 
     this.renderPart3Canvas();
     this.updatePart3ScoreBadge(0);
+    this.syncStudentProgress();
+  }
+
+  getAssessmentPlan() {
+    const part=this.answers.part3;
+    if(!part.plan || typeof part.plan!=='object')part.plan={current:'',goal:'',steps:[]};
+    if(!Array.isArray(part.plan.steps))part.plan.steps=[];
+    return part.plan;
+  }
+  hasAssessmentPlan() {
+    const plan=this.getAssessmentPlan();
+    return !!(plan.current || plan.goal || plan.steps.some(step=>step.text?.trim()));
+  }
+  canEditPlan() { return !this.isSubmitted && !this.isSubmitting && this.sessionStatus!=='ended'; }
+  setAssessmentPlanField(field,value) {
+    if(!this.canEditPlan() || !['current','goal'].includes(field))return;
+    this.getAssessmentPlan()[field]=value.slice(0,500);this.syncStudentProgress();
+  }
+  addAssessmentStep() {
+    if(!this.canEditPlan())return;
+    this.getAssessmentPlan().steps.push({id:crypto.randomUUID(),text:''});
+    this.renderAssessmentSteps();this.syncStudentProgress();
+    document.querySelector('#eval-plan-steps li:last-child textarea')?.focus();
+  }
+  changeAssessmentStep(id,value) {
+    if(!this.canEditPlan())return;
+    const step=this.getAssessmentPlan().steps.find(item=>item.id===id);
+    if(step){step.text=value.slice(0,1000);this.syncStudentProgress();}
+  }
+  moveAssessmentStep(id,direction) {
+    if(!this.canEditPlan())return;
+    const steps=this.getAssessmentPlan().steps,index=steps.findIndex(item=>item.id===id),target=index+direction;
+    if(index<0||target<0||target>=steps.length)return;
+    [steps[index],steps[target]]=[steps[target],steps[index]];
+    this.renderAssessmentSteps();this.syncStudentProgress();
+    document.getElementById('eval-plan-step-'+id)?.focus();
+  }
+  removeAssessmentStep(id) {
+    if(!this.canEditPlan())return;
+    const plan=this.getAssessmentPlan();plan.steps=plan.steps.filter(step=>step.id!==id);
+    this.renderAssessmentSteps();this.syncStudentProgress();
+  }
+  renderAssessmentSteps() {
+    const list=document.getElementById('eval-plan-steps');if(!list)return;list.replaceChildren();
+    const steps=this.getAssessmentPlan().steps;
+    steps.forEach((step,index)=>{
+      const row=document.createElement('li'),label=document.createElement('label'),input=document.createElement('textarea'),actions=document.createElement('div');
+      label.textContent=(index+1)+'단계';input.id='eval-plan-step-'+step.id;label.htmlFor=input.id;
+      input.value=step.text||'';input.rows=2;input.maxLength=1000;input.placeholder='이 단계에서 할 일을 짧게 적어 보세요';input.disabled=!this.canEditPlan();
+      input.oninput=()=>this.changeAssessmentStep(step.id,input.value);actions.className='eval-step-actions';
+      for(const [text,action,disabled] of [['위로',()=>this.moveAssessmentStep(step.id,-1),index===0],['아래로',()=>this.moveAssessmentStep(step.id,1),index===steps.length-1],['삭제',()=>this.removeAssessmentStep(step.id),false]]) {
+        const button=document.createElement('button');button.type='button';button.textContent=text;button.setAttribute('aria-label',(index+1)+'단계 '+text);button.onclick=action;button.disabled=disabled||!this.canEditPlan();actions.appendChild(button);
+      }
+      row.append(label,input,actions);list.appendChild(row);
+    });
+    document.getElementById('eval-plan-empty').hidden=steps.length>0;
+  }
+  renderAssessmentPlan() {
+    const theme=EVAL_QUESTIONS.part3Themes.find(item=>item.id===this.answers.part3.selectedThemeId);
+    if(!theme)return;
+    for(const [id,text] of [['eval-task-situation',theme.situation],['eval-task-input',theme.input],['eval-task-requirement',theme.requirement]]){
+      const element=document.getElementById(id);if(element)element.textContent=text;
+    }
+    const plan=this.getAssessmentPlan();
+    for(const field of ['current','goal']){const input=document.getElementById('eval-plan-'+field);if(input){input.value=plan[field]||'';input.disabled=!this.canEditPlan();}}
+    this.renderAssessmentSteps();
   }
 
   // 기호 보관함에서 클릭 시 블록 추가
   addPart3Block(shapeType) {
+    if (this.isSubmitted || this.isSubmitting || this.sessionStatus === "ended") return;
     const id = `eblk_${this.blockIdCounter++}`;
     const defaultLabels = {
       terminal: "종료",
-      io: "기온 센서값 입력",
-      decision: "온도가 28℃ 초과인가?",
-      process: "환기 창문 열기"
+      io: "내용 입력",
+      decision: "내용 입력",
+      process: "내용 입력"
     };
 
     // 추가할 Y좌표 계산
     const lastY = this.answers.part3.blocks.reduce((max, b) => Math.max(max, b.y), 30);
-    const newY = Math.min(380, lastY + 80);
+    const newY = lastY + 130;
     const newX = shapeType === 'decision' ? 210 : 220;
 
     const newBlock = {
@@ -707,6 +508,7 @@ class StudentEvalApp {
 
   // 블록 삭제
   removePart3Block(blockId) {
+    if (this.isSubmitted || this.isSubmitting || this.sessionStatus === "ended") return;
     if (blockId === 'eblk_start') {
       alert("알고리즘의 '시작' 단말 기호는 삭제할 수 없습니다.");
       return;
@@ -722,17 +524,20 @@ class StudentEvalApp {
 
   // 블록 텍스트 수정
   handlePart3BlockText(blockId, text) {
+    if (this.isSubmitted || this.isSubmitting || this.sessionStatus === "ended") return;
     const b = this.answers.part3.blocks.find(x => x.id === blockId);
     if (b) {
       b.text = text.trim() || "내용 입력";
       this.answers.part3.isVerified = false;
       this.updatePart3ScoreBadge(0);
       this.renderPart3Connections();
+      this.syncStudentProgress();
     }
   }
 
   // 블록 드래그 시작
   handlePart3BlockMouseDown(blockId, e) {
+    if (this.isSubmitted || this.isSubmitting || this.sessionStatus === "ended") return;
     if (e.target.classList.contains('flow-port') || e.target.isContentEditable || e.target.tagName === 'BUTTON') return;
     this.isDraggingBlock = true;
     this.draggedBlockId = blockId;
@@ -749,6 +554,7 @@ class StudentEvalApp {
 
   // 포트 연결 시작
   startPart3Connecting(blockId, portType, e) {
+    if (this.isSubmitted || this.isSubmitting || this.sessionStatus === "ended") return;
     e.stopPropagation();
     this.isConnecting = true;
     this.connectionSource = { blockId, portType };
@@ -756,6 +562,7 @@ class StudentEvalApp {
 
   // 포트 연결 완료
   handlePart3PortMouseUp(targetBlockId, targetPortType) {
+    if (this.isSubmitted || this.isSubmitting || this.sessionStatus === "ended") return;
     if (!this.isConnecting || !this.connectionSource) return;
     const fromBlockId = this.connectionSource.blockId;
     const fromPort = this.connectionSource.portType;
@@ -789,6 +596,7 @@ class StudentEvalApp {
 
   // 연결선 삭제
   removePart3Connection(connId) {
+    if (this.isSubmitted || this.isSubmitting || this.sessionStatus === "ended") return;
     this.answers.part3.connections = this.answers.part3.connections.filter(c => c.id !== connId);
     this.answers.part3.isVerified = false;
     this.updatePart3ScoreBadge(0);
@@ -799,6 +607,7 @@ class StudentEvalApp {
   // 블록 및 캔버스 전체 DOM 렌더링
   renderPart3Canvas() {
     const stage = document.getElementById('eval-part3-stage');
+    if(stage){stage.style.minHeight=Math.max(460,...this.answers.part3.blocks.map(b=>b.y+180))+'px';stage.style.minWidth=Math.max(620,...this.answers.part3.blocks.map(b=>b.x+240))+'px';}
     if (!stage) return;
 
     // 기존 블록 요소 제거 (SVG는 보존)
@@ -885,8 +694,8 @@ class StudentEvalApp {
           </div>
           <div class="block-text-label w-full px-1.5 py-0.5 cursor-text text-center text-xs font-black text-amber-950 focus:outline-none leading-snug" 
                contenteditable="true" 
-               onblur="window.studentEvalApp.handlePart3BlockText('${b.id}', this.innerText)"
-               onkeydown="if(event.key==='Enter'){event.preventDefault(); this.blur();}">${b.text}</div>
+               oninput="window.studentEvalApp.handlePart3BlockText('${b.id}', this.innerText)"
+               onkeydown="if(event.key==='Enter'){event.preventDefault(); this.blur();}">${escapeHtml(b.text)}</div>
         </div>
       `;
     } else {
@@ -914,8 +723,8 @@ class StudentEvalApp {
           </div>
           <div class="block-text-label flex-1 flex items-center justify-center text-center text-xs font-black text-slate-800 focus:outline-none cursor-text px-1" 
                contenteditable="true" 
-               onblur="window.studentEvalApp.handlePart3BlockText('${b.id}', this.innerText)"
-               onkeydown="if(event.key==='Enter'){event.preventDefault(); this.blur();}">${b.text}</div>
+               oninput="window.studentEvalApp.handlePart3BlockText('${b.id}', this.innerText)"
+               onkeydown="if(event.key==='Enter'){event.preventDefault(); this.blur();}">${escapeHtml(b.text)}</div>
         </div>
       `;
     }
@@ -1011,7 +820,7 @@ class StudentEvalApp {
   getPortCoordinates(b, portType) {
     const isDecision = (b.shape === 'decision');
     const width = isDecision ? 220 : 180;
-    const height = isDecision ? 120 : 64;
+    const height = isDecision ? 120 : 70;
 
     switch (portType) {
       case 'in':
@@ -1048,6 +857,7 @@ class StudentEvalApp {
 
   // 자동 정렬
   autoAlignPart3Canvas() {
+    if (this.isSubmitted || this.isSubmitting || this.sessionStatus === 'ended') return;
     let curY = 30;
     this.answers.part3.blocks.forEach(b => {
       const isDecision = (b.shape === 'decision');
@@ -1057,10 +867,12 @@ class StudentEvalApp {
     });
 
     this.renderPart3Canvas();
+    this.syncStudentProgress();
   }
 
   // 비우기
   clearPart3Canvas() {
+    if (this.isSubmitted || this.isSubmitting || this.sessionStatus === "ended") return;
     if (!confirm("캔버스의 모든 블록과 연결선을 비우시겠습니까?")) return;
     this.answers.part3.blocks = [
       { id: "eblk_start", shape: "terminal", type: "terminal", text: "시작", x: 220, y: 30 }
@@ -1069,183 +881,90 @@ class StudentEvalApp {
     this.answers.part3.isVerified = false;
     this.updatePart3ScoreBadge(0);
     this.renderPart3Canvas();
+    this.syncStudentProgress();
   }
 
   // [ 🧪 순서도 완성 검사 및 40점 획득 ]
   verifyPart3Flowchart() {
-    const blocks = this.answers.part3.blocks;
-    const conns = this.answers.part3.connections;
-    const theme = EVAL_QUESTIONS.part3Themes.find(t => t.id === this.answers.part3.selectedThemeId);
-
-    // 1. 최소 블록 개수 검사
-    if (blocks.length < 5) {
-      alert(`⚠️ 순서도 블록이 부족합니다!\n[${theme.title}]를 완성하려면 최소 5개 이상의 블록이 필요합니다. (현재: ${blocks.length}개)`);
-      this.updatePart3ScoreBadge(0);
-      return;
+    const inspection=inspectAssessmentFlow(this.answers.part3);
+    this.answers.part3.isVerified=inspection.passed;
+    document.querySelectorAll("#eval-part3-stage .execution-issue").forEach(el=>el.classList.remove("execution-issue"));
+    inspection.issues.forEach(issue=>{if(issue.blockId)document.getElementById("eval-blk-"+issue.blockId)?.classList.add("execution-issue");});
+    const panel=document.getElementById("eval-execution-feedback");
+    if(panel) {
+      panel.replaceChildren();
+      for(const issue of inspection.issues) {const p=document.createElement("p");p.textContent=issue.message;panel.appendChild(p);}
+      for(const result of inspection.cases) {const p=document.createElement("p");p.textContent=result.input+"：예상"+" "+result.expected+" / 실제 "+result.actual;panel.appendChild(p);}
+      if(inspection.passed) {const p=document.createElement("p");p.textContent="표시된 입력에서 예상한 결과가 나왔어요.";panel.appendChild(p);}
     }
-
-    // 2. 단말 기호(시작, 끝) 검사
-    const terminals = blocks.filter(b => b.shape === 'terminal');
-    const hasEnd = terminals.some(b => b.text.includes('종료') || b.text.includes('끝'));
-    if (terminals.length < 2 || !hasEnd) {
-      alert("⚠️ 순서도에는 반드시 '시작' 단말과 마지막 '종료' 단말 기호(🟣)가 각각 배치되어야 합니다.");
-      this.updatePart3ScoreBadge(10);
-      return;
-    }
-
-    // 3. 판단 기호(◇) 검사
-    const hasDecision = blocks.some(b => b.shape === 'decision');
-    if (!hasDecision) {
-      alert("⚠️ 조건에 따라 두 갈래로 나뉘는 '판단 기호(🟠 마름모)'가 누락되었습니다!\n팔레트에서 판단 기호를 추가해 보세요.");
-      this.updatePart3ScoreBadge(15);
-      return;
-    }
-
-    // 4. 입출력 및 처리 기호 검사
-    const hasIO = blocks.some(b => b.shape === 'io');
-    const hasProcess = blocks.some(b => b.shape === 'process');
-    if (!hasIO) {
-      alert("⚠️ 센서값이나 사용자 입력을 받는 '자료 입출력 기호(🟢 평행사변형)'가 필요합니다.");
-      this.updatePart3ScoreBadge(20);
-      return;
-    }
-    if (!hasProcess) {
-      alert("⚠️ 동작을 실행하거나 값을 제어하는 '처리 기호(🔵 직사각형)'가 필요합니다.");
-      this.updatePart3ScoreBadge(20);
-      return;
-    }
-
-    // 5. 연결선(화살표) 흐름 검사
-    if (conns.length < 4) {
-      alert(`⚠️ 기호 간 연결선(화살표)이 부족합니다!\n알고리즘 흐름이 이어지도록 파란색 점을 드래그해 최소 4개 이상의 연결선을 만들어 주세요. (현재: ${conns.length}개)`);
-      this.updatePart3ScoreBadge(25);
-      return;
-    }
-
-    // 6. 판단 기호의 예/아니오 분기선 검사
-    const decisionBlock = blocks.find(b => b.shape === 'decision');
-    const decisionConns = conns.filter(c => c.from === decisionBlock.id);
-    if (decisionConns.length < 2) {
-      alert("⚠️ 판단 기호(◇)에서는 조건의 '예'와 '아니오'에 따른 두 갈래 분기 화살표가 각각 나와야 합니다.");
-      this.updatePart3ScoreBadge(30);
-      return;
-    }
-
-    // 7. 블록 기본 텍스트 방치 여부 (성실도)
-    const hasPlaceholder = blocks.some(b => b.id !== 'eblk_start' && (b.text === "내용 입력" || b.text.trim() === ""));
-    if (hasPlaceholder) {
-      alert("⚠️ 블록에 '내용 입력' 기본 문구가 남아있습니다!\n블록을 클릭하여 선택한 레시피에 맞게 내용을 구체적으로 적어주세요.");
-      this.updatePart3ScoreBadge(35);
-      return;
-    }
-
-    // 모든 조건 통과! 40점 만점 부여!
-    this.answers.part3.isVerified = true;
-    this.updatePart3ScoreBadge(40);
-    alert(`🎉 완벽합니다!\n[${theme.title}]의 4대 기호 표준 준수, 판단 기호 분기선 연결, 알고리즘 논리적 완결성 검증을 100% 통과했습니다!\n(Part 3 순서도 조립 40점 만점 획득)`);
+    this.updatePart3ScoreBadge(inspection.passed?40:0); this.syncStudentProgress();
   }
 
   updatePart3ScoreBadge(score) {
-    const badge = document.getElementById('eval-part3-score-badge');
-    if (badge) {
-      if (score >= 40) {
-        badge.innerHTML = `<span class="text-emerald-700 font-black flex items-center gap-1.5"><i class="fa-solid fa-circle-check"></i> 검증 완료: 40 / 40점 획득!</span>`;
-        badge.className = "px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-50 border border-emerald-300 flex items-center gap-2 shadow-2xs";
-      } else {
-        badge.innerHTML = `<span class="text-slate-500 font-bold flex items-center gap-1.5"><i class="fa-solid fa-circle-info"></i> 검사 대기: ${score} / 40점</span>`;
-        badge.className = "px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 border border-slate-200 flex items-center gap-2";
-      }
-    }
+    const badge=document.getElementById("eval-part3-score-badge");
+    if(badge) badge.textContent=score===40?"표시된 입력 확인 완료":"실행 결과를 확인해 보세요";
   }
 
-  // 실시간 진행도 백그라운드 동기화
   syncStudentProgress() {
-    const p1Count = Object.keys(this.answers.part1).length;
-    const p2Count = Object.keys(this.answers.part2).length;
-    const p3Done = this.answers.part3.isVerified ? 1 : 0;
-
-    if (window.evalService) {
-      window.evalService.updateStudentProgress(this.currentClass, this.studentNum, {
-        part1: p1Count,
-        part2: p2Count,
-        part3: p3Done
-      });
-    }
+    this.saveDraft();
+    if(!this.joined||this.isSubmitted||this.isSubmitting||this.sessionStatus!=="in_progress")return;
+    const status=document.getElementById('eval-save-status');
+    if(status)status.textContent='이 창에 임시 저장 · 서버 저장 중';
+    clearTimeout(this.progressTimeout);
+    this.progressTimeout=setTimeout(()=>{
+      if(this.isSubmitted||this.isSubmitting)return;
+      this.progressPromise=window.evalService.updateStudentProgress(this.currentClass,this.studentNum,{part1:Object.keys(this.answers.part1).length,part2:Object.values(this.answers.part2).filter(v=>String(v).trim()).length,part3:this.answers.part3.blocks.length>1?1:0},this.answers)
+        .then(()=>{if(status)status.textContent=window.evalService.isDemo()?'로컬 시연에 저장됨':'서버에 저장됨';})
+        .catch(error=>{if(status)status.textContent='서버 저장 실패 · 이 창을 유지해 주세요';console.warn("서버 임시 저장 실패",error);});
+    },500);
   }
-
   // 4. 100% 완전 자동 채점 계산 (총점 100점)
-  calculateScores() {
-    // Part 1. 객관식 10문항 채점 (총 30점 / 각 3점)
-    let p1Score = 0;
-    EVAL_QUESTIONS.part1.forEach(q => {
-      if (this.answers.part1[q.id] === q.correctAnswer) {
-        p1Score += q.points;
-      }
-    });
-
-    // Part 2. 단답형 6문항 채점 (총 30점 / 각 5점)
-    let p2Score = 0;
-    let p2FeedbackArr = [];
-    EVAL_QUESTIONS.part2.forEach(q => {
-      const userRaw = (this.answers.part2[q.id] || "").trim().toLowerCase().replace(/\s+/g, '');
-      const isCorrect = q.answers.some(ans => ans.toLowerCase().replace(/\s+/g, '') === userRaw);
-
-      if (isCorrect) {
-        p2Score += q.points;
-        p2FeedbackArr.push(`${q.title}: 정답 (+${q.points}점)`);
-      } else {
-        p2FeedbackArr.push(`${q.title}: 오답 (0점)`);
-      }
-    });
-
-    // Part 3. 순서도 조립 채점 (총 40점)
-    const p3Score = this.answers.part3.isVerified ? 40 : 0;
-
-    const total = p1Score + p2Score + p3Score;
-    this.scores = {
-      part1: p1Score,
-      part2: p2Score,
-      part3: p3Score,
-      total: total,
-      teacherOverride: null
-    };
-
-    return {
-      scores: this.scores,
-      feedback: {
-        part2: p2FeedbackArr.join(" | "),
-        part3: this.answers.part3.isVerified ? "4대 기호 조립 및 판단 분기 검증 완료 (40점)" : "순서도 미완성 또는 검사 미실행 (0점)"
-      }
-    };
-  }
+  calculateScores() { const result=gradeEvaluation(this.answers); this.scores=result.scores; return result; }
 
   // 5. 최종 제출 처리
   async submitExam(isAuto = false) {
-    if (this.isSubmitted) return;
+    if (this.isSubmitted || this.isSubmitting) return;
     if (!isAuto && !confirm("정말로 수행평가 답안을 최종 제출하시겠습니까?\n제출 후에는 교사의 재시험 승인이 있어야 답안을 다시 작성할 수 있습니다.")) {
       return;
     }
 
-    this.isSubmitted = true;
-    if (this.timerInterval) clearInterval(this.timerInterval);
+    document.activeElement?.blur();
+    this.isSubmitting = true;
+    clearTimeout(this.progressTimeout);
+    this.saveDraft();
+    await this.progressPromise;
 
     // 자동 채점 실행
     const gradeResult = this.calculateScores();
 
     // 서버로 최종 제출 전송
-    if (window.evalService) {
+    try {
+      if (!window.evalService) throw new Error("저장 서비스에 연결되지 않았습니다.");
       await window.evalService.submitStudentExam(this.currentClass, this.studentNum, {
         answers: this.answers,
         scores: gradeResult.scores,
         feedback: gradeResult.feedback
       });
+    } catch(error) {
+      this.isSubmitting=false; this.saveDraft();
+      alert("제출을 저장하지 못했습니다. 답안은 이 창에 유지됩니다. 다시 제출해 주세요.\n"+error.message);
+      return;
     }
+    this.isSubmitting=false; this.isSubmitted=true;
+    clearInterval(this.timerInterval); this.timerInterval=null;
+    document.body.classList.remove("assessment-active");
+    this.saveDraft();
 
-    // 결과 화면 렌더링
+    this.renderResult();
+  }
+
+  renderResult() {
+    window.pendingAssessmentResume=false;sessionStorage.removeItem('ALGO_ACTIVE_EXAM');updateAssessmentNavigation();
+    // 자동 계산은 교사 검토 전 참고값입니다.
     this.showScreen('result');
     const scoreTotalEl = document.getElementById('eval-result-total-score');
     const scoreBreakdownEl = document.getElementById('eval-result-breakdown');
-    if (scoreTotalEl) scoreTotalEl.textContent = `${this.scores.total}점`;
+    if (scoreTotalEl) scoreTotalEl.textContent = `${this.scores.total}점 (교사 검토 전)`;
     if (scoreBreakdownEl) {
       scoreBreakdownEl.innerHTML = `
         <div class="grid grid-cols-3 gap-3 text-center">
@@ -1268,7 +987,7 @@ class StudentEvalApp {
 
   // 시험장 나가기 (로드맵으로 복귀)
   exitExam() {
-    if (this.timerInterval) clearInterval(this.timerInterval);
+    this.saveDraft();
     if (typeof switchUnit === 'function') {
       switchUnit('roadmap');
     }

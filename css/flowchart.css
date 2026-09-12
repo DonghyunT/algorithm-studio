@@ -451,9 +451,20 @@
    실제 엔트리(PlayEntry) 1:1 풀스크린 4단 스튜디오 레이아웃
    (자연어 기획서 | 기호 보관함 | 캔버스 | 디버그 스튜디오)
    ========================================== */
+/* Assessment geometry and view isolation. */
+#eval-part3-stage .shape-terminal-block, #eval-part3-stage .shape-io-block, #eval-part3-stage .shape-process-block { width:180px; height:70px; position:absolute; border:2px solid #3b82f6; background:#eff6ff; border-radius:8px; box-sizing:border-box; }
+#eval-part3-stage .shape-terminal-block { border-color:#8b5cf6; background:#f5f3ff; border-radius:35px; }
+#eval-part3-stage .shape-io-block { border-color:#10b981; background:#ecfdf5; }
+#eval-part3-stage .execution-issue { outline:4px solid #e11d48; outline-offset:5px; }
+#eval-part3-container .entry-studio-container { grid-template-columns:250px 120px minmax(380px,1fr); height:720px !important; min-height:600px; overflow:auto; }
+body .hidden { display:none !important; }
+body.assessment-active #tutor-chat-container { display:none !important; }
+#eval-execution-feedback { max-height:140px; overflow:auto; flex-shrink:0; padding:8px 12px; background:#f8fafc; }
+#eval-execution-feedback:empty { display:none; }
+
 .entry-studio-container {
   display: grid;
-  grid-template-columns: 320px 108px 1fr 280px;
+  grid-template-columns: minmax(210px, 270px) 96px minmax(340px, 1fr) 220px;
   gap: 0;
   height: calc(100vh - 150px);
   min-height: 0;
@@ -1270,3 +1281,31 @@ body.studio-mode .entry-studio-l2-container {
 }
 
 
+
+/* Keep actions visible when the canvas shares space with planning and execution panels. */
+#fc-level3-view .entry-studio-container > section:nth-child(3) > div:first-child,
+#eval-part3-container .entry-studio-container > section:last-child > div:first-child {
+  height:auto; min-height:48px; flex-wrap:wrap; padding-top:8px; padding-bottom:8px;
+}
+#fc-level3-view .entry-studio-container > section:nth-child(3) > div:first-child > div,
+#eval-part3-container .entry-studio-container > section:last-child > div:first-child > div {
+  flex-wrap:wrap; white-space:normal; overflow:visible; max-width:100%;
+}
+#fc-level3-view .entry-studio-container button { flex-shrink:0; }
+#fc-level3-view .entry-studio-container { grid-template-columns:240px 100px minmax(0,1fr) 220px; }
+#fc-level3-view .entry-studio-container.panel-collapsed { grid-template-columns:48px 100px minmax(0,1fr) 220px; }
+#fc-level3-view .entry-studio-container.debugger-collapsed { grid-template-columns:240px 100px minmax(0,1fr) 40px; }
+#fc-level3-view .entry-studio-container.panel-collapsed.debugger-collapsed { grid-template-columns:48px 100px minmax(0,1fr) 40px; }
+#eval-part3-stage .shape-io-block { background:transparent; border:0; isolation:isolate; padding:0 16px; }
+#eval-part3-stage .shape-io-block::before { content:''; position:absolute; inset:0; background:#d1fae5; clip-path:polygon(12% 0,100% 0,88% 100%,0 100%); z-index:-1; }
+@media (max-width:900px) {
+  body.studio-mode { overflow:auto !important; height:auto !important; }
+  body.studio-mode main, body.studio-mode #view-lab,
+  body.studio-mode #fc-level3-view, body.studio-mode #fc-level2-view { height:auto !important; overflow:visible !important; }
+  body.studio-mode #fc-level3-view .entry-studio-container,
+  body.studio-mode .entry-studio-l2-container { display:flex; flex-direction:column; height:auto !important; max-height:none !important; min-height:600px !important; }
+  #fc-level3-view .entry-studio-container > section { min-height:220px; flex-shrink:0; }
+  #fc-level3-view .entry-studio-container > section:nth-child(3) { height:650px; min-height:650px; order:-1; }
+  #free-flowchart-canvas { min-height:400px; }
+  #l2-canvas { min-height:500px; }
+}

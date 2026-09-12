@@ -1,27 +1,58 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // 🏫 [11개 반 평가 세션 제어 문서: 2-1 ~ 2-11]
-    match /eval_sessions/{sessionId} {
-      allow read: if true;
-      allow write: if true;
-
-      // 👨‍🎓 [학급별 최대 27명 학생 서브컬렉션]
+    function signedIn() { return request.auth != null; }
+    function teacher() {
+      return signedIn() && exists(/databases/$(database)/documents/teachers/$(request.auth.uid))
+        && get(/databases/$(database)/documents/teachers/$(request.auth.uid)).data.enabled == true;
+    }
+    // Only the project administrator can provision roles using the console/Admin API.
+    match /teachers/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list, write: if false;
+    }
+    match /eval_sessions/{classId} {
+      function active() {
+        let session = get(/databases/$(database)/documents/eval_sessions/$(classId)).data;
+        return session.status == 'in_progress' && request.time.toMillis() < session.deadlineMs;
+      }
+      allow get: if signedIn();
+      allow list: if teacher();
+      allow create, update: if teacher() && classId.matches('2-([1-9]|10|11)')
+        && request.resource.data.classId == classId
+        && request.resource.data.status in ['waiting', 'in_progress', 'ended'];
+      allow delete: if false;
       match /students/{studentNum} {
-        allow read: if true;
-
-        // 1번부터 27번까지만 문서 생성 허용 (28번 이상 장난 번호 원천 차단)
-        allow create: if int(studentNum) >= 1 && int(studentNum) <= 27
-                      && request.resource.data.num == int(studentNum);
-
-        // [부정행위 방지] 이미 최종 제출('submitted')된 답안은 임의 수정 불가
-        // 단, 교사의 점수 조정(scores) 또는 교사의 재시험 허용(status: 'in_progress') 시에는 허용
-        allow update: if resource.data.status != 'submitted'
-                      || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['scores', 'teacherOverride'])
-                      || request.resource.data.status == 'in_progress';
-
-        // 학생이 답안 문서를 임의로 삭제하는 것 원천 금지 (장난 및 데이터 소실 방어)
+        function owner() { return signedIn() && resource.data.ownerUid == request.auth.uid; }
+        function validAnswers() {
+          return request.resource.data.answers is map
+            && request.resource.data.answers.keys().hasOnly(['part1', 'part2', 'part3'])
+            && request.resource.data.answers.part1 is map
+            && request.resource.data.answers.part2 is map;
+        }
+        function validProgress() {
+          return request.resource.data.progress is map
+            && request.resource.data.progress.part1 is int && request.resource.data.progress.part1 >= 0 && request.resource.data.progress.part1 <= 10
+            && request.resource.data.progress.part2 is int && request.resource.data.progress.part2 >= 0 && request.resource.data.progress.part2 <= 6
+            && request.resource.data.progress.part3 is int && request.resource.data.progress.part3 >= 0 && request.resource.data.progress.part3 <= 1;
+        }
+        // A missing document can be read to reserve a seat in a transaction.
+        allow get: if teacher() || (signedIn() && (!exists(/databases/$(database)/documents/eval_sessions/$(classId)/students/$(studentNum)) || owner()));
+        allow list: if teacher();
+        allow create: if signedIn() && classId.matches('2-([1-9]|10|11)')
+          && studentNum.matches('(0[1-9]|1[0-9]|2[0-7])')
+          && request.resource.data.keys().hasOnly(['num','numStr','name','ownerUid','status','joinedAt','submittedAt','progress','answers','feedback'])
+          && request.resource.data.num == int(studentNum)
+          && request.resource.data.numStr == studentNum
+          && request.resource.data.ownerUid == request.auth.uid
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 40
+          && request.resource.data.status == 'waiting' && validAnswers() && validProgress();
+        allow update: if teacher() || (owner() && resource.data.status != 'submitted'
+          && validAnswers() && validProgress()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','answers','progress','updatedAt','submittedAt'])
+          && ((active() && request.resource.data.status in ['in_progress','submitted'])
+            || (request.resource.data.status == 'submitted' && request.resource.data.answers == resource.data.answers)));
         allow delete: if false;
       }
     }

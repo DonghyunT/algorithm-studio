@@ -16,6 +16,29 @@ let currentUnitSubStep = {
 };
 const completedUnitSteps = new Set();
 
+function isAssessmentLocked() {
+  const app=window.studentEvalApp;
+  return !!(window.pendingAssessmentResume || (app?.joined && !app.isSubmitted && (app.isSubmitting || ['in_progress','ended'].includes(app.sessionStatus))));
+}
+function updateAssessmentNavigation() {
+  const locked=isAssessmentLocked();
+  document.body.classList.toggle('assessment-active',locked);
+  document.querySelectorAll('#global-header button').forEach(button=>{
+    if(button.id==='nav-btn-eval')return;
+    if(locked && !button.hasAttribute('data-exam-lock')) {
+      button.dataset.examLock=button.disabled?'disabled':'enabled';
+      button.dataset.examTitle=button.getAttribute('title')||'';
+      button.disabled=true;button.setAttribute('aria-disabled','true');button.title='평가 중에는 다른 화면으로 이동할 수 없어요';
+    } else if(!locked && button.hasAttribute('data-exam-lock')) {
+      button.disabled=button.dataset.examLock==='disabled';button.removeAttribute('aria-disabled');button.title=button.dataset.examTitle;
+      delete button.dataset.examLock;delete button.dataset.examTitle;
+    }
+  });
+  if(locked)closeMegaMenu();
+  const notice=document.getElementById('eval-navigation-notice');
+  if(notice)notice.hidden=!locked;
+}
+
 const UNIT_META = {
   unit1: {
     key: 'abstraction',
@@ -44,6 +67,8 @@ const UNIT_META = {
  * 1. 최상단 단원(Unit) 전환 함수
  */
 function switchUnit(unitId, targetStep = null) {
+  if(isAssessmentLocked() && unitId!=='eval')return;
+  document.body.classList.toggle('reading-mode',unitId==='roadmap'||(UNIT_META[unitId]&&targetStep!=='lab'));
   currentActiveUnit = unitId;
 
   // 1. 상단 글로벌 네비게이션 버튼 활성화 스타일 업데이트
@@ -132,6 +157,9 @@ function switchUnit(unitId, targetStep = null) {
  * 2. 단원 내부 3단계 (개념 ➔ 퀴즈 ➔ 실습) 전환 함수
  */
 function switchUnitStep(unitIdOrKey, stepName) {
+  if(isAssessmentLocked())return;
+  document.body.classList.toggle('reading-mode',stepName!=='lab');
+  ["view-classroom", "view-eval"].forEach(id => document.getElementById(id)?.classList.add("hidden"));
   // unitId 표준화 ('abstraction' -> 'unit1')
   let unitId = unitIdOrKey;
   if (unitIdOrKey === 'abstraction') unitId = 'unit1';
@@ -270,6 +298,7 @@ function updateAllUnitStepHeaders(activeUnitId, activeStep) {
  * 5. 실습실 내부 콘텐츠 활성화 헬퍼
  */
 function activateLabContent(activity) {
+  if(isAssessmentLocked())return;
   const isAbs = (activity === 'abstraction');
   const isSand = (activity === 'sandwich');
   const isFlow = (activity === 'flowchart');
@@ -319,6 +348,7 @@ let megaMenuCloseTimer = null;
 let isMegaMenuOpen = false;
 
 function openMegaMenu() {
+  if(isAssessmentLocked())return;
   cancelMegaMenuClose();
   const dropdown = document.getElementById('mega-menu-dropdown');
   const backdrop = document.getElementById('mega-menu-backdrop');
@@ -395,6 +425,7 @@ function cancelMegaMenuClose() {
  * 메가 메뉴 내부 링크 다이렉트 네비게이션
  */
 function navigateToMega(unitId, step = null, options = {}) {
+  if(isAssessmentLocked())return;
   closeMegaMenu();
 
   if (unitId === 'roadmap') {

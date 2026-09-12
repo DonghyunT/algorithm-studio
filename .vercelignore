@@ -1,0 +1,11 @@
+.git
+.github
+.vercel
+.env*
+js/data/config.js
+백업용
+audit
+docs
+tests
+tools
+*.md
