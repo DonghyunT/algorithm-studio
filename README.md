@@ -2,7 +2,7 @@
 
 중학교 정보 수업의 **추수활동**을 위한 웹앱입니다. 문제 추상화, 알고리즘 설계, 순서도를 학생이 쉽게 적용하고 직접 완성하도록 돕습니다. 수행평가 탭은 별도의 평가 원칙을 따릅니다.
 
-> 갱신: 2026-09-12. GitHub main·Vercel 운영 배포·Firestore classrooms 구조와 보안 규칙을 반영했습니다. 실제 익명 로그인·DB 권한·AI 연결을 확인했으며 교사 최초 Google 로그인과 권한 연결은 대기 중입니다. [배포 기록](docs/DEPLOYMENT.md), [DB 설계](docs/DATABASE.md), [구현 검토서](docs/IMPLEMENTATION_REVIEW.md)를 확인하세요.
+> 갱신: 2026-09-13. GitHub main·Vercel 운영 배포·Firestore classrooms 구조와 보안 규칙을 반영했으며 사용자가 교사 로그인을 확인했습니다. 자유 설계 평가와 AI 초벌 검토·교사 확정도 배포되었습니다. [배포 기록](docs/DEPLOYMENT.md), [DB 설계](docs/DATABASE.md), [다른 PC 인수인계](docs/HANDOFF.md)를 확인하세요.
 
 ## 수업에서 활용하기
 
@@ -20,7 +20,7 @@
 
 파일 더블 클릭은 일부 화면을 살펴보는 용도로 취급하며 AI·평가 저장 등 전체 기능을 보장하지 않습니다. Tailwind CDN·외부 SDK 등 네트워크 의존성이 있어 완전 오프라인 앱이 아닙니다. Netlify에 폴더를 올리는 것만으로 Vercel API가 제공되는 것도 아닙니다.
 
-저장소에는 `api/chat.js`와 Firebase 설정·규칙이 있습니다. AI 비밀 키는 서버 환경 변수 `UPSTAGE_API_KEY`로 관리해야 합니다. 실제 운영 배포와 접근 권한은 이번 감사에서 확인하지 않았습니다. 브라우저 직접 호출용 키 파일을 학생 배포물에 넣지 않아야 하며 `.gitignore`만으로 배포물의 키 보호나 API 접근 제어가 보장되지는 않습니다.
+저장소에는 `api/chat.js`, `api/assessment.js`와 Firebase 설정·규칙이 있습니다. AI 비밀 키는 서버 환경 변수 `UPSTAGE_API_KEY`로 관리합니다. 운영 배포와 접근 권한의 확인 범위는 배포 기록을 따릅니다. 브라우저 직접 호출용 키 파일을 학생 배포물에 넣지 않아야 하며 `.gitignore`만으로 배포물의 키 보호나 API 접근 제어가 보장되지는 않습니다.
 
 ## 수업 준비와 마무리
 
@@ -58,5 +58,6 @@
 * [INTENT.md](INTENT.md): 교육 목적과 실습·평가 철학
 * [PRD.md](PRD.md): 현재 요구사항·구현 상태·완료 조건·미결정 사항
 * [감사 보고서](audit/AUDIT_REPORT.md): 오류 근거와 검증 한계
+* [다른 PC 인수인계](docs/HANDOFF.md): clone/pull, 로컬 실행, 별도 로그인과 진행 중 작업
 
 다른 PC에서 이어갈 때 세 핵심 문서를 읽고 Git 변경 상태와 로컬 설정을 확인합니다. OneDrive 사용 여부·동기화 상태는 실제 환경에서 확인합니다. 비밀 키를 인수인계 문서나 저장소에 적지 않습니다.
