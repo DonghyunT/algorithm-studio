@@ -24,6 +24,13 @@ let currentClassroomTab = "live_eval"; // 기본을 '실시간 수행평가 관�
 let isTeacherAuthenticated = false;
 let liveEvalUnsub = null;
 let currentLiveStudents = [];
+let liveSessionUnsub = null;
+let liveSessionTimer = null;
+let liveDashboardGeneration = 0;
+let currentLiveSession = null;
+let liveSessionError = false;
+let teacherSessionPending = false;
+let teacherSessionPendingLabel = '';
 
 // 1. 클래스룸 데이터 로드 및 초기화
 function getClassroomData() { return Object.fromEntries(DEFAULT_CLASSES.map(name => [name, []])); }
@@ -81,10 +88,7 @@ function showClassroomView() {
 }
 
 function exitClassroomView() {
-  if (liveEvalUnsub) {
-    liveEvalUnsub();
-    liveEvalUnsub = null;
-  }
+  stopLiveEvalDashboard();
   if (typeof switchUnit === 'function') {
     switchUnit('roadmap');
   }
@@ -105,6 +109,7 @@ function switchClassroomSubTab(tabName) {
     if (secAssign) secAssign.classList.add('hidden');
     initLiveEvalDashboard();
   } else {
+    stopLiveEvalDashboard();
     if (btnLive) btnLive.className = "px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer";
     if (btnAssign) btnAssign.className = "px-4 py-2 rounded-xl text-xs sm:text-sm font-black bg-indigo-600 text-white shadow-xs transition cursor-pointer";
     if (secLive) secLive.classList.add('hidden');
@@ -146,22 +151,121 @@ function getClassIdFromSelected() {
 }
 
 function initLiveEvalDashboard() {
+  stopLiveEvalDashboard();
+  const generation = liveDashboardGeneration;
   const classId = getClassIdFromSelected();
   const titleEl = document.getElementById('classroom-live-class-title');
-  if (titleEl) titleEl.textContent = `${currentSelectedClass} (세션 ID: ${classId})`;
-
-  if (liveEvalUnsub) {
-    liveEvalUnsub();
-    liveEvalUnsub = null;
-  }
+  if (titleEl) titleEl.textContent = currentSelectedClass;
+  currentLiveSession = null;
+  liveSessionError = false;
+  currentLiveStudents = [];
+  setTeacherSessionFeedback('');
+  renderLiveGrid([]);
+  renderTeacherSessionControl();
 
   if (window.evalService) {
+    try {
+    liveSessionUnsub = window.evalService.listenSession(classId, (session, metadata) => {
+      if (generation !== liveDashboardGeneration || metadata?.hasPendingWrites) return;
+      currentLiveSession = session;
+      liveSessionError = false;
+      renderTeacherSessionControl();
+    }, () => {
+      if (generation !== liveDashboardGeneration) return;
+      liveSessionError = true;
+      renderTeacherSessionControl();
+    });
     liveEvalUnsub = window.evalService.listenStudents(classId, (students) => {
+      if (generation !== liveDashboardGeneration) return;
       const label=document.getElementById('classroom-connection-status');
       if(label) label.textContent=window.evalService.isDemo() ? '로컬 시연 · 운영 DB와 분리됨' : '답안 수신됨 · 연결 상태는 갱신 시 확인';
       currentLiveStudents = students || [];
       renderLiveGrid(currentLiveStudents);
-    }, error=>{const label=document.getElementById('classroom-connection-status');if(label)label.textContent='답안 수신 실패 · 연결과 권한 확인 필요';alert(error.message);});
+    }, error=>{if(generation!==liveDashboardGeneration)return;const label=document.getElementById('classroom-connection-status');if(label)label.textContent='답안 수신 실패 · 연결과 권한 확인 필요';setTeacherSessionFeedback(error.message);});
+    liveSessionTimer = setInterval(renderTeacherSessionControl, 1000);
+    } catch(error) { liveSessionError = true; setTeacherSessionFeedback(error.message); renderTeacherSessionControl(); }
+  }
+}
+
+function stopLiveEvalDashboard() {
+  liveDashboardGeneration++;
+  liveEvalUnsub?.(); liveEvalUnsub = null;
+  liveSessionUnsub?.(); liveSessionUnsub = null;
+  clearInterval(liveSessionTimer); liveSessionTimer = null;
+}
+
+function teacherSessionState(session = currentLiveSession) {
+  if (liveSessionError) return {state:'error', label:'상태 확인 실패', action:'retry', button:'다시 연결', hint:'연결과 교사 권한을 확인한 뒤 다시 연결해 주세요.'};
+  if (!session) return {state:'loading', label:'상태 확인 중', action:'', button:'상태 확인 중', hint:'평가 상태를 불러오고 있습니다.'};
+  const expired = session.status === 'in_progress' && Number.isFinite(session.deadlineMs) && Date.now() >= session.deadlineMs;
+  if (session.status === 'ended' || expired) return {state:'ended', label:'평가 종료', action:'prepare', button:'새 평가 준비', hint:expired?'평가 시간이 끝났습니다. 새 평가를 준비하면 이전 답안을 보관하고 새 회차를 엽니다.':'제출·채점 현황을 확인해 주세요. 새 평가를 준비하면 이전 답안을 보관하고 새 회차를 엽니다.'};
+  if (session.status === 'in_progress') return {state:'running', label:'평가 중', action:'end', button:'평가 종료', hint:'학생들이 답안을 작성하고 있습니다. 종료하면 학생 화면에 제출을 요청합니다.'};
+  if (session.status === 'waiting' && session.attemptId) return {state:'waiting', label:'입장 대기', action:'start', button:'평가 시작', hint:'입장 인원을 확인한 뒤 시작해 주세요. 평가 시간은 30분입니다.'};
+  return {state:'unprepared', label:'준비 전', action:'prepare', button:'평가 준비', hint:'학생들이 입장할 수 있도록 평가를 준비해 주세요.'};
+}
+
+function setTeacherSessionFeedback(message) {
+  const el = document.getElementById('teacher-session-feedback');
+  if (el) el.textContent = message;
+}
+
+function renderTeacherSessionControl() {
+  const model = teacherSessionState();
+  const badge = document.getElementById('teacher-session-status');
+  const hint = document.getElementById('teacher-session-hint');
+  const button = document.getElementById('teacher-session-action');
+  const time = document.getElementById('teacher-session-time');
+  // Pending writes are not presented as completed operations.
+  if (!teacherSessionPending) {
+    if (badge) { badge.textContent = model.label; badge.dataset.state = model.state; }
+    if (hint) hint.textContent = model.hint;
+  }
+  if (time) {
+    const seconds = Math.max(0, Math.ceil((currentLiveSession?.deadlineMs - Date.now()) / 1000));
+    time.textContent = model.state === 'running' && Number.isFinite(seconds) ? `남은 시간 ${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}` : '';
+  }
+  if (button) {
+    button.disabled = teacherSessionPending || !model.action;
+    button.textContent = teacherSessionPending ? teacherSessionPendingLabel : model.button;
+    button.dataset.action = model.action;
+    button.setAttribute('aria-busy',String(teacherSessionPending));
+  }
+  const select = document.getElementById('classroom-class-select');
+  if (select) select.disabled = teacherSessionPending;
+}
+
+async function handleTeacherSessionAction() {
+  if (teacherSessionPending) return;
+  const model = teacherSessionState();
+  if (model.action === 'retry') { initLiveEvalDashboard(); return; }
+  if (!model.action) return;
+  const classId = getClassIdFromSelected(), generation = liveDashboardGeneration;
+  const expected = {attemptId:currentLiveSession?.attemptId ?? null, status:currentLiveSession?.status ?? 'waiting'};
+  if (model.action === 'end' && !confirm(`[${currentSelectedClass}] 평가를 종료하시겠습니까?\n연결된 학생 화면에 현재 답안 제출을 요청합니다. 연결이 끊긴 학생은 제출 여부를 별도로 확인해 주세요.`)) return;
+  if (model.action === 'prepare' && model.state === 'ended' && !confirm('이전 답안을 보관하고 새 평가를 준비하시겠습니까? 학생들은 새 회차에 다시 입장해야 합니다.')) return;
+  teacherSessionPending = true;
+  teacherSessionPendingLabel = {prepare:'준비 중…', start:'시작 중…', end:'종료 중…'}[model.action];
+  setTeacherSessionFeedback(''); renderTeacherSessionControl();
+  try {
+    let session;
+    if (model.action === 'prepare') {
+      // A deadline ends student work without a teacher DB write; close that old round before preparing the next.
+      if (expected.status === 'in_progress') {
+        await window.evalService.endSession(classId, expected);
+        expected.status = 'ended';
+      }
+      session = await window.evalService.prepareSession(classId, expected);
+    } else if (model.action === 'start') session = await window.evalService.startSession(classId, 30, expected);
+    else session = {...currentLiveSession, ...await window.evalService.endSession(classId, expected)};
+    if (generation === liveDashboardGeneration) {
+      currentLiveSession = session;
+      setTeacherSessionFeedback({prepare:'평가를 준비했습니다. 학생 입장 후 시작해 주세요.',start:'평가를 시작했습니다.',end:'평가를 종료했습니다. 학생별 제출 상태를 확인해 주세요.'}[model.action]);
+    }
+  } catch(error) {
+    if (generation === liveDashboardGeneration) setTeacherSessionFeedback('처리하지 못했습니다. '+error.message);
+  } finally {
+    teacherSessionPending = false;
+    renderTeacherSessionControl();
   }
 }
 
@@ -234,38 +338,6 @@ function renderLiveGrid(students = []) {
   }
 
   gridContainer.innerHTML = html;
-}
-
-// 교사용 30분 수행평가 시작 버튼
-async function handleTeacherPrepareExam() {
-  const classId=getClassIdFromSelected();
-  if(!confirm('이 학급의 이전 답안을 보관하고 새 평가 대기실을 준비할까요? 학생들은 다시 입장해야 합니다.'))return;
-  try{await window.evalService.prepareSession(classId);alert('새 평가 대기실이 준비되었습니다. 학생 입장 후 평가를 시작해 주세요.');}
-  catch(error){alert(error.message);}
-}
-async function handleTeacherStartExam() {
-  const classId = getClassIdFromSelected();
-  if (!confirm(`🚀 [${currentSelectedClass}] 30분 실시간 수행평가를 지금 즉시 시작하시겠습니까?\n모든 접속 학생 화면이 즉시 30분 시험장으로 전환됩니다.`)) {
-    return;
-  }
-
-  if (window.evalService) {
-    try { await window.evalService.startSession(classId, 30); } catch(error) { alert(error.message); return; }
-    alert(`🎉 [${currentSelectedClass}] 30분 실시간 수행평가가 시작되었습니다!\n타이머가 가동됩니다.`);
-  }
-}
-
-// 교사용 시험 강제 마감 버튼
-async function handleTeacherEndExam() {
-  const classId = getClassIdFromSelected();
-  if (!confirm(`⚠️ [${currentSelectedClass}] 수행평가를 마감하시겠습니까?\n아직 제출하지 않은 학생의 현재 답안이 최종 마감 처리됩니다.`)) {
-    return;
-  }
-
-  if (window.evalService) {
-    try { await window.evalService.endSession(classId); } catch(error) { alert(error.message); return; }
-    alert(`🛑 [${currentSelectedClass}] 수행평가 세션이 마감되었습니다.`);
-  }
 }
 
 // 나이스 CSV 다운로드

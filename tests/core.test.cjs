@@ -57,7 +57,7 @@ test('free-design answers remain pending without turning ungraded work into zero
 });
 test('teacher grading waits for the trusted round version and unsubscribes both listeners',()=>{
   const ctx=context();let sessionListener,studentsListener,stopped=0;const received=[];
-  const db={collection:()=>({doc:()=>({onSnapshot:cb=>{sessionListener=cb;return()=>stopped++;},collection:()=>({onSnapshot:cb=>{studentsListener=cb;return()=>stopped++;}})})})};
+  const db={collection:()=>({doc:()=>({onSnapshot:(options,cb)=>{sessionListener=typeof options==='function'?options:cb;return()=>stopped++;},collection:()=>({onSnapshot:cb=>{studentsListener=cb;return()=>stopped++;}})})})};
   ctx.window={firebaseDb:db,authService:{isDemo:()=>false}};
   vm.runInContext(fs.readFileSync(path.join(root,'js/core/eval-service.js'),'utf8'),ctx);
   const stop=ctx.window.evalService.listenStudents('2-1',students=>received.push(students));

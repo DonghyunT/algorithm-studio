@@ -68,6 +68,7 @@ const UNIT_META = {
  */
 function switchUnit(unitId, targetStep = null) {
   if(isAssessmentLocked() && unitId!=='eval')return;
+  if(unitId !== 'classroom' && typeof stopLiveEvalDashboard === 'function') stopLiveEvalDashboard();
   closeMegaMenu();
   document.body.classList.toggle('reading-mode',unitId==='roadmap'||(UNIT_META[unitId]&&targetStep!=='lab'));
   currentActiveUnit = unitId;

@@ -49,10 +49,13 @@ class EvalService {
   }
   listenSession(classId, callback, onError = error => alert(error.message)) {
     const db = this.getDb();
-    if (db) return db.collection('classrooms').doc(classId).onSnapshot(doc => callback(doc.exists ? doc.data() : this.defaultSession(classId)), onError);
+    if (db) return db.collection('classrooms').doc(classId).onSnapshot({includeMetadataChanges:true}, doc => callback(doc.exists ? doc.data() : this.defaultSession(classId), doc.metadata), onError);
     return this.demoListen(classId, () => callback(this.read('EVAL_SESSION_' + classId, this.defaultSession(classId))));
   }
-  async startSession(classId, durationMinutes = 30) {
+  checkSessionExpectation(session, expected) {
+    if (expected && ((session?.attemptId ?? null) !== expected.attemptId || (session?.status ?? 'waiting') !== expected.status)) throw Error('다른 화면에서 평가 상태가 변경되었습니다. 현재 상태를 확인한 뒤 다시 눌러 주세요.');
+  }
+  async startSession(classId, durationMinutes = 30, expected) {
     await window.authService.teacher();
     if (!Number.isFinite(durationMinutes) || durationMinutes < 1 || durationMinutes > 180) throw new Error('평가 시간을 확인해 주세요.');
     const now = Date.now();
@@ -62,19 +65,21 @@ class EvalService {
       const ref=db.collection('classrooms').doc(classId);
       await db.runTransaction(async tx=>{
         const old=await tx.get(ref);
+        this.checkSessionExpectation(old.exists?old.data():null, expected);
         if(!old.exists || old.data().status!=='waiting')throw Error('새 평가 준비를 먼저 눌러 주세요. 진행 중인 평가를 다시 시작할 수 없습니다.');
         payload.questionVersion=old.data().questionVersion||1;
         payload.attemptId=old.data().attemptId;tx.update(ref,payload);
       });
     } else {
       const old=this.read('EVAL_SESSION_'+classId,this.defaultSession(classId));
+      this.checkSessionExpectation(old, expected);
       if(old.status!=='waiting')throw Error('새 평가 준비를 먼저 눌러 주세요.');
       payload.questionVersion=old.questionVersion||1;
       payload.attemptId=old.attemptId||crypto.randomUUID();this.write('EVAL_SESSION_' + classId, payload); this.notify(classId, { session: payload });
     }
     return payload;
   }
-  async prepareSession(classId) {
+  async prepareSession(classId, expected) {
     await window.authService.teacher();this.identity(classId,1);
     const db=this.getDb(), archivedAt=new Date().toISOString(), archiveId=crypto.randomUUID();
     const fresh={...this.defaultSession(classId),schemaVersion:2,attemptId:crypto.randomUUID(),preparedAt:archivedAt};
@@ -82,6 +87,7 @@ class EvalService {
       const ref=db.collection('classrooms').doc(classId);
       await db.runTransaction(async tx=>{
         const session=await tx.get(ref);
+        this.checkSessionExpectation(session.exists?session.data():null, expected);
         if(session.exists && session.data().status==='in_progress')throw Error('진행 중인 평가를 먼저 마감해 주세요.');
         const seats=await Promise.all(Array.from({length:27},(_,i)=>tx.get(ref.collection('students').doc(this.identity(classId,i+1)))));
         const archive=ref.collection('archives').doc(archiveId);
@@ -91,21 +97,34 @@ class EvalService {
       });
     }else{
       const old=this.read('EVAL_SESSION_'+classId,{});
+      this.checkSessionExpectation(old, expected);
       if(old.status==='in_progress')throw Error('진행 중인 평가를 먼저 마감해 주세요.');
       this.write('EVAL_ARCHIVE_'+archiveId,{session:old,students:this.read('EVAL_STUDENTS_'+classId,[])});
       this.write('EVAL_STUDENTS_'+classId,[]);this.write('EVAL_SESSION_'+classId,fresh);this.notify(classId,{session:fresh,replaceStudents:true,students:[]});
     }
     return fresh;
   }
-  async endSession(classId) {
+  async endSession(classId, expected) {
     await window.authService.teacher();
     const payload = { status: 'ended', endedAt: new Date().toISOString() };
     const db = this.getDb();
-    if (db) await db.collection('classrooms').doc(classId).update(payload);
+    if (db) {
+      const ref=db.collection('classrooms').doc(classId);
+      await db.runTransaction(async tx=>{
+        const old=await tx.get(ref);
+        this.checkSessionExpectation(old.exists?old.data():null, expected);
+        if(!old.exists || old.data().status!=='in_progress')throw Error('진행 중인 평가만 종료할 수 있습니다.');
+        tx.update(ref,payload);
+      });
+    }
     else {
-      this.write('EVAL_SESSION_' + classId, { ...this.read('EVAL_SESSION_' + classId, {}), ...payload });
+      const old=this.read('EVAL_SESSION_' + classId, {});
+      this.checkSessionExpectation(old, expected);
+      if(old.status!=='in_progress')throw Error('진행 중인 평가만 종료할 수 있습니다.');
+      this.write('EVAL_SESSION_' + classId, { ...old, ...payload });
       this.notify(classId, { session: payload });
     }
+    return payload;
   }
   async joinWaitingRoom(classId, studentNum, studentName) {
     const docId = this.identity(classId, studentNum);
