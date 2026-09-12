@@ -1,0 +1,28 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 🏫 [11개 반 평가 세션 제어 문서: 2-1 ~ 2-11]
+    match /eval_sessions/{sessionId} {
+      allow read: if true;
+      allow write: if true;
+
+      // 👨‍🎓 [학급별 최대 27명 학생 서브컬렉션]
+      match /students/{studentNum} {
+        allow read: if true;
+
+        // 1번부터 27번까지만 문서 생성 허용 (28번 이상 장난 번호 원천 차단)
+        allow create: if int(studentNum) >= 1 && int(studentNum) <= 27
+                      && request.resource.data.num == int(studentNum);
+
+        // [부정행위 방지] 이미 최종 제출('submitted')된 답안은 학생이 임의로 수정/변조할 수 없음
+        // 교사의 점수 조정(teacherOverride) 또는 풀이 진행 중일 때만 수정 허용
+        allow update: if resource.data.status != 'submitted'
+                      || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['scores', 'teacherOverride']);
+
+        // 학생이 답안 문서를 임의로 삭제하는 것 원천 금지 (장난 및 데이터 소실 방어)
+        allow delete: if false;
+      }
+    }
+  }
+}

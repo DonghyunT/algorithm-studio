@@ -9,6 +9,10 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
+  <!-- Firebase Web SDK Compat (CDN) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  
   <!-- 모듈화된 전용 스타일시트 -->
   <link rel="stylesheet" href="css/common.css">
   <link rel="stylesheet" href="css/flowchart.css">
@@ -50,6 +54,9 @@
           </button>
           <button id="nav-btn-classroom" onclick="switchUnit('classroom')" class="px-2.5 sm:px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 text-indigo-700 bg-indigo-50/80 hover:bg-indigo-100 border border-indigo-200 whitespace-nowrap" title="선생님 클래스룸 & 수행평가">
             <i class="fa-solid fa-chalkboard-user"></i> <span class="hidden sm:inline">교사용</span> <i class="fa-solid fa-lock text-[9px] opacity-70"></i>
+          </button>
+          <button id="nav-btn-eval" onclick="window.studentEvalApp ? window.studentEvalApp.openLobby() : alert('수행평가 모듈을 로딩 중입니다.')" class="px-2.5 sm:px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black transition flex items-center gap-1.5 text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 whitespace-nowrap cursor-pointer shadow-2xs" title="30분 실시간 수행평가 응시">
+            <i class="fa-solid fa-file-pen text-rose-500"></i> <span>수행평가</span>
           </button>
         </nav>
 
@@ -184,7 +191,12 @@
                 </li>
                 <li>
                   <button type="button" onclick="navigateToMega('classroom')" class="hover:text-indigo-600 hover:font-bold transition-colors cursor-pointer text-left w-full py-0.5">
-                    선생님 클래스룸 & 수행평가
+                    선생님 클래스룸 & 관제탑
+                  </button>
+                </li>
+                <li>
+                  <button type="button" onclick="navigateToMega('eval')" class="text-rose-600 hover:text-rose-700 font-bold transition-colors cursor-pointer text-left w-full py-0.5 flex items-center gap-1">
+                    <span>📝 30분 실시간 수행평가</span>
                   </button>
                 </li>
               </ul>
@@ -237,6 +249,9 @@
           <div class="flex items-center gap-2.5">
             <button onclick="switchUnit('unit1', 'concept')" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-2 shadow-md shadow-indigo-600/30">
               <i class="fa-solid fa-play"></i> 추상화부터 학습 시작
+            </button>
+            <button onclick="switchUnit('eval')" class="bg-rose-600 hover:bg-rose-500 text-white px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-2 shadow-md shadow-rose-600/30">
+              <i class="fa-solid fa-file-pen"></i> 실시간 수행평가
             </button>
             <button onclick="switchUnit('classroom')" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-2">
               <i class="fa-solid fa-chalkboard-user"></i> 선생님 클래스룸 <i class="fa-solid fa-lock text-[10px] opacity-70"></i>
@@ -2107,6 +2122,340 @@
       </section>
 
     </main>
+
+    <!-- ============================================================= -->
+    <!-- [TAB 4] 📝 학생용 30분 실시간 수행평가 풀페이지 뷰 (view-eval) -->
+    <!-- ============================================================= -->
+    <main id="view-eval" class="max-w-[1720px] 2xl:max-w-[1840px] mx-auto w-full px-4 sm:px-8 py-5 flex-1 flex flex-col gap-5 hidden fade-enter">
+      
+      <!-- 1. 대기실 서브 화면 (Lobby) -->
+      <div id="eval-screen-lobby" class="space-y-6 py-6 flex-1 flex flex-col justify-center items-center">
+        <div class="text-center space-y-2">
+          <div class="inline-flex items-center justify-center w-16 h-16 rounded-3xl bg-rose-100 text-rose-600 text-3xl font-black shadow-inner">
+            📝
+          </div>
+          <h2 class="text-2xl sm:text-3xl font-black text-slate-900">중2 정보 알고리즘 실시간 수행평가</h2>
+          <p class="text-xs sm:text-sm text-slate-500 font-medium">본인의 학급, 번호, 이름을 선택하고 대기실에 입장하세요.</p>
+        </div>
+
+        <!-- 본인 정보 입력 폼 -->
+        <div id="eval-lobby-form-area" class="w-full max-w-md p-6 bg-white border border-slate-200 rounded-3xl space-y-4 shadow-xl">
+          <div>
+            <label class="text-xs font-black text-slate-700 mb-1.5 block">소속 학급 선택</label>
+            <select id="eval-st-class" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:border-rose-500 cursor-pointer">
+              <option value="2-1">2학년 1반</option>
+              <option value="2-2">2학년 2반</option>
+              <option value="2-3">2학년 3반</option>
+              <option value="2-4">2학년 4반</option>
+              <option value="2-5">2학년 5반</option>
+              <option value="2-6">2학년 6반</option>
+              <option value="2-7">2학년 7반</option>
+              <option value="2-8">2학년 8반</option>
+              <option value="2-9">2학년 9반</option>
+              <option value="2-10">2학년 10반</option>
+              <option value="2-11">2학년 11반</option>
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs font-black text-slate-700 mb-1.5 block">번호 (1~27번)</label>
+              <input type="number" id="eval-st-num" min="1" max="27" value="1" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:border-rose-500 font-mono">
+            </div>
+            <div>
+              <label class="text-xs font-black text-slate-700 mb-1.5 block">이름</label>
+              <input type="text" id="eval-st-name" placeholder="홍길동" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:border-rose-500">
+            </div>
+          </div>
+          <button type="button" onclick="window.studentEvalApp.enterWaitingRoom()" class="w-full py-3.5 bg-rose-600 hover:bg-rose-700 text-white font-black text-sm sm:text-base rounded-2xl shadow-lg shadow-rose-600/30 transition cursor-pointer flex items-center justify-center gap-2 mt-2">
+            <span>대기실 입장하기 🚪</span>
+          </button>
+        </div>
+
+        <!-- 대기 중 안내 화면 -->
+        <div id="eval-lobby-waiting-area" class="w-full max-w-md p-8 bg-amber-50 border border-amber-200 rounded-3xl text-center space-y-4 hidden shadow-md">
+          <div class="relative w-16 h-16 mx-auto flex items-center justify-center">
+            <div class="absolute inset-0 rounded-full bg-amber-400 opacity-30 animate-ping"></div>
+            <div class="w-14 h-14 rounded-full bg-amber-500 text-white flex items-center justify-center text-2xl font-black">
+              ⏳
+            </div>
+          </div>
+          <div class="space-y-1">
+            <div id="eval-lobby-student-info" class="text-lg font-black text-amber-950">2학년 1반 1번 학생</div>
+            <p class="text-xs sm:text-sm text-amber-900 leading-relaxed">
+              대기실에 안전하게 입장했습니다.<br>
+              교단 PC에서 선생님이 <strong>[수행평가 시작]</strong> 버튼을 누르면 전체 화면이 자동으로 30분 시험장으로 전환됩니다.
+            </p>
+          </div>
+          <div class="text-[11px] text-amber-800/80 bg-white/70 p-2.5 rounded-xl font-medium">
+            새로고침(F5)을 하더라도 번호와 상태는 안전하게 보존됩니다.
+          </div>
+        </div>
+
+        <button type="button" onclick="switchUnit('roadmap')" class="text-xs text-slate-400 hover:text-slate-600 font-bold transition flex items-center gap-1 cursor-pointer pt-2">
+          <i class="fa-solid fa-arrow-left"></i> <span>학습 로드맵으로 나가기</span>
+        </button>
+      </div>
+
+      <!-- 2. 시험장 서브 화면 (Exam Arena) -->
+      <div id="eval-screen-exam" class="space-y-4 hidden">
+        <!-- 상단 고정 헤더 바 -->
+        <div class="p-4 bg-slate-900 text-white rounded-3xl flex items-center justify-between gap-4 shadow-xl sticky top-0 z-30 border border-slate-800">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center text-xl font-black">
+              📝
+            </div>
+            <div>
+              <div id="eval-exam-st-info" class="text-sm sm:text-base font-black text-white">2학년 1반 1번 홍길동</div>
+              <div class="text-xs text-slate-400">중2 정보 알고리즘 30분 실시간 수행평가 (총점 100점)</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2 bg-slate-800 px-4 py-1.5 rounded-2xl border border-slate-700 shadow-inner">
+              <span class="text-xs text-slate-400 font-bold">남은 시간:</span>
+              <span id="eval-exam-timer" class="text-base sm:text-lg font-black font-mono text-amber-300">30:00</span>
+            </div>
+            <button type="button" onclick="window.studentEvalApp.submitExam(false)" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs sm:text-sm font-black transition shadow-md shadow-emerald-600/30 cursor-pointer flex items-center gap-1.5">
+              <span>최종 제출</span> <i class="fa-solid fa-paper-plane text-xs"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- 3단 탭 네비게이션 알약 바 -->
+        <div class="flex items-center gap-2 border-b border-slate-200 pb-3">
+          <button type="button" id="eval-tab-btn-part1" onclick="window.studentEvalApp.switchPart('part1')" class="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black bg-indigo-600 text-white shadow-xs transition cursor-pointer flex items-center gap-1.5">
+            <span>Part 1. 객관식 10문항 (30점)</span>
+          </button>
+          <button type="button" id="eval-tab-btn-part2" onclick="window.studentEvalApp.switchPart('part2')" class="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer flex items-center gap-1.5">
+            <span>Part 2. 주관식 단답형 5문항 (30점)</span>
+          </button>
+          <button type="button" id="eval-tab-btn-part3" onclick="window.studentEvalApp.switchPart('part3')" class="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer flex items-center gap-1.5">
+            <span>Part 3. 순서도 나만의 백지 조립 (40점)</span>
+          </button>
+        </div>
+
+        <!-- Part 1 문항 컨테이너 (10문항) -->
+        <div id="eval-part1-container" class="space-y-4">
+          <div class="p-4 bg-indigo-50/70 border border-indigo-100 rounded-2xl text-xs font-bold text-indigo-900 flex items-center justify-between">
+            <span>💡 문제의 조건과 알고리즘 5대 조건을 꼼꼼히 읽고 가장 알맞은 번호를 고르세요. (각 3점, 총 30점)</span>
+            <span class="font-mono">10문항 전체</span>
+          </div>
+          <div id="eval-part1-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </div>
+
+        <!-- Part 2 문항 컨테이너 (5단답형) -->
+        <div id="eval-part2-container" class="space-y-4 hidden">
+          <div class="p-4 bg-amber-50/70 border border-amber-100 rounded-2xl text-xs font-bold text-amber-900 flex items-center justify-between">
+            <span>✏️ 객관식과 겹치지 않는 알고리즘 핵심 개념 단답형 문제입니다. 알맞은 단어나 용어를 적어주세요. (각 6점, 총 30점)</span>
+            <span class="font-mono">5문항 전체</span>
+          </div>
+          <div id="eval-part2-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </div>
+
+        <!-- Part 3 순서도 백지 조립 컨테이너 (40점) -->
+        <div id="eval-part3-container" class="space-y-4 hidden">
+          <!-- 1. 4가지 자연어 테마 선택기 -->
+          <div class="space-y-2">
+            <div class="text-xs font-black text-slate-700 flex items-center justify-between">
+              <span>🎯 [과제 선택] 본인이 도전하고 싶은 자연어 알고리즘 주제를 하나 고르세요:</span>
+              <span class="text-[11px] text-indigo-600 font-bold">선택구조 & 반복구조 완비</span>
+            </div>
+            <div id="eval-part3-theme-selector" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"></div>
+          </div>
+
+          <!-- 2. 2분할 순서도 작업대 -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+            <!-- 좌측 패널 (자연어 레시피 & 블록 팔레트) -->
+            <div class="lg:col-span-5 space-y-3.5 bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
+              <div class="space-y-1">
+                <div class="text-xs font-black text-indigo-700">선택한 알고리즘 레시피</div>
+                <p id="eval-part3-theme-summary" class="text-xs text-slate-500 font-medium"></p>
+                <ul id="eval-part3-recipe-list" class="space-y-2 pt-1.5 max-h-[220px] overflow-y-auto"></ul>
+              </div>
+
+              <!-- 기호 블록 팔레트 -->
+              <div class="space-y-2 pt-3 border-t border-slate-100">
+                <div class="text-xs font-black text-slate-700">기호 블록 추가 (클릭 시 캔버스에 추가)</div>
+                <div class="grid grid-cols-2 gap-2 text-xs font-black">
+                  <button type="button" onclick="window.studentEvalApp.addPart3Block('terminal')" class="px-3 py-2.5 rounded-xl bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-200 transition cursor-pointer flex items-center gap-1.5">
+                    <span>🟣</span> <span>단말 기호 (끝)</span>
+                  </button>
+                  <button type="button" onclick="window.studentEvalApp.addPart3Block('io')" class="px-3 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition cursor-pointer flex items-center gap-1.5">
+                    <span>🟢</span> <span>자료 기호 (입출력)</span>
+                  </button>
+                  <button type="button" onclick="window.studentEvalApp.addPart3Block('process')" class="px-3 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition cursor-pointer flex items-center gap-1.5">
+                    <span>🔵</span> <span>처리 기호 (동작)</span>
+                  </button>
+                  <button type="button" onclick="window.studentEvalApp.addPart3Block('decision')" class="px-3 py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition cursor-pointer flex items-center gap-1.5">
+                    <span>🟠</span> <span>판단 기호 (조건)</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- 검사 버튼 및 점수 배지 -->
+              <div class="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                <div id="eval-part3-score-badge" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 border border-slate-200 text-slate-500">
+                  검사 대기중: 0 / 40점
+                </div>
+                <button type="button" onclick="window.studentEvalApp.verifyPart3Flowchart()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-md shadow-indigo-600/25 transition cursor-pointer flex items-center gap-1.5">
+                  <i class="fa-solid fa-vial-circle-check"></i> <span>순서도 자동 검사 및 채점</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 우측 순서도 백지 캔버스 작업대 -->
+            <div class="lg:col-span-7 bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-2 min-h-[460px] flex flex-col">
+              <div class="flex items-center justify-between text-xs font-bold text-slate-500 border-b border-slate-100 pb-2">
+                <span class="flex items-center gap-1.5 font-black text-slate-800">
+                  <i class="fa-solid fa-diagram-project text-indigo-600"></i>
+                  <span>순서도 조립 캔버스 작업대</span>
+                </span>
+                <span class="text-[11px] text-slate-400">블록의 텍스트를 직접 수정하고 순서를 맞추세요</span>
+              </div>
+              <div id="eval-part3-stage" class="flex-1 overflow-y-auto bg-slate-50 rounded-2xl border border-slate-100 p-4">
+                <!-- JS renderPart3Canvas()에 의해 실시간 렌더링 -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. 제출 완료 및 성적 결과 화면 (Result) -->
+      <div id="eval-screen-result" class="space-y-6 py-10 text-center flex-1 flex flex-col justify-center items-center hidden">
+        <div class="w-20 h-20 rounded-full bg-emerald-100 text-emerald-600 text-4xl flex items-center justify-center shadow-inner animate-bounce">
+          🎉
+        </div>
+        <div class="space-y-1.5">
+          <h2 class="text-2xl sm:text-3xl font-black text-slate-900">수행평가 제출이 성공적으로 완료되었습니다!</h2>
+          <p class="text-xs sm:text-sm text-slate-500">답안과 순서도 채점 결과가 교단 PC 관제탑으로 안전하게 전송되었습니다.</p>
+        </div>
+
+        <div class="w-full max-w-lg p-6 bg-gradient-to-br from-indigo-50 via-white to-violet-50 rounded-3xl border border-indigo-200 space-y-5 shadow-lg">
+          <div class="text-xs font-bold text-indigo-700">100% 완전 자동 채점 총점</div>
+          <div id="eval-result-total-score" class="text-5xl sm:text-6xl font-black text-indigo-950 font-mono tracking-tight">
+            0점
+          </div>
+          <div id="eval-result-breakdown" class="pt-2"></div>
+        </div>
+
+        <button type="button" onclick="window.studentEvalApp.exitExam()" class="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs sm:text-sm rounded-2xl transition cursor-pointer shadow-md">
+          확인 및 학습 로드맵으로 나가기
+        </button>
+      </div>
+
+    </main>
+
+    <!-- ============================================================= -->
+    <!-- [TAB 5] 🏫 교사용 클래스룸 & 실시간 수행평가 관제탑 (view-classroom) -->
+    <!-- ============================================================= -->
+    <main id="view-classroom" class="max-w-[1720px] 2xl:max-w-[1840px] mx-auto w-full px-4 sm:px-8 py-5 flex-1 flex flex-col gap-5 hidden fade-enter">
+      
+      <!-- 상단 풀페이지 헤더 바 -->
+      <div class="flex flex-wrap items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-sm">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-2xl font-black">
+            🏫
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-lg sm:text-2xl font-black text-slate-900">선생님 클래스룸 & 실시간 관제탑</h2>
+              <span class="text-xs font-bold px-2.5 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md">교사용 모드</span>
+            </div>
+            <p class="text-xs sm:text-sm text-slate-400">11개 반(2-1 ~ 2-11) 30분 실시간 동시 시작 및 27명 학생 좌석 현황 관제</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <button type="button" onclick="exitClassroomView()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 cursor-pointer">
+            <i class="fa-solid fa-arrow-left"></i> <span>학습 로드맵으로</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 2대 서브 탭 버튼 -->
+      <div class="flex items-center gap-2 border-b border-slate-200 pb-3">
+        <button type="button" id="classroom-tab-btn-live" onclick="switchClassroomSubTab('live_eval')" class="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black bg-indigo-600 text-white shadow-xs transition cursor-pointer flex items-center gap-2">
+          <i class="fa-solid fa-tower-broadcast text-amber-300 animate-pulse"></i>
+          <span>⏱️ 30분 실시간 수행평가 관제실</span>
+        </button>
+        <button type="button" id="classroom-tab-btn-assign" onclick="switchClassroomSubTab('assignments')" class="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer flex items-center gap-2">
+          <i class="fa-solid fa-list-check"></i>
+          <span>📑 단원별 과제 취합표</span>
+        </button>
+      </div>
+
+      <!-- 공통 상단 학급 선택 바 -->
+      <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+        <div class="flex items-center gap-3">
+          <label class="text-xs sm:text-sm font-bold text-slate-700">대상 학급 선택:</label>
+          <select id="classroom-class-select" onchange="switchClassroomClass(this.value)" class="bg-white border border-slate-300 rounded-xl px-4 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:outline-none focus:border-indigo-500 shadow-2xs cursor-pointer">
+          </select>
+        </div>
+        <div class="text-xs text-slate-500 font-bold flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+          <span>Firebase donghyun-algo 클라우드 실시간 연동 활성</span>
+        </div>
+      </div>
+
+      <!-- 1. 30분 실시간 수행평가 관제실 섹션 -->
+      <div id="classroom-section-live" class="space-y-4">
+        <!-- 관제탑 제어 툴바 -->
+        <div class="p-5 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-3xl flex flex-wrap items-center justify-between gap-4 shadow-xl border border-slate-800">
+          <div>
+            <div id="classroom-live-class-title" class="text-lg font-black text-amber-300 flex items-center gap-2">
+              2학년 1반 (세션 ID: 2-1)
+            </div>
+            <div class="text-xs text-slate-300 mt-1 flex items-center gap-4">
+              <span>접속 인원: <strong id="classroom-live-online-count" class="text-white font-mono text-sm">0 / 27명</strong></span>
+              <span>•</span>
+              <span>제출 완료: <strong id="classroom-live-submit-count" class="text-emerald-400 font-mono text-sm">0 / 27명</strong></span>
+            </div>
+          </div>
+          <div class="flex items-center gap-2.5">
+            <button type="button" onclick="handleTeacherStartExam()" class="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl text-xs sm:text-sm font-black transition flex items-center gap-2 shadow-lg shadow-rose-600/30 cursor-pointer">
+              <i class="fa-solid fa-play"></i> <span>🚀 30분 동시 시작</span>
+            </button>
+            <button type="button" onclick="handleTeacherEndExam()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-2xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 cursor-pointer">
+              <i class="fa-solid fa-stop"></i> <span>시험 강제 마감</span>
+            </button>
+            <button type="button" onclick="handleTeacherExportCSV()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs sm:text-sm font-black transition flex items-center gap-2 shadow-lg shadow-emerald-600/30 cursor-pointer">
+              <i class="fa-solid fa-file-excel"></i> <span>📥 나이스 성적표 CSV</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 27명 학생 좌석 바둑판 (시원한 풀페이지 그리드) -->
+        <div class="space-y-3 bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
+          <div class="flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-slate-500 border-b border-slate-100 pb-3">
+            <span class="text-slate-800 text-sm font-black flex items-center gap-2">
+              <i class="fa-solid fa-users text-indigo-600"></i>
+              <span>컴퓨터실 27인 실시간 좌석 현황판 (클릭 시 개별 답안 조회 및 점수 조정)</span>
+            </span>
+            <div class="flex items-center gap-3 text-xs">
+              <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-slate-300"></span> 미접속</span>
+              <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-amber-400"></span> 대기중</span>
+              <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-blue-500"></span> 풀이중</span>
+              <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-emerald-500"></span> 제출완료</span>
+            </div>
+          </div>
+          <div id="classroom-live-grid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-9 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100 min-h-[300px]">
+            <!-- JS renderLiveGrid()에 의해 1~27번 실시간 렌더링 -->
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. 단원별 과제 취합 섹션 -->
+      <div id="classroom-section-assign" class="space-y-4 hidden bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
+        <div class="flex items-center justify-between text-xs sm:text-sm font-bold bg-slate-50 p-4 rounded-2xl border border-slate-200">
+          <div>총 제출 학생: <span id="classroom-total-count" class="text-indigo-600 font-black text-base">0명</span></div>
+          <div>완주율: <span id="classroom-submit-rate" class="text-emerald-600 font-black text-base">0%</span></div>
+          <button type="button" onclick="exportClassroomCSV()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer">
+            <i class="fa-solid fa-file-excel"></i> <span>단원 과제 CSV 다운로드</span>
+          </button>
+        </div>
+        <div id="classroom-table-container" class="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
+        </div>
+      </div>
+
+    </main>
   </div>
 
 
@@ -2239,26 +2588,29 @@
   <!-- 1. 설정 및 데이터 (문제를 수정할 때 여기를 편집하세요) -->
   <!-- ========================================== -->
   <script src="js/data/config.js" onerror="console.info('로컬 config.js 미로드 (Vercel 배포 환경 /api/chat 모드로 동작)')"></script>
+  <script src="js/data/firebase-config.js"></script>
   <script src="js/data/abstraction-data.js"></script>
   <script src="js/data/flowchart-missions.js"></script>
 
   <!-- ========================================== -->
-  <!-- 2. 공통 엔진 (사운드 효과음, 네비게이션, AI 통신 서비스, AI 튜터) -->
+  <!-- 2. 공통 엔진 (사운드 효과음, 네비게이션, AI 통신 서비스, AI 튜터, 실시간 평가) -->
   <!-- ========================================== -->
   <script src="js/core/ai-service.js"></script>
   <script src="js/core/audio.js"></script>
   <script src="js/core/navigation.js"></script>
   <script src="js/core/concept.js"></script>
   <script src="js/core/ai-tutor.js"></script>
+  <script src="js/core/eval-service.js"></script>
   <script src="js/core/classroom.js"></script>
 
   <!-- ========================================== -->
-  <!-- 3. 실습실 & 퀴즈 엔진 (추상화 닥터, 샌드위치 로봇, 순서도 스튜디오, 쏙쏙 퀴즈) -->
+  <!-- 3. 실습실 & 퀴즈 엔진 (추상화 닥터, 샌드위치 로봇, 순서도 스튜디오, 쏙쏙 퀴즈, 30분 평가장) -->
   <!-- ========================================== -->
   <script src="js/labs/lab-abstraction.js"></script>
   <script src="js/labs/lab-flowchart.js"></script>
   <script src="js/labs/lab-sandwich.js"></script>
   <script src="js/labs/lab-quiz.js"></script>
+  <script src="js/labs/lab-eval.js"></script>
 
   <!-- ========================================== -->
   <!-- 4. 앱 초기화 실행 진입점 -->
@@ -2407,51 +2759,51 @@
   </div>
 
   <!-- ========================================== -->
-  <!-- 🏫 [선생님 전용 클래스룸 모달] 과제 취합 & 수행평가 채점기 -->
+  <!-- 교사용 실시간 학생 개별 답안 검토 및 점수 수동 조정 모달 -->
   <!-- ========================================== -->
-  <div id="classroom-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-5xl w-full p-5 sm:p-7 space-y-5 overflow-y-auto max-h-[92vh] fade-enter">
-      
-      <!-- 모달 헤더 -->
-      <div class="flex items-center justify-between border-b border-slate-100 pb-4">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-xl font-black">🏫</div>
-          <div>
-            <div class="flex items-center gap-2">
-              <h3 class="text-lg sm:text-xl font-black text-slate-900">선생님 클래스룸 & 수행평가 대시보드</h3>
-              <span class="text-xs font-bold px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md">교사용 모드</span>
-            </div>
-            <p class="text-xs sm:text-sm text-slate-400">학생들의 실습 과제 제출 현황을 한눈에 확인하고 채점 및 피드백을 진행합니다.</p>
-          </div>
+  <div id="classroom-live-detail-modal" class="fixed inset-0 z-[70] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-lg w-full p-5 sm:p-6 space-y-4 overflow-y-auto max-h-[90vh] fade-enter">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">📋</span>
+          <h4 id="classroom-live-modal-title" class="text-base font-black text-slate-900">학생 답안 검토</h4>
         </div>
-        <button onclick="closeClassroomModal()" class="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-sm transition">
+        <button onclick="closeLiveStudentModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-xs transition cursor-pointer">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
 
-      <!-- 상단 학급 선택 및 통계 툴바 -->
-      <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-3.5 sm:p-4 rounded-2xl border border-slate-200">
-        <div class="flex items-center gap-3">
-          <label class="text-xs sm:text-sm font-bold text-slate-700">학급 선택:</label>
-          <select id="classroom-class-select" onchange="switchClassroomClass(this.value)" class="bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-xs sm:text-sm font-bold text-slate-800 focus:outline-none focus:border-indigo-500 shadow-2xs">
-          </select>
+      <div class="space-y-3 text-xs">
+        <div class="p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl space-y-1">
+          <div class="font-black text-indigo-900">Part 1. 객관식 답안</div>
+          <pre id="classroom-live-modal-p1" class="font-mono bg-white p-2 rounded-lg text-slate-700"></pre>
         </div>
-        <div class="flex items-center gap-4 text-xs sm:text-sm font-bold">
-          <div>총 제출 학생: <span id="classroom-total-count" class="text-indigo-600 font-black">0명</span></div>
-          <div class="w-[1px] h-4 bg-slate-300"></div>
-          <div>완주율: <span id="classroom-submit-rate" class="text-emerald-600 font-black">0%</span></div>
-          <button onclick="exportClassroomCSV()" class="ml-2 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs">
-            <i class="fa-solid fa-file-excel"></i> <span>나이스(NEIS) 연계 CSV 다운로드</span>
-          </button>
+        <div class="p-3 bg-amber-50/70 border border-amber-100 rounded-xl space-y-1">
+          <div class="font-black text-amber-900">Part 2. 주관식 단답형 답안</div>
+          <pre id="classroom-live-modal-p2" class="whitespace-pre-wrap font-sans bg-white p-2 rounded-lg text-slate-700"></pre>
+        </div>
+        <div class="p-3 bg-emerald-50/70 border border-emerald-100 rounded-xl space-y-1">
+          <div class="font-black text-emerald-900">Part 3. 순서도 백지 조립 검증</div>
+          <div id="classroom-live-modal-p3" class="bg-white p-2 rounded-lg text-slate-700 font-bold"></div>
+        </div>
+
+        <div class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+          <label class="font-black text-slate-800 flex items-center justify-between">
+            <span>선생님 최종 성적 수동 조정 (Override):</span>
+            <span class="text-[11px] text-slate-400 font-normal">비워두면 자동채점 총점 적용</span>
+          </label>
+          <div class="flex items-center gap-2">
+            <input type="number" id="classroom-live-override-score" min="0" max="100" class="w-24 px-3 py-1.5 border border-slate-300 rounded-xl text-center font-black text-base focus:outline-none focus:border-indigo-500">
+            <span class="font-bold text-slate-600">점</span>
+            <button id="classroom-live-save-score-btn" class="ml-auto px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs transition cursor-pointer">
+              점수 확정 저장
+            </button>
+          </div>
         </div>
       </div>
-
-      <!-- 테이블 컨테이너 -->
-      <div id="classroom-table-container" class="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
-      </div>
-
     </div>
   </div>
+
 
   <!-- 학생 과제 상세 검토 및 피드백 모달 -->
   <div id="classroom-detail-modal" class="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">

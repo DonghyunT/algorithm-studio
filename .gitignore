@@ -9,6 +9,7 @@ temp_results.txt
 temp_*.txt
 temp/
 *.tmp
+scratch/
 
 # 스크린샷 및 개발 검증용 이미지
 screenshot_*.png

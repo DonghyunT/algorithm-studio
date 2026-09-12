@@ -47,7 +47,7 @@ function switchUnit(unitId, targetStep = null) {
   currentActiveUnit = unitId;
 
   // 1. 상단 글로벌 네비게이션 버튼 활성화 스타일 업데이트
-  const navKeys = ['roadmap', 'unit1', 'unit2', 'unit3', 'classroom'];
+  const navKeys = ['roadmap', 'unit1', 'unit2', 'unit3', 'classroom', 'eval'];
   navKeys.forEach(k => {
     const btn = document.getElementById(`nav-btn-${k}`);
     if (btn) {
@@ -55,9 +55,12 @@ function switchUnit(unitId, targetStep = null) {
       if (isActive) {
         btn.className = "px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition flex items-center gap-1.5 bg-white text-indigo-600 shadow-xs border border-indigo-100 whitespace-nowrap";
       } else {
-        const defaultClass = (k === 'classroom')
-          ? "px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 text-indigo-700 bg-indigo-50/80 hover:bg-indigo-100 border border-indigo-200 whitespace-nowrap"
-          : "px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 whitespace-nowrap";
+        let defaultClass = "px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 whitespace-nowrap";
+        if (k === 'classroom') {
+          defaultClass = "px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 text-indigo-700 bg-indigo-50/80 hover:bg-indigo-100 border border-indigo-200 whitespace-nowrap";
+        } else if (k === 'eval') {
+          defaultClass = "px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition flex items-center gap-1.5 text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 whitespace-nowrap cursor-pointer shadow-2xs";
+        }
         btn.className = defaultClass;
       }
     }
@@ -67,24 +70,42 @@ function switchUnit(unitId, targetStep = null) {
   const viewConcept = document.getElementById('view-concept');
   const viewQuiz = document.getElementById('view-quiz');
   const viewLab = document.getElementById('view-lab');
+  const viewClassroom = document.getElementById('view-classroom');
+  const viewEval = document.getElementById('view-eval');
 
-  // 2. 로드맵 또는 교사용 클래스룸 처리
-  if (unitId === 'roadmap') {
-    if (typeof disableStudioMode === 'function') disableStudioMode();
-    if (viewRoadmap) viewRoadmap.classList.remove('hidden');
+  // 모든 뷰 초기 비활성화 보조 함수
+  const hideAllViews = () => {
+    if (viewRoadmap) viewRoadmap.classList.add('hidden');
     if (viewConcept) viewConcept.classList.add('hidden');
     if (viewQuiz) viewQuiz.classList.add('hidden');
     if (viewLab) viewLab.classList.add('hidden');
+    if (viewClassroom) viewClassroom.classList.add('hidden');
+    if (viewEval) viewEval.classList.add('hidden');
+  };
+
+  // 2. 로드맵 처리
+  if (unitId === 'roadmap') {
+    if (typeof disableStudioMode === 'function') disableStudioMode();
+    hideAllViews();
+    if (viewRoadmap) viewRoadmap.classList.remove('hidden');
     window.scrollTo({ top: 0, behavior: 'smooth' });
     return;
   }
 
+  // 3. 교사용 클래스룸 처리 (풀페이지 뷰)
   if (unitId === 'classroom') {
     if (typeof openClassroomTab === 'function') {
       openClassroomTab();
-    } else {
-      alert('선생님 클래스룸 모듈을 준비 중입니다.');
     }
+    return;
+  }
+
+  // 4. 학생용 수행평가 처리 (풀페이지 뷰)
+  if (unitId === 'eval') {
+    if (typeof disableStudioMode === 'function') disableStudioMode();
+    hideAllViews();
+    if (viewEval) viewEval.classList.remove('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     return;
   }
 
@@ -382,6 +403,10 @@ function navigateToMega(unitId, step = null, options = {}) {
   }
   if (unitId === 'classroom') {
     switchUnit('classroom');
+    return;
+  }
+  if (unitId === 'eval') {
+    switchUnit('eval');
     return;
   }
 
