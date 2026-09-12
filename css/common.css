@@ -1,12 +1,12 @@
 /* ==========================================
    알고리즘 랩 공통 스타일 (Common CSS)
    ========================================== */
-@import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800;900&display=swap');
-
 * {
-  font-family: 'Pretendard', sans-serif;
   box-sizing: border-box;
 }
+
+body { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', sans-serif; }
+button, input, textarea, select { font-family: inherit; }
 
 /* 🖥️ 학교 컴퓨터실 및 대화면 디스플레이 가시성 향상 폰트 스케일링 */
 html {
@@ -203,5 +203,4 @@ html {
   box-sizing: border-box !important;
   line-height: 1 !important;
 }
-
 
