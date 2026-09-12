@@ -15,10 +15,11 @@ service cloud.firestore {
         allow create: if int(studentNum) >= 1 && int(studentNum) <= 27
                       && request.resource.data.num == int(studentNum);
 
-        // [부정행위 방지] 이미 최종 제출('submitted')된 답안은 학생이 임의로 수정/변조할 수 없음
-        // 교사의 점수 조정(teacherOverride) 또는 풀이 진행 중일 때만 수정 허용
+        // [부정행위 방지] 이미 최종 제출('submitted')된 답안은 임의 수정 불가
+        // 단, 교사의 점수 조정(scores) 또는 교사의 재시험 허용(status: 'in_progress') 시에는 허용
         allow update: if resource.data.status != 'submitted'
-                      || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['scores', 'teacherOverride']);
+                      || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['scores', 'teacherOverride'])
+                      || request.resource.data.status == 'in_progress';
 
         // 학생이 답안 문서를 임의로 삭제하는 것 원천 금지 (장난 및 데이터 소실 방어)
         allow delete: if false;

@@ -384,25 +384,112 @@ class EvalService {
         await db.collection('eval_sessions').doc(classId)
           .collection('students').doc(docId)
           .update(updateObj);
-      } catch (e) {
-        console.error("점수 수정 실패:", e);
+      } catch (err) {
+        console.warn("[EvalService] 점수 수동 조정 Firestore 실패:", err);
       }
     }
 
-    // 로컬 업데이트
+    // 로컬 스토리지 갱신
     const listKey = `EVAL_STUDENTS_${classId}`;
     try {
       let list = JSON.parse(sessionStorage.getItem(listKey) || '[]');
-      const target = list.find(s => s.numStr === docId);
+      const target = list.find(s => s.num === parseInt(studentNum, 10));
       if (target) {
+        if (!target.scores) target.scores = {};
         target.scores.teacherOverride = Number(newScore);
         sessionStorage.setItem(listKey, JSON.stringify(list));
       }
     } catch (e) {}
 
     if (this.channel) {
-      this.channel.postMessage({ type: 'SCORE_OVERRIDE', classId, docId, newScore });
+      this.channel.postMessage({ type: 'SCORE_OVERRIDE', classId, studentNum: parseInt(studentNum, 10), newScore });
     }
+
+    return true;
+  }
+
+  /**
+   * [교사] 학생 재시험 허용 (답안 및 성적 초기화, status: 'in_progress')
+   */
+  async resetStudentExam(classId, studentNum) {
+    const numInt = parseInt(studentNum, 10);
+    const docId = String(numInt).padStart(2, '0');
+    const updateObj = {
+      status: 'in_progress',
+      submittedAt: null,
+      progress: { part1: 0, part2: 0, part3: 0 },
+      answers: { part1: {}, part2: {}, part3: null },
+      scores: { part1: 0, part2: 0, part3: 0, total: 0, teacherOverride: null },
+      feedback: { part2: '', part3: '' },
+      resetAt: new Date().toISOString()
+    };
+
+    const db = this.getDb();
+    if (db) {
+      try {
+        await db.collection('eval_sessions').doc(classId)
+          .collection('students').doc(docId)
+          .set(updateObj, { merge: true });
+      } catch (err) {
+        console.warn("[EvalService] 학생 재시험 처리 Firestore 실패:", err);
+      }
+    }
+
+    // 로컬 스토리지 갱신
+    const listKey = `EVAL_STUDENTS_${classId}`;
+    try {
+      let list = JSON.parse(sessionStorage.getItem(listKey) || '[]');
+      const idx = list.findIndex(s => s.num === numInt);
+      if (idx >= 0) {
+        list[idx] = { ...list[idx], ...updateObj };
+        sessionStorage.setItem(listKey, JSON.stringify(list));
+      }
+    } catch (e) {}
+
+    if (this.channel) {
+      this.channel.postMessage({ type: 'STUDENT_RESET', classId, studentNum: numInt });
+    }
+
+    return true;
+  }
+
+  /**
+   * [학생] 본인 상태 실시간 구독 (교사의 재시험 승인 등 감지)
+   */
+  listenStudent(classId, studentNum, callback) {
+    const numInt = parseInt(studentNum, 10);
+    const docId = String(numInt).padStart(2, '0');
+    const db = this.getDb();
+
+    if (db) {
+      const docRef = db.collection('eval_sessions').doc(classId).collection('students').doc(docId);
+      const unsub = docRef.onSnapshot((doc) => {
+        if (doc.exists) {
+          callback(doc.data());
+        }
+      }, (err) => {
+        console.warn(`[EvalService] 학생 개별 리스너 오류:`, err);
+      });
+      return unsub;
+    }
+
+    const handler = (e) => {
+      if (e.data && e.data.classId === classId && (e.data.studentNum === numInt || e.data.type === 'STUDENT_RESET')) {
+        const listKey = `EVAL_STUDENTS_${classId}`;
+        try {
+          const list = JSON.parse(sessionStorage.getItem(listKey) || '[]');
+          const st = list.find(s => s.num === numInt);
+          if (st) callback(st);
+        } catch (e) {}
+      }
+    };
+
+    if (this.channel) {
+      this.channel.addEventListener('message', handler);
+    }
+    return () => {
+      if (this.channel) this.channel.removeEventListener('message', handler);
+    };
   }
 
   // ============================================================================

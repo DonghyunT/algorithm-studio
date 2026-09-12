@@ -10,7 +10,7 @@
  */
 
 const CLASSROOM_STORAGE_KEY = "ALGO_LAB_CLASSROOM_DATA_V3";
-const DEFAULT_TEACHER_PIN = "0000";
+const DEFAULT_TEACHER_PIN = "geumokcs";
 
 // 전국 중학교 표준 11개 반 구성
 const DEFAULT_CLASSES = [
@@ -78,7 +78,7 @@ function openClassroomTab() {
 }
 
 function promptTeacherPin() {
-  const pin = prompt("🔐 선생님 전용 클래스룸 관리관입니다.\n교사용 비밀번호(PIN 4자리)를 입력하세요 (기본: 0000):", "");
+  const pin = prompt("🔐 교사용 클래스룸 & 실시간 관제탑입니다.\n선생님 비밀번호를 입력하세요:", "");
   if (pin === null) return;
 
   if (pin.trim() === DEFAULT_TEACHER_PIN) {
@@ -248,12 +248,12 @@ function renderLiveGrid(students = []) {
     const studentName = s ? s.name : "빈 좌석";
 
     html += `
-      <div onclick="${isClickable ? `openLiveStudentModal(${num})` : ''}" class="p-3 rounded-2xl border ${statusBg} flex flex-col justify-between h-[105px] transition ${isClickable ? 'hover:scale-[1.03] cursor-pointer shadow-xs' : 'opacity-60'}">
+      <div onclick="${isClickable ? `openLiveStudentModal(${num})` : ''}" class="p-3 rounded-2xl border ${statusBg} flex flex-col justify-between min-h-[120px] transition ${isClickable ? 'hover:scale-[1.03] cursor-pointer shadow-xs' : 'opacity-60'}">
         <div class="flex items-center justify-between">
           <span class="text-xs font-black font-mono px-2 py-0.5 rounded-md bg-white/80 border border-slate-200">${numStr}번</span>
           ${statusBadge}
         </div>
-        <div class="truncate text-xs sm:text-sm font-black text-slate-800">${studentName}</div>
+        <div class="truncate text-xs sm:text-sm font-black text-slate-800 py-1.5 leading-snug" title="${studentName}">${studentName}</div>
         <div class="flex items-center justify-between pt-1 border-t border-slate-200/60">
           <span class="text-[10px] text-slate-400">성적:</span>
           ${scoreDisplay}
@@ -299,7 +299,7 @@ function handleTeacherExportCSV() {
   }
 }
 
-// 학생 개별 답안 상세 팝업 및 점수 수동 조정
+// 학생 개별 답안 상세 팝업 및 점수 수동 조정 / 재시험 허용
 function openLiveStudentModal(studentNum) {
   const s = currentLiveStudents.find(item => item.num === studentNum);
   if (!s) return;
@@ -317,7 +317,7 @@ function openLiveStudentModal(studentNum) {
 
   if (p1El) p1El.textContent = JSON.stringify(s.answers?.part1 || {}, null, 2);
   if (p2El) p2El.textContent = JSON.stringify(s.answers?.part2 || {}, null, 2);
-  if (p3El) p3El.textContent = `순서도 블록 ${s.answers?.part3?.placedBlocks?.length || 6}개 정상 조립 및 직각 합류 검증 완료`;
+  if (p3El) p3El.textContent = `순서도 블록 ${s.answers?.part3?.blocks?.length || s.answers?.part3?.placedBlocks?.length || 0}개 조립 및 검증 (${s.scores?.part3 || 0}점)`;
 
   const currentScore = (s.scores?.teacherOverride !== null && s.scores?.teacherOverride !== undefined)
     ? s.scores.teacherOverride
@@ -325,6 +325,7 @@ function openLiveStudentModal(studentNum) {
 
   if (scoreInp) scoreInp.value = currentScore;
 
+  // 교사 점수 수동 조정 저장 버튼
   const saveBtn = document.getElementById('classroom-live-save-score-btn');
   if (saveBtn) {
     saveBtn.onclick = async () => {
@@ -333,6 +334,22 @@ function openLiveStudentModal(studentNum) {
       if (window.evalService) {
         await window.evalService.overrideStudentScore(classId, s.num, newScore);
         alert(`✅ ${s.name} 학생의 최종 성적이 [${newScore}점]으로 조정되었습니다.`);
+        closeLiveStudentModal();
+      }
+    };
+  }
+
+  // 교사 권한 재시험 허용 (답안 초기화) 버튼
+  const resetBtn = document.getElementById('classroom-live-reset-btn');
+  if (resetBtn) {
+    resetBtn.onclick = async () => {
+      if (!confirm(`⚠️ 정말로 [${s.name}] 학생의 답안을 초기화하고 재시험을 허용하시겠습니까?\n기존 제출 답안과 성적이 리셋되며 학생 브라우저가 다시 시험 진행 상태로 전환됩니다.`)) {
+        return;
+      }
+      const classId = getClassIdFromSelected();
+      if (window.evalService) {
+        await window.evalService.resetStudentExam(classId, s.num);
+        alert(`🔄 ${s.name} 학생의 재시험이 승인되었습니다. 답안이 초기화되었습니다.`);
         closeLiveStudentModal();
       }
     };
