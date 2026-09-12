@@ -1,5 +1,14 @@
 {
   "firestore": {
     "rules": "firestore.rules"
+  },
+  "auth": {
+    "providers": {
+      "anonymous": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "정보 알고리즘 스튜디오",
+        "supportEmail": "adh103006@gmail.com"
+      }
+    }
   }
 }

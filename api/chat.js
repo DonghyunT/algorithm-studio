@@ -1,4 +1,5 @@
 const { verifyFirebaseToken } = require('../server/firebase-token.cjs');
+const { reserveAiQuota } = require('../server/ai-quota.cjs');
 const requests = new Map();
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control','no-store');
@@ -18,6 +19,9 @@ module.exports = async (req, res) => {
   requests.set(claims.sub,bucket);
   if(requests.size>1000) for(const [key,value] of requests) if(now-value.start>=60000)requests.delete(key);
   if (!process.env.UPSTAGE_API_KEY) return res.status(503).json({error:'AI 연결 설정을 확인 중입니다. 잠시 후 다시 시도해 주세요.'});
+  try {
+    if(!await reserveAiQuota(token,process.env.FIREBASE_PROJECT_ID||'donghyun-algo',process.env.AI_DAILY_LIMIT))return res.status(429).json({error:'오늘의 AI 도움 사용량에 도달했습니다. 직접 실행·수정하고 현재 상태로 제출할 수 있습니다.'});
+  }catch{return res.status(503).json({error:'AI 사용량을 확인하지 못했습니다. 직접 실행하거나 잠시 후 다시 시도해 주세요.'});}
   try {
     const response=await fetch('https://api.upstage.ai/v1/solar/chat/completions',{
       method:'POST',signal:AbortSignal.timeout(25000),

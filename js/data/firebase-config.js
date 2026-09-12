@@ -5,8 +5,8 @@
  * - 프로젝트 ID: donghyun-algo
  * - 목적: 11개 반(2-1 ~ 2-11) × 최대 27명 실시간 동시 수행평가 통신
  * - 특징:
- *   1. Firebase Web SDK Compat (CDN) 기반 Zero-Dependency 순수 웹 표준
- *   2. 오프라인 또는 Firebase 미연동 시 BroadcastChannel 기반 로컬 에뮬레이션 자동 지원
+ *   1. Firebase Web SDK Compat (CDN) 기반 웹 앱
+ *   2. 명시적인 localhost ?demo=1에서만 BroadcastChannel 시연 사용
  *   3. 인간이 한눈에 보고 쉽게 이해할 수 있는 직관적인 구성
  */
 

@@ -8,4 +8,7 @@ audit
 docs
 tests
 tools
+scratch
+firebase-debug.log
+firestore-debug.log
 *.md

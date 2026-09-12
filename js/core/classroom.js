@@ -236,6 +236,12 @@ function renderLiveGrid(students = []) {
 }
 
 // 교사용 30분 수행평가 시작 버튼
+async function handleTeacherPrepareExam() {
+  const classId=getClassIdFromSelected();
+  if(!confirm('이 학급의 이전 답안을 보관하고 새 평가 대기실을 준비할까요? 학생들은 다시 입장해야 합니다.'))return;
+  try{await window.evalService.prepareSession(classId);alert('새 평가 대기실이 준비되었습니다. 학생 입장 후 평가를 시작해 주세요.');}
+  catch(error){alert(error.message);}
+}
 async function handleTeacherStartExam() {
   const classId = getClassIdFromSelected();
   if (!confirm(`🚀 [${currentSelectedClass}] 30분 실시간 수행평가를 지금 즉시 시작하시겠습니까?\n모든 접속 학생 화면이 즉시 30분 시험장으로 전환됩니다.`)) {
