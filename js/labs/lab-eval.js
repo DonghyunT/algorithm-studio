@@ -970,7 +970,7 @@ class StudentEvalApp {
     this.showScreen('result');
     const scoreTotalEl = document.getElementById('eval-result-total-score');
     const scoreBreakdownEl = document.getElementById('eval-result-breakdown');
-    if (scoreTotalEl) scoreTotalEl.textContent = `${this.scores.total}점 (교사 검토 전)`;
+    if (scoreTotalEl) scoreTotalEl.textContent = `${this.scores.total}점`;
     if (scoreBreakdownEl) {
       scoreBreakdownEl.innerHTML = `
         <div class="grid grid-cols-3 gap-3 text-center">

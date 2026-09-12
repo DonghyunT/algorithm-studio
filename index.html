@@ -32,7 +32,6 @@
           <span class="site-brand-name">정보 알고리즘 스튜디오</span>
         </button>
         <nav id="main-nav-bar" aria-label="학습 메뉴">
-          <button type="button" id="nav-btn-roadmap" onclick="switchUnit('roadmap')" aria-current="page">홈</button>
           <button type="button" id="nav-btn-unit1" onclick="switchUnit('unit1', 'concept')">문제 추상화</button>
           <button type="button" id="nav-btn-unit2" onclick="switchUnit('unit2', 'concept')">알고리즘 설계</button>
           <button type="button" id="nav-btn-unit3" onclick="switchUnit('unit3', 'concept')">순서도 연구소</button>
@@ -1698,7 +1697,7 @@
         <div id="fc-level3-view" class="hidden space-y-3">
 
           <!-- 순서도 3단 스튜디오 (엔트리 스타일 무간격 일체형 프레임) -->
-          <div class="entry-studio-container">
+          <div class="entry-studio-container debugger-collapsed">
             
             <!-- [1단 좌측] 3대 제어구조 자연어 기획서 & Solar AI 설계 검사 -->
             <section class="bg-white p-3 sm:p-3.5 flex flex-col gap-2.5 h-full overflow-hidden relative border-r border-slate-200">
@@ -1710,7 +1709,6 @@
                     <h3 class="text-sm font-black text-slate-900">자연어 기획서</h3>
                   </div>
                   <div class="flex items-center gap-1.5">
-                    <span class="text-[11px] font-bold text-slate-400">3대 제어구조</span>
                     <button onclick="toggleNlPanel()" class="w-7 h-7 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-xs transition" title="기획서 접기 (캔버스 최대화)">
                       <i class="fa-solid fa-angles-left text-[11px]"></i>
                     </button>
@@ -1720,13 +1718,13 @@
                 <!-- 카드 추가 퀵 버튼 3종 (컴팩트 디자인) -->
                 <div class="grid grid-cols-3 gap-1.5 shrink-0">
                   <button onclick="addNlCard('seq')" class="py-2 px-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-xl text-[11px] transition border border-blue-200 flex items-center justify-center gap-1 shadow-2xs">
-                    <i class="fa-solid fa-plus text-[9px]"></i> <span>순차 카드</span>
+                    <i class="fa-solid fa-plus text-[9px]"></i> <span>순차</span>
                   </button>
                   <button onclick="addNlCard('sel')" class="py-2 px-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold rounded-xl text-[11px] transition border border-amber-200 flex items-center justify-center gap-1 shadow-2xs">
-                    <i class="fa-solid fa-code-branch text-[9px]"></i> <span>선택 카드</span>
+                    <i class="fa-solid fa-plus text-[9px]"></i> <span>선택</span>
                   </button>
                   <button onclick="addNlCard('loop')" class="py-2 px-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-xl text-[11px] transition border border-emerald-200 flex items-center justify-center gap-1 shadow-2xs">
-                    <i class="fa-solid fa-rotate-left text-[9px]"></i> <span>반복 카드</span>
+                    <i class="fa-solid fa-plus text-[9px]"></i> <span>반복</span>
                   </button>
                 </div>
 
@@ -1762,7 +1760,7 @@
                     <i class="fa-solid fa-shapes text-indigo-500"></i>
                     <span>기호 보관함</span>
                   </div>
-                  <p class="text-[10px] text-slate-400 mt-0.5 font-medium">드래그 또는 더블클릭</p>
+                  <p class="text-[10px] text-slate-400 mt-0.5 font-medium">끌어서 놓기<br>또는 두 번 클릭</p>
                 </div>
 
                 <!-- 순서도 4대 표준 기호 블록 (엔트리 실물 블록 디자인 & D&D & 더블클릭) -->
@@ -1808,7 +1806,7 @@
               <!-- 하단 팁 배너 -->
               <div class="bg-white/80 border border-slate-200 rounded-xl p-2 text-center text-[10px] text-slate-500 leading-tight shadow-2xs">
                 <i class="fa-solid fa-lightbulb text-amber-500 mb-1 block"></i>
-                🖐️ 드래그하여 놓거나, 더블클릭하여 추가하세요!
+                기호를 끌어서<br>원하는 곳에 놓으세요.
               </div>
             </section>
 
@@ -1845,6 +1843,7 @@
               </div>
 
               <p class="canvas-instructions">빈 화면을 끌어 이동 · 파란 점을 끌어 연결 · Delete 키로 삭제</p>
+              <p id="execution-summary" class="execution-summary" role="status">실행 결과가 여기에 표시됩니다. 자세한 내용은 오른쪽 ‘실행 과정’을 펼쳐 확인하세요.</p>
               <!-- 순서도 자유 캔버스 영역 (화면을 꽉 채우는 도트 모눈 그리드 & D&D 드롭존) -->
               <div id="free-flowchart-canvas" class="w-full flex-1 entry-canvas-grid relative overflow-hidden select-none min-h-0" ondragover="handleCanvasDragOver(event)" ondrop="handleCanvasDrop(event)">
                 <!-- 캔버스 단일 가상 작업대 (Stage Layer, 100% 절대 좌표계) -->
@@ -1887,14 +1886,14 @@
             <!-- [4단 우측] 디버그 스튜디오 (변수 추적기 & 입출력 콘솔) -->
             <section id="debugger-studio-panel" class="bg-slate-50 flex flex-col h-full overflow-hidden border-l border-slate-200 relative min-w-0">
               <!-- 펼침 뷰 -->
-              <div class="debugger-panel-full-view flex flex-col min-h-0 overflow-hidden flex-1">
+              <div id="execution-panel-content" class="debugger-panel-full-view hidden flex flex-col min-h-0 overflow-hidden flex-1">
                 <!-- 헤더 (캔버스 상단 툴바와 완벽한 h-12 수평 일치 & 깔끔한 여백) -->
                 <div class="h-12 flex items-center justify-between px-3 border-b border-slate-200 bg-white shrink-0">
                   <div class="flex items-center gap-1.5 shrink-0">
                     <span class="w-6 h-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold"><i class="fa-solid fa-bug"></i></span>
                     <h3 class="text-xs font-black text-slate-900 whitespace-nowrap">실행 과정 살펴보기</h3>
                   </div>
-                  <button onclick="toggleDebuggerPanel()" class="w-7 h-7 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-xs transition cursor-pointer" title="디버거 패널 접기">
+                  <button onclick="toggleDebuggerPanel()" class="w-7 h-7 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-xs transition cursor-pointer" title="실행 과정 접기" aria-label="실행 과정 접기" aria-controls="execution-panel-content" aria-expanded="false">
                     <i class="fa-solid fa-angles-right text-[10px]"></i>
                   </button>
                 </div>
@@ -1940,14 +1939,10 @@
               </div>
 
               <!-- 접힘 뷰 (세로 바) -->
-              <div class="debugger-panel-collapsed-view hidden flex flex-col items-center py-2 h-full bg-slate-100 border-l border-slate-200">
-                <button onclick="toggleDebuggerPanel()" class="w-7 h-7 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-black transition border border-indigo-200 shadow-xs cursor-pointer" title="디버거 펼치기">
-                  <i class="fa-solid fa-angles-left text-[10px]"></i>
-                </button>
-                <div class="writing-mode-vertical text-[11px] font-black text-slate-500 tracking-wider py-3">
-                  🐞 디버거
-                </div>
-              </div>
+              <button type="button" onclick="toggleDebuggerPanel()" class="debugger-panel-collapsed-view execution-panel-rail" title="실행 과정 펼치기" aria-label="실행 과정 펼치기" aria-controls="execution-panel-content" aria-expanded="false">
+                <i class="fa-solid fa-angles-left" aria-hidden="true"></i>
+                <span>실행 과정</span>
+              </button>
             </section>
 
           </div>
@@ -2152,10 +2147,11 @@
         </div>
 
         <div class="w-full max-w-lg p-6 bg-gradient-to-br from-indigo-50 via-white to-violet-50 rounded-3xl border border-indigo-200 space-y-5 shadow-lg">
-          <div class="text-xs font-bold text-indigo-700">100% 완전 자동 채점 총점</div>
+          <div class="text-xs font-bold text-indigo-700">자동 채점 참고 점수</div>
           <div id="eval-result-total-score" class="text-5xl sm:text-6xl font-black text-indigo-950 font-mono tracking-tight">
             0점
           </div>
+          <p class="eval-review-status">교사 검토 전</p>
           <div id="eval-result-breakdown" class="pt-2"></div>
         </div>
 

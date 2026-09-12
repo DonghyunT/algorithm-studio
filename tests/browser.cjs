@@ -208,7 +208,7 @@ fs.mkdirSync(output,{recursive:true});
       const state=await page.evaluate(()=>({answer:studentEvalApp.answers.part1.q1,text:studentEvalApp.answers.part3.blocks.find(b=>b.id==='eblk_1')?.text,xss:window.xss}));
       assert.equal(state.answer,2);assert.equal(state.text,'학생 작업');assert.equal(state.xss,undefined);
       assert.equal(await page.evaluate(()=>studentEvalApp.answers.part3.plan.goal),'기온에 맞는 창문 상태');
-      assert.equal(await page.locator('#nav-btn-roadmap').isDisabled(),true);
+      assert.equal(await page.locator('.site-brand').isDisabled(),true);
     });
     await check('save failure retains draft and allows retry',async()=>{
       await page.evaluate(async()=>{window.realSubmit=evalService.submitStudentExam;evalService.submitStudentExam=async()=>{throw Error('test offline');};await studentEvalApp.submitExam(true);});
