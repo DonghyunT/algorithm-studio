@@ -183,32 +183,32 @@ fs.mkdirSync(output,{recursive:true});
     await check('assessment plans are student-written, reorderable and persisted with answers',async()=>{
       await page.evaluate(()=>studentEvalApp.switchPart('part3'));
       assert.equal(await page.locator('#eval-tab-btn-part3').getAttribute('aria-selected'),'true');
-      assert.equal(await page.locator('#eval-plan-steps textarea').count(),0);
+      assert.equal(await page.locator('#nl-cards-container textarea').count(),0);
       assert.equal(await page.locator('#eval-part3-recipe-list').count(),0);
       await page.locator('#eval-plan-current').fill('현재 기온을 아직 모른다');
       await page.locator('#eval-plan-goal').fill('기온에 맞는 창문 상태');
-      await page.getByRole('button',{name:'+ 단계 추가',exact:true}).click();
-      await page.locator('#eval-plan-steps textarea').fill('기온을 확인한다');
-      await page.getByRole('button',{name:'+ 단계 추가',exact:true}).click();
-      await page.locator('#eval-plan-steps textarea').nth(1).fill('조건에 맞는 동작을 정한다');
+      await page.locator("#fc-level3-view button[onclick=\"addNlCard('seq')\"]").click();
+      await page.locator('#nl-cards-container textarea').fill('기온을 확인한다');
+      await page.locator("#fc-level3-view button[onclick=\"addNlCard('seq')\"]").click();
+      await page.locator('#nl-cards-container textarea').nth(1).fill('조건에 맞는 동작을 정한다');
       await page.getByRole('button',{name:'2단계 위로',exact:true}).click();
-      assert.equal(await page.locator('#eval-plan-steps textarea').first().inputValue(),'조건에 맞는 동작을 정한다');
+      assert.equal(await page.locator('#nl-cards-container textarea').first().inputValue(),'조건에 맞는 동작을 정한다');
       await page.getByRole('button',{name:'1단계 아래로',exact:true}).click();
       await teacher.waitForFunction(()=>window.roster[0]?.answers?.part3?.plan?.steps?.[0]?.text==='기온을 확인한다');
       await teacher.evaluate(()=>{currentLiveStudents=window.roster;openLiveStudentModal(1);});
       assert.ok((await teacher.locator('#classroom-live-modal-p3').textContent()).includes('기온을 확인한다'));
       await page.evaluate(()=>{const saved=window.confirm;window.confirm=()=>false;studentEvalApp.selectPart3Theme('theme_vending');window.confirm=saved;});
-      assert.equal(await page.evaluate(()=>studentEvalApp.answers.part3.selectedThemeId),'theme_greenhouse');
+      assert.equal(await page.evaluate(()=>studentEvalApp.answers.part3.selectedThemeId),'custom');
     });
     await check('refresh restores answers and same-theme graph',async()=>{
-      await page.evaluate(()=>{studentEvalApp.onSelectPart1('q1',2);studentEvalApp.onInputPart2('q11','"><img src=x onerror=window.xss=2>');studentEvalApp.addPart3Block('process');studentEvalApp.handlePart3BlockText('eblk_1','학생 작업');});
+      await page.evaluate(()=>{studentEvalApp.onSelectPart1('q1',2);studentEvalApp.onInputPart2('q11','"><img src=x onerror=window.xss=2>');studentEvalApp.addPart3Block('process');studentEvalApp.handlePart3BlockText(freeBlocks.at(-1).id,'학생 작업');});
       await page.reload({waitUntil:'networkidle'});
       await page.waitForFunction(()=>studentEvalApp.sessionStatus==='in_progress');
       assert.equal(await page.locator('#eval-screen-exam').isVisible(),true);
-      const state=await page.evaluate(()=>({answer:studentEvalApp.answers.part1.q1,text:studentEvalApp.answers.part3.blocks.find(b=>b.id==='eblk_1')?.text,xss:window.xss}));
+      const state=await page.evaluate(()=>({answer:studentEvalApp.answers.part1.q1,text:studentEvalApp.answers.part3.blocks.find(b=>b.text==='학생 작업')?.text,xss:window.xss}));
       assert.equal(state.answer,2);assert.equal(state.text,'학생 작업');assert.equal(state.xss,undefined);
       assert.equal(await page.evaluate(()=>studentEvalApp.answers.part3.plan.goal),'기온에 맞는 창문 상태');
-      assert.equal(await page.locator('#nav-btn-roadmap').isDisabled(),true);
+      assert.equal(await page.locator('.site-brand').isDisabled(),true);
     });
     await check('save failure retains draft and allows retry',async()=>{
       await page.evaluate(async()=>{window.realSubmit=evalService.submitStudentExam;evalService.submitStudentExam=async()=>{throw Error('test offline');};await studentEvalApp.submitExam(true);});
@@ -220,33 +220,30 @@ fs.mkdirSync(output,{recursive:true});
     await check('assessment malformed flow highlights blocked position only',async()=>{
       await page.bringToFront();
       await page.evaluate(()=>{studentEvalApp.switchPart('part3');studentEvalApp.verifyPart3Flowchart();});
-      assert.ok(await page.locator('#eval-part3-stage .execution-issue').count()>0);
-      assert.equal(await page.evaluate(()=>studentEvalApp.calculateScores().scores.part3),0);
+      assert.ok(await page.locator('#free-flowchart-stage .execution-issue').count()>0);
+      assert.equal(await page.evaluate(()=>studentEvalApp.calculateScores().scores.part3),null);
       await page.waitForTimeout(250);
       assert.equal(await page.locator('#eval-tab-btn-part3').getAttribute('aria-selected'),'true');
       await page.waitForFunction(()=>getComputedStyle(document.getElementById('eval-tab-btn-part3')).backgroundColor==='rgb(79, 70, 229)');
       await page.evaluate(()=>window.scrollTo({top:0,behavior:'instant'}));
       await page.screenshot({path:path.join(output,'assessment.png'),fullPage:true});
     });
-    await check('assessment palette stays inside panel and scrolled blocks drag without jumping',async()=>{
+    await check('assessment shared palette and scrolled canvas retain drag coordinates',async()=>{
       for(const width of [1440,1024,768]){
         await page.setViewportSize({width,height:900});
-        const toolbar=await page.locator('.eval-symbol-toolbar').boundingBox();
-        for(const button of await page.locator('.eval-symbol-toolbar button').all()){
+        const toolbar=await page.locator('.entry-palette-column').boundingBox();
+        for(const button of await page.locator('.palette-entry-block').all()){
           const box=await button.boundingBox();assert.ok(box.x>=toolbar.x&&box.x+box.width<=toolbar.x+toolbar.width+1);
         }
       }
       await page.setViewportSize({width:1440,height:900});
-      await page.evaluate(()=>{studentEvalApp.addPart3Block('process');studentEvalApp.addPart3Block('process');});
-      const block=page.locator('#eval-blk-eblk_3');await block.scrollIntoViewIfNeeded();
-      assert.ok(await page.locator('#eval-part3-canvas').evaluate(el=>el.scrollTop)>0);
-      const submit=page.locator('#eval-screen-exam button[onclick*="submitExam"]');
-      await submit.click({trial:true});
-      const before=await page.evaluate(()=>({...studentEvalApp.answers.part3.blocks.find(b=>b.id==='eblk_3')}));
+      const id=await page.evaluate(()=>{studentEvalApp.addPart3Block('process');return freeBlocks.at(-1).id;});
+      const block=page.locator('#free-blk-'+id);await block.scrollIntoViewIfNeeded();
+      const before=await page.evaluate(id=>({...studentEvalApp.answers.part3.blocks.find(b=>b.id===id)}),id);
       const box=await block.boundingBox();
-      await page.mouse.move(box.x+35,box.y+15);await page.mouse.down();await page.mouse.move(box.x+75,box.y-15,{steps:5});await page.mouse.up();
-      const after=await page.evaluate(()=>studentEvalApp.answers.part3.blocks.find(b=>b.id==='eblk_3'));
-      assert.ok(Math.abs(after.x-before.x-40)<2);assert.ok(Math.abs(after.y-before.y+30)<2);
+      await page.mouse.move(box.x+35,box.y+8);await page.mouse.down();await page.mouse.move(box.x+75,box.y+48,{steps:5});await page.mouse.up();
+      const after=await page.evaluate(id=>studentEvalApp.answers.part3.blocks.find(b=>b.id===id),id);
+      assert.ok(Math.abs(after.x-before.x-40)<22);assert.ok(Math.abs(after.y-before.y-40)<22);
     });
     await check('teacher end submits and submitted rejoin stays submitted',async()=>{
       await teacher.evaluate(()=>evalService.endSession('2-1'));

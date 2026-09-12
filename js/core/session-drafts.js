@@ -20,6 +20,7 @@
   } catch(error) { console.warn('임시 작업 복원 실패',error); }
   function save() {
     if(window.isSessionClosing)return;
+    if(window.assessmentWorkspace?.active)return;
     try {
       const snapshot=JSON.stringify({version:1,flow:{cards:nlCards,blocks:freeBlocks,connections:freeConnections,nextBlockId},quiz:userQuizAnswers,
         abstraction:{completed:isTutorialCompleted,tutStep,tutTrashTags,step:currentWizardStep,conditions:registeredConditions,pool:currentPoolTags,trash:currentTrashTags,plans:currentGeneratedPlans,fields:Object.fromEntries(fields.map(id=>[id,document.getElementById(id)?.value||'']))}});
@@ -27,6 +28,7 @@
     } catch(error) { console.warn('임시 작업 저장 실패',error); }
   }
   let pending;
+  window.savePracticeDraft=save;
   ['input','change','pointerup','keyup'].forEach(event=>document.addEventListener(event,()=>{clearTimeout(pending);pending=setTimeout(save,100);}));
   window.addEventListener('beforeunload',save);
   document.addEventListener('visibilitychange',()=>{if(document.hidden)save();});

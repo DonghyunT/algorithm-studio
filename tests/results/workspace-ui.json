@@ -1,0 +1,26 @@
+{
+  "results": [
+    {
+      "name": "all five steps keep the same subbar and content origin at each width",
+      "pass": true
+    },
+    {
+      "name": "wider plan and both panel toggles retain graph coordinates and usable actions",
+      "pass": true
+    },
+    {
+      "name": "native palette drag preserves silhouettes, drop shapes and cleans up on cancel",
+      "pass": true
+    },
+    {
+      "name": "running a collapsed panel keeps it closed and shows output beside canvas",
+      "pass": true
+    },
+    {
+      "name": "result score and review status are separate, and logo remains the home route",
+      "pass": true
+    }
+  ],
+  "errors": [],
+  "consoleErrors": []
+}

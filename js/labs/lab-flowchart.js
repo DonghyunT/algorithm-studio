@@ -1649,7 +1649,7 @@ function renderNlCards() {
 }
 
 function addNlCard(type) {
-  const newId = `nl-${Date.now()}`;
+  const newId = `nl-${crypto.randomUUID()}`;
   if (type === 'seq') {
     nlCards.push({ id: newId, type: 'seq', text: '' });
   } else if (type === 'sel') {
@@ -2202,7 +2202,7 @@ function renderFreeCanvas() {
   const stage = document.getElementById('free-flowchart-stage') || canvas;
   if (!canvas || !stage) return;
 
-  if (freeBlocks.length === 0) {
+  if (freeBlocks.length === 0 && !window.assessmentWorkspace?.active) {
     const stageWidth = stage.clientWidth || 600;
     const centerX = Math.max(30, Math.floor((stageWidth - 190) / 2));
     // 기본 시작/종료 블록 초기 배치 (캔버스 중앙 정렬)
@@ -2362,7 +2362,7 @@ function createFreeBlockDOM(b) {
              contenteditable="true" 
              onblur="handleBlockTextChange('${b.id}', this.innerText)"
              onkeydown="if(event.key==='Enter'){event.preventDefault(); this.blur();}">
-          ${b.text}
+          ${escapeHtml(b.text)}
         </div>
       </div>
     `;
@@ -2409,7 +2409,7 @@ function createFreeBlockDOM(b) {
            contenteditable="true" 
            onblur="handleBlockTextChange('${b.id}', this.innerText)"
            onkeydown="if(event.key==='Enter'){event.preventDefault(); this.blur();}">
-        ${b.text}
+        ${escapeHtml(b.text)}
       </div>
     `;
 
@@ -2458,12 +2458,51 @@ function handleBlockTextChange(blockId, newText) {
 }
 
 let draggedPaletteShape = null;
+let paletteDragImage = null;
+
+function clearPaletteDrag() {
+  if (paletteDragImage) paletteDragImage.remove();
+  paletteDragImage = null;
+  draggedPaletteShape = null;
+}
+
+// Canvas pixels preserve the silhouette even when native drag snapshots omit CSS transforms.
+function createPaletteDragImage(shape) {
+  const preview = document.createElement('canvas');
+  preview.width = 180;
+  preview.height = 80;
+  preview.className = 'palette-drag-preview';
+  const ctx = preview.getContext('2d');
+  const colors = { terminal:'#9333ea', io:'#059669', decision:'#ea8a00', process:'#2563eb' };
+  ctx.fillStyle = colors[shape];
+  ctx.beginPath();
+  if (shape === 'terminal') {
+    ctx.roundRect(2, 10, 176, 60, 30);
+  } else if (shape === 'io') {
+    ctx.moveTo(22, 10); ctx.lineTo(178, 10); ctx.lineTo(158, 70); ctx.lineTo(2, 70);
+  } else if (shape === 'decision') {
+    ctx.moveTo(90, 2); ctx.lineTo(178, 40); ctx.lineTo(90, 78); ctx.lineTo(2, 40);
+  } else {
+    ctx.rect(2, 10, 176, 60);
+  }
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 14px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText({terminal:'시작 · 종료',io:'자료',decision:'판단',process:'처리'}[shape], 90, 40);
+  document.body.appendChild(preview);
+  return preview;
+}
 
 function handlePaletteDragStart(e, shape) {
+  clearPaletteDrag();
+  if (!['terminal', 'io', 'decision', 'process'].includes(shape)) return;
   draggedPaletteShape = shape;
   if (e.dataTransfer) {
     e.dataTransfer.setData('text/plain', shape);
     e.dataTransfer.effectAllowed = 'copy';
+    paletteDragImage = createPaletteDragImage(shape);
+    e.dataTransfer.setDragImage(paletteDragImage, 90, 40);
+    e.currentTarget.addEventListener('dragend', clearPaletteDrag, { once:true });
   }
 }
 
@@ -2477,7 +2516,7 @@ function handleCanvasDragOver(e) {
 function handleCanvasDrop(e) {
   e.preventDefault();
   const shape = (e.dataTransfer && e.dataTransfer.getData('text/plain')) || draggedPaletteShape;
-  if (!shape) return;
+  if (!['terminal', 'io', 'decision', 'process'].includes(shape)) return;
 
   const canvas = document.getElementById('free-flowchart-canvas');
   const stage = document.getElementById('free-flowchart-stage') || canvas;
@@ -2487,8 +2526,17 @@ function handleCanvasDrop(e) {
   const dropX = Math.max(20, Math.round(((e.clientX - sRect.left) / zoom - 90) / 20) * 20);
   const dropY = Math.max(20, Math.round(((e.clientY - sRect.top) / zoom - 30) / 20) * 20);
 
-  addCanvasBlockAtPosition(shape, dropX, dropY);
-  draggedPaletteShape = null;
+  const added = addCanvasBlockAtPosition(shape, dropX, dropY);
+  if (added) {
+    const element = document.getElementById(`free-blk-${added.id}`);
+    const rect = element.getBoundingClientRect();
+    // Center the actual rendered shape under the pointer, including pan and zoom.
+    added.x = Math.round((added.x + (e.clientX - rect.left - rect.width / 2) / zoom) / 20) * 20;
+    added.y = Math.round((added.y + (e.clientY - rect.top - rect.height / 2) / zoom) / 20) * 20;
+    element.style.left = `${added.x}px`;
+    element.style.top = `${added.y}px`;
+  }
+  clearPaletteDrag();
 }
 
 function handleTrashDragOver(e) {
@@ -2509,6 +2557,9 @@ function handleTrashDrop(e) {
   e.stopPropagation();
   const zone = document.getElementById('entry-trash-zone');
   if (zone) zone.classList.remove('trash-active');
+
+  // A new palette symbol is not an existing selected canvas block.
+  if (draggedPaletteShape) { clearPaletteDrag(); return; }
 
   if (selectedBlockId) {
     removeCanvasBlock(selectedBlockId);
@@ -2544,7 +2595,7 @@ function addCanvasBlockAtPosition(shapeType, x, y) {
     }
   }
 
-  const id = `blk-${Date.now()}`;
+  const id = `blk-${crypto.randomUUID()}`;
   const hasStartTerminal = freeBlocks.some(b => b.shape === 'terminal' && (b.text || '').includes('시작'));
   const defaultLabels = {
     terminal: !hasStartTerminal ? "시작" : "종료",
@@ -2570,6 +2621,7 @@ function addCanvasBlockAtPosition(shapeType, x, y) {
   selectCanvasBlock(id);
 
   if (typeof playSfx === 'function') playSfx('snap');
+  return newBlock;
 }
 
 function addCanvasBlock(shapeType) {
@@ -3319,7 +3371,7 @@ function initDebugger() {
   };
 
   renderVariableWatcher();
-  logDebugConsole("🚀 디버그 세션을 시작합니다. [한 단계] 또는 [실행]을 누르세요.");
+  logDebugConsole("실행을 준비했습니다. [한 단계] 또는 [실행]을 누르세요.");
   setDebuggerStatus("대기 중");
   updateBlockHighlights(startBlock.id);
   syncExecutionButtonUI(false);
@@ -3365,6 +3417,11 @@ function syncExecutionButtonUI(isRunning) {
 }
 
 function logDebugConsole(msg, isErr = false) {
+  const summary = document.getElementById('execution-summary');
+  if (summary) {
+    summary.textContent = msg;
+    summary.classList.toggle('execution-summary-error', isErr);
+  }
   const c = document.getElementById('debug-terminal-console');
   if (!c) return;
   const d = document.createElement('div');
@@ -3375,6 +3432,11 @@ function logDebugConsole(msg, isErr = false) {
 }
 
 function clearDebugConsole() {
+  const summary = document.getElementById('execution-summary');
+  if (summary) {
+    summary.textContent = '실행 기록을 지웠습니다. 다시 실행하면 결과가 표시됩니다.';
+    summary.classList.remove('execution-summary-error');
+  }
   const c = document.getElementById('debug-terminal-console');
   if (c) c.innerHTML = '<div class="text-slate-500 text-[10px]">> 콘솔이 초기화되었습니다.</div>';
 }
@@ -3499,6 +3561,11 @@ function stepDebugger() {
         if (outConns.length === 0) throw new Error("'시작' 기호에서 나가는 화살표가 없습니다.");
         nextId = outConns[0].to;
       } else if (isEnd) {
+        if(window.assessmentWorkspace?.active){
+          debuggerExec.done=true;pauseDebugger();setDebuggerStatus('실행 종료');
+          logDebugConsole('종료에 도착했습니다. 이번 입력에 대한 실행이 끝났습니다. 문제의 목표를 만족하는지는 직접 확인해 보세요.');
+          updateBlockHighlights(curBlock.id,debuggerExec.prevId);return;
+        }
         logDebugConsole(`🎉 [종료] 알고리즘이 성공적으로 완주했습니다! (총 ${debuggerExec.steps}단계)`);
         debuggerExec.done = true;
         setDebuggerStatus("완주 성공");
@@ -3694,6 +3761,7 @@ function stepDebugger() {
     }
   } catch (err) {
     logDebugConsole(`❌ 오류 발생: ${err.message}`, true);
+    if(window.assessmentWorkspace?.active)document.getElementById('free-blk-'+curBlock.id)?.classList.add('execution-issue');
     setDebuggerStatus("오류 멈춤");
     pauseDebugger();
     if (typeof playSfx === 'function') playSfx('warning');
@@ -3751,8 +3819,9 @@ function handleSimDecisionChoice(blockId, choice) {
   stepDebugger();
 
   // 만약 연속 실행 중이었고 아직 완주되지 않았고 또 다른 분기 선택을 기다리지 않는다면 연속 실행 자동 재개!
-  if (resumeContinuous && debuggerExec && !debuggerExec.done && !debuggerExec.isWaitingUserChoice) {
-    startDebuggerContinuousTimer();
+  if (resumeContinuous && debuggerExec && !debuggerExec.done) {
+    if(debuggerExec.isWaitingUserChoice)debuggerExec.wasContinuousRunning=true;
+    else startDebuggerContinuousTimer();
   }
 }
 window.handleSimDecisionChoice = handleSimDecisionChoice;
@@ -3821,8 +3890,9 @@ function handleSimInputSubmit(blockId, varName) {
 
   stepDebugger();
 
-  if (resumeContinuous && debuggerExec && !debuggerExec.done && !debuggerExec.isWaitingUserChoice) {
-    startDebuggerContinuousTimer();
+  if (resumeContinuous && debuggerExec && !debuggerExec.done) {
+    if(debuggerExec.isWaitingUserChoice)debuggerExec.wasContinuousRunning=true;
+    else startDebuggerContinuousTimer();
   }
 }
 window.parseIoInputVarName = parseIoInputVarName;
@@ -3879,7 +3949,7 @@ function resetDebugger() {
 }
 
 function toggleDebuggerPanel() {
-  const container = document.querySelector('.entry-studio-container');
+  const container = document.querySelector('#fc-level3-view .entry-studio-container');
   if (!container) return;
   container.classList.toggle('debugger-collapsed');
   const isCollapsed = container.classList.contains('debugger-collapsed');
@@ -3890,6 +3960,11 @@ function toggleDebuggerPanel() {
     fullView.classList.toggle('hidden', isCollapsed);
     colView.classList.toggle('hidden', !isCollapsed);
   }
+  document.querySelectorAll('[aria-controls="execution-panel-content"]').forEach(button => {
+    button.setAttribute('aria-expanded', String(!isCollapsed));
+  });
+  const activeButton = isCollapsed ? colView : fullView?.querySelector('button');
+  if (document.activeElement?.closest('#debugger-studio-panel')) activeButton?.focus();
 }
 
 function focusCanvasBlockByText(text) {
@@ -3978,11 +4053,7 @@ function playFreeFlowchartSimulation() {
     return;
   }
 
-  // 5. 디버그 스튜디오 패널이 접혀있다면 펼치고 실행 시작
-  const container = document.querySelector('.entry-studio-container');
-  if (container && container.classList.contains('debugger-collapsed')) {
-    toggleDebuggerPanel();
-  }
+  // Keep the student's panel choice while running; the canvas summary stays visible.
   toggleDebuggerRun();
 }
 window.playFreeFlowchartSimulation = playFreeFlowchartSimulation;
@@ -5549,7 +5620,7 @@ function toggleNlPanel(forcedState = null) {
   }
 
   try {
-    sessionStorage.setItem('flowchart_panel_collapsed', isNlPanelCollapsed ? '1' : '0');
+    if(!window.assessmentWorkspace?.active)sessionStorage.setItem('flowchart_panel_collapsed', isNlPanelCollapsed ? '1' : '0');
   } catch (e) {}
 
   const studioL3 = document.querySelector('.entry-studio-container');

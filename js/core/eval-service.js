@@ -29,7 +29,7 @@ class EvalService {
     if (!/^2-(?:[1-9]|10|11)$/.test(classId) || !Number.isInteger(Number(num)) || Number(num) < 1 || Number(num) > 27) throw new Error('학급과 번호를 확인해 주세요.');
     return String(Number(num)).padStart(2, '0');
   }
-  defaultSession(classId) { return { classId, status: 'waiting', durationMinutes: 30, startTime: null, maxStudents: 27 }; }
+  defaultSession(classId) { return { classId, questionVersion:3, status: 'waiting', durationMinutes: 30, startTime: null, maxStudents: 27 }; }
   mergeLocalStudent(classId, student) {
     const key = 'EVAL_STUDENTS_' + classId;
     const list = this.read(key, []);
@@ -63,11 +63,13 @@ class EvalService {
       await db.runTransaction(async tx=>{
         const old=await tx.get(ref);
         if(!old.exists || old.data().status!=='waiting')throw Error('새 평가 준비를 먼저 눌러 주세요. 진행 중인 평가를 다시 시작할 수 없습니다.');
+        payload.questionVersion=old.data().questionVersion||1;
         payload.attemptId=old.data().attemptId;tx.update(ref,payload);
       });
     } else {
       const old=this.read('EVAL_SESSION_'+classId,this.defaultSession(classId));
       if(old.status!=='waiting')throw Error('새 평가 준비를 먼저 눌러 주세요.');
+      payload.questionVersion=old.questionVersion||1;
       payload.attemptId=old.attemptId||crypto.randomUUID();this.write('EVAL_SESSION_' + classId, payload); this.notify(classId, { session: payload });
     }
     return payload;
@@ -109,7 +111,7 @@ class EvalService {
     const docId = this.identity(classId, studentNum);
     if (!studentName.trim() || studentName.length > 40) throw new Error('이름을 40자 이내로 입력해 주세요.');
     const user = await window.authService.student();
-    const student = { num: Number(studentNum), numStr: docId, name: studentName.trim(), ownerUid: user.uid, status: 'waiting', joinedAt: new Date().toISOString(), submittedAt: null, progress: {part1:0,part2:0,part3:0}, answers: {part1:{},part2:{},part3:null}, feedback: {} };
+    const student = { num: Number(studentNum), numStr: docId, name: studentName.trim(), ownerUid: user.uid, status: 'waiting', joinedAt: new Date().toISOString(), submittedAt: null, progress: {part1:0,part2:0,part3:0}, answers: {part1:{},part2:{},part3:{questionVersion:2,blocks:[],connections:[]}}, feedback: {} };
     const db = this.getDb();
     if (db) {
       const ref = db.collection('classrooms').doc(classId).collection('students').doc(docId);
@@ -122,12 +124,15 @@ class EvalService {
         const session=await transaction.get(db.collection('classrooms').doc(classId));
         if(!session.exists || !['waiting','in_progress'].includes(session.data().status))throw Error('선생님께서 새 평가를 준비한 후 입장해 주세요.');
         student.attemptId=session.data().attemptId;
+        student.answers.part3.questionVersion=session.data().questionVersion||1;
         transaction.set(ref, student);
         return student;
       });
     }
     const existing = this.read('EVAL_STUDENTS_' + classId, []).find(item => item.numStr === docId);
     if (existing) return existing;
+    const session=this.read('EVAL_SESSION_'+classId,this.defaultSession(classId));
+    student.answers.part3.questionVersion=session.questionVersion||1;student.attemptId=session.attemptId||'';
     this.mergeLocalStudent(classId, student); this.notify(classId, {students:[student]}); return student;
   }
   async updateStudentProgress(classId, studentNum, progress, answers) {
@@ -167,15 +172,24 @@ class EvalService {
     return finalData;
   }
   listenStudents(classId, callback, onError = error => alert(error.message)) {
-    const grade = students => callback(students.sort((a,b)=>a.num-b.num).map(student => {
-      const calculated = typeof gradeEvaluation === 'function' ? gradeEvaluation(student.answers || {}) : { scores: {} };
-      return {...student, scores:{...calculated.scores, teacherOverride:student.scores?.teacherOverride ?? null}, feedback:calculated.feedback || {}};
+    const grade = (students,version) => callback(students.sort((a,b)=>a.num-b.num).map(student => {
+      // The teacher-controlled round selects the rubric, never a student-supplied version.
+      const calculated = typeof gradeEvaluation === 'function' ? gradeEvaluation(student.answers || {},version) : { scores: {} };
+      if(version===3){
+        calculated.scores=applyConfirmedAssessmentReview(calculated.scores,student);
+      }
+      return {...student, questionVersion:version,scores:{...calculated.scores, teacherOverride:version===3?null:student.scores?.teacherOverride ?? null}, feedback:calculated.feedback || {}};
     }));
     const db = this.getDb();
-    if (db) return db.collection('classrooms').doc(classId).collection('students').onSnapshot(snapshot => {
-      const students=[]; snapshot.forEach(doc=>students.push(doc.data())); grade(students);
-    }, onError);
-    return this.demoListen(classId, () => grade(this.read('EVAL_STUDENTS_' + classId, [])));
+    if (db) {
+      let students=null,version=null;
+      const stopSession=this.listenSession(classId,session=>{version=session.questionVersion||1;if(students)grade(students,version);},onError);
+      const stopStudents=db.collection('classrooms').doc(classId).collection('students').onSnapshot(snapshot=>{
+        students=[];snapshot.forEach(doc=>students.push(doc.data()));if(version!==null)grade(students,version);
+      },onError);
+      return ()=>{stopSession();stopStudents();};
+    }
+    return this.demoListen(classId, () => grade(this.read('EVAL_STUDENTS_' + classId, []),this.read('EVAL_SESSION_'+classId,this.defaultSession(classId)).questionVersion||1));
   }
   async overrideStudentScore(classId, studentNum, newScore) {
     await window.authService.teacher();
@@ -193,7 +207,7 @@ class EvalService {
   async resetStudentExam(classId, studentNum) {
     await window.authService.teacher();
     const docId=this.identity(classId,studentNum), db=this.getDb();
-    const payload={status:'in_progress', submittedAt:null, answers:{part1:{},part2:{},part3:null}, scores:{teacherOverride:null}, progress:{part1:0,part2:0,part3:0}, resetAt:new Date().toISOString()};
+    const payload={status:'in_progress', submittedAt:null, answers:{part1:{},part2:{},part3:null}, scores:{teacherOverride:null},review:null, progress:{part1:0,part2:0,part3:0}, resetAt:new Date().toISOString()};
     if(db) {
       const sessionRef=db.collection('classrooms').doc(classId),ref=sessionRef.collection('students').doc(docId);
       const archive=sessionRef.collection('archives').doc(crypto.randomUUID());
@@ -201,11 +215,12 @@ class EvalService {
         const session=await tx.get(sessionRef),student=await tx.get(ref);
         if(!student.exists)throw Error('응시 기록이 없습니다.');
         if(session.data()?.status!=='in_progress'||Date.now()>=session.data().deadlineMs)throw Error('평가 시간이 끝났습니다. 새 평가 준비를 사용해 주세요.');
+        payload.answers.part3={questionVersion:student.data().answers?.part3?.questionVersion||1,blocks:[],connections:[]};
         tx.set(archive,{kind:'student-reset',archivedAt:payload.resetAt,session:session.data()});
         tx.set(archive.collection('students').doc(docId),student.data());tx.update(ref,payload);
       });
     }
-    else { const student={num:Number(studentNum),numStr:docId,...payload};this.mergeLocalStudent(classId,student);this.notify(classId,{students:[student]}); }
+    else { const old=this.read('EVAL_STUDENTS_'+classId,[]).find(s=>s.numStr===docId);payload.answers.part3={questionVersion:old?.answers?.part3?.questionVersion||1,blocks:[],connections:[]};const student={num:Number(studentNum),numStr:docId,...payload};this.mergeLocalStudent(classId,student);this.notify(classId,{students:[student]}); }
     return true;
   }
   listenStudent(classId, studentNum, callback, onError = error => alert(error.message)) {
@@ -213,12 +228,29 @@ class EvalService {
     if(db) return db.collection('classrooms').doc(classId).collection('students').doc(docId).onSnapshot(doc=>{if(doc.exists)callback(doc.data());},onError);
     return this.demoListen(classId,()=>{const student=this.read('EVAL_STUDENTS_'+classId,[]).find(item=>item.numStr===docId);if(student)callback(student);});
   }
+  async savePart3Review(classId,studentNum,sourceKey,details,kind='proposal'){
+    const user=await window.authService.teacher(),docId=this.identity(classId,studentNum),db=this.getDb();
+    if(!['proposal','confirmed'].includes(kind))throw Error('검토 종류를 확인해 주세요.');
+    const criteria=validateAssessmentCriteria(details.criteria);
+    const update=(student,session)=>{
+      if(session?.questionVersion!==3||student?.status!=='submitted'||student.attemptId!==session.attemptId||sourceKey!==assessmentSourceKey(student.answers?.part3))throw Error('답안이나 회차가 변경되었습니다. 답안을 다시 열어 검토해 주세요.');
+      if(kind==='proposal'&&details.attemptId!==student.attemptId)throw Error('이전 회차의 AI 결과입니다.');
+      return {...student.review,[kind]:{criteria,sourceKey,attemptId:student.attemptId,reviewerUid:user.uid,createdAt:new Date().toISOString(),rubricVersion:'open-design-v1',...(kind==='proposal'?{model:String(details.model||''),uncertainties:(details.uncertainties||[]).slice(0,5)}:{})}};
+    };
+    if(db){
+      const sessionRef=db.collection('classrooms').doc(classId),ref=sessionRef.collection('students').doc(docId);
+      await db.runTransaction(async tx=>{const session=await tx.get(sessionRef),student=await tx.get(ref);tx.update(ref,{review:update(student.data(),session.data())});});
+    }else{
+      const student=this.read('EVAL_STUDENTS_'+classId,[]).find(s=>s.numStr===docId),session=this.read('EVAL_SESSION_'+classId,null);
+      const review=update(student,session);this.mergeLocalStudent(classId,{...student,review});this.notify(classId,{students:[{...student,review}]});
+    }
+  }
   exportNeisCSV(classId, studentList=[]) {
     const cell=value=>'"'+String(value??'').replace(/^[=+@-]/,"'$&").replace(/"/g,'""')+'"';
     const rows=[['학급','번호','이름','응시상태','객관식/30','단답형/30','순서도/40','자동채점 총점','교사 조정','최종 점수','제출시각']];
     [...studentList].sort((a,b)=>a.num-b.num).forEach(student=>{
       const score=student.scores||{};
-      rows.push([classId,student.num,student.name,student.status,score.part1||0,score.part2||0,score.part3||0,score.total||0,score.teacherOverride??'',score.teacherOverride??score.total??0,student.submittedAt||'']);
+      rows.push([classId,student.num,student.name,student.status,score.part1||0,score.part2||0,score.pendingReview?'채점 대기':score.part3??0,score.pendingReview?'채점 대기':score.total??0,score.teacherOverride??'',score.pendingReview?'채점 대기':score.teacherOverride??score.total??0,student.submittedAt||'']);
     });
     const blob=new Blob(['\uFEFF'+rows.map(row=>row.map(cell).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'});
     const url=URL.createObjectURL(blob),link=document.createElement('a');

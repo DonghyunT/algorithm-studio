@@ -54,7 +54,7 @@ function evaluateAssessmentCondition(text, input, spec) {
   let source = String(text).trim().replace(/,/g, '').replace(/[?？。.]$/g, '');
   // Only a documented subset of natural-language comparisons is executable.
   // Unknown sentences fail visibly; they are never replaced with the expected branch.
-  if (/아니|않|또는|미만.*이상|\|\|/.test(source)) throw Error('지원하지 않는 조건 표현입니다. 비교식으로 적어 주세요.');
+  if (/아니|않|또는|미만.*이상|\|\|/.test(source)) throw Error('이 조건 표현은 실행기가 해석할 수 없습니다. 교사 검토가 필요합니다.');
   const range = source.match(/^(?:나이)(?:가|는)?\s*(\d+)\s*(?:세)?\s*이상\s*(?:이고\s*)?(\d+)\s*(?:세)?\s*이하(?:인가|인가요|이다)?$/);
   if (range && spec.variable.test(source)) return input >= Number(range[1]) && input <= Number(range[2]);
   const comparison = source.match(/^[가-힣]+\s*(-?\d+(?:\.\d+)?)\s*(?:℃|도|원|세|초)?\s*(초과|이상|미만|이하)(?:인가|인가요|이다)?$/);
@@ -76,10 +76,11 @@ function inspectAssessmentFlow(part3 = {}) {
   const issues = [];
   for (const input of spec.inputs) {
     let id=graph.startId, count=0, hasInput=false;
-    const actions=[];
+    const actions=[], trace=[];
     let stopped=false;
     while (id && count++ < 200) {
       const block=graph.nodes.get(id), exits=graph.out.get(id)||[];
+      trace.push({blockId:block.id,text:block.text});
       try {
         if (block.shape==='terminal' && /^(종료|끝)$/.test(block.text.trim())) break;
         if (block.shape==='io' && /입력|감지|측정/.test(block.text)) {
@@ -103,21 +104,22 @@ function inspectAssessmentFlow(part3 = {}) {
     if(count>=200) { issues.push({blockId:id,message:'실행 횟수 제한에 도달해 멈췄어요.'}); stopped=true; }
     const expected=spec.outputs[spec.expected(input)?1:0];
     const actual=actions.join(' → ') || '동작 없음';
-    cases.push({input:spec.label+' '+input,expected,actual:stopped?'실행 중단':actual,passed:!stopped&&hasInput&&actions.length===1&&actions[0]===expected});
+    cases.push({input:spec.label+' '+input,expected,actual:stopped?'실행 중단':actual,trace,passed:!stopped&&hasInput&&actions.length===1&&actions[0]===expected});
   }
   const passed=cases.length>0&&cases.every(item=>item.passed);
   return {passed,issues,cases,score:passed?40:0};
 }
 
-function gradeEvaluation(answers = {}) {
+function gradeEvaluation(answers = {}, questionVersion=answers?.part3?.questionVersion) {
   if (!answers || typeof answers !== 'object') answers = {};
   let part1=0,part2=0;
-  EVAL_QUESTIONS.part1.forEach(q=>{if(answers.part1?.[q.id]===q.correctAnswer)part1+=q.points;});
-  EVAL_QUESTIONS.part2.forEach(q=>{
+  evaluationQuestions(answers,questionVersion).part1.forEach(q=>{if(answers.part1?.[q.id]===q.correctAnswer)part1+=q.points;});
+  evaluationQuestions(answers,questionVersion).part2.forEach(q=>{
     const raw=answers.part2?.[q.id];
     const value=(typeof raw==='string'?raw:'').toLowerCase().replace(/\s/g,'');
     if(q.answers.some(answer=>answer.toLowerCase().replace(/\s/g,'')===value))part2+=q.points;
   });
+  if(questionVersion===3)return {scores:{part1,part2,part3:null,objectiveTotal:part1+part2,total:null,teacherOverride:null,pendingReview:true},feedback:{part2:'문항 기준으로 계산',part3:'자유 설계 답안은 교사 검토 후 점수가 확정됩니다.'}};
     const inspection=inspectAssessmentFlow(answers.part3||{}), part3=inspection.score;
   return {scores:{part1,part2,part3,total:part1+part2+part3,teacherOverride:null},feedback:{part2:'문항 기준으로 계산',part3:inspection.passed?'지정된 검사 입력 통과. 교사 최종 검토 대상.':'실행 결과 확인 및 교사 검토 필요.'}};
 }

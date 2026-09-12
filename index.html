@@ -32,7 +32,6 @@
           <span class="site-brand-name">정보 알고리즘 스튜디오</span>
         </button>
         <nav id="main-nav-bar" aria-label="학습 메뉴">
-          <button type="button" id="nav-btn-roadmap" onclick="switchUnit('roadmap')" aria-current="page">홈</button>
           <button type="button" id="nav-btn-unit1" onclick="switchUnit('unit1', 'concept')">문제 추상화</button>
           <button type="button" id="nav-btn-unit2" onclick="switchUnit('unit2', 'concept')">알고리즘 설계</button>
           <button type="button" id="nav-btn-unit3" onclick="switchUnit('unit3', 'concept')">순서도 연구소</button>
@@ -1698,7 +1697,7 @@
         <div id="fc-level3-view" class="hidden space-y-3">
 
           <!-- 순서도 3단 스튜디오 (엔트리 스타일 무간격 일체형 프레임) -->
-          <div class="entry-studio-container">
+          <div class="entry-studio-container debugger-collapsed">
             
             <!-- [1단 좌측] 3대 제어구조 자연어 기획서 & Solar AI 설계 검사 -->
             <section class="bg-white p-3 sm:p-3.5 flex flex-col gap-2.5 h-full overflow-hidden relative border-r border-slate-200">
@@ -1710,7 +1709,6 @@
                     <h3 class="text-sm font-black text-slate-900">자연어 기획서</h3>
                   </div>
                   <div class="flex items-center gap-1.5">
-                    <span class="text-[11px] font-bold text-slate-400">3대 제어구조</span>
                     <button onclick="toggleNlPanel()" class="w-7 h-7 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-xs transition" title="기획서 접기 (캔버스 최대화)">
                       <i class="fa-solid fa-angles-left text-[11px]"></i>
                     </button>
@@ -1720,13 +1718,13 @@
                 <!-- 카드 추가 퀵 버튼 3종 (컴팩트 디자인) -->
                 <div class="grid grid-cols-3 gap-1.5 shrink-0">
                   <button onclick="addNlCard('seq')" class="py-2 px-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-xl text-[11px] transition border border-blue-200 flex items-center justify-center gap-1 shadow-2xs">
-                    <i class="fa-solid fa-plus text-[9px]"></i> <span>순차 카드</span>
+                    <i class="fa-solid fa-plus text-[9px]"></i> <span>순차</span>
                   </button>
                   <button onclick="addNlCard('sel')" class="py-2 px-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold rounded-xl text-[11px] transition border border-amber-200 flex items-center justify-center gap-1 shadow-2xs">
-                    <i class="fa-solid fa-code-branch text-[9px]"></i> <span>선택 카드</span>
+                    <i class="fa-solid fa-plus text-[9px]"></i> <span>선택</span>
                   </button>
                   <button onclick="addNlCard('loop')" class="py-2 px-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-xl text-[11px] transition border border-emerald-200 flex items-center justify-center gap-1 shadow-2xs">
-                    <i class="fa-solid fa-rotate-left text-[9px]"></i> <span>반복 카드</span>
+                    <i class="fa-solid fa-plus text-[9px]"></i> <span>반복</span>
                   </button>
                 </div>
 
@@ -1762,7 +1760,7 @@
                     <i class="fa-solid fa-shapes text-indigo-500"></i>
                     <span>기호 보관함</span>
                   </div>
-                  <p class="text-[10px] text-slate-400 mt-0.5 font-medium">드래그 또는 더블클릭</p>
+                  <p class="text-[10px] text-slate-400 mt-0.5 font-medium">끌어서 놓기<br>또는 두 번 클릭</p>
                 </div>
 
                 <!-- 순서도 4대 표준 기호 블록 (엔트리 실물 블록 디자인 & D&D & 더블클릭) -->
@@ -1808,7 +1806,7 @@
               <!-- 하단 팁 배너 -->
               <div class="bg-white/80 border border-slate-200 rounded-xl p-2 text-center text-[10px] text-slate-500 leading-tight shadow-2xs">
                 <i class="fa-solid fa-lightbulb text-amber-500 mb-1 block"></i>
-                🖐️ 드래그하여 놓거나, 더블클릭하여 추가하세요!
+                기호를 끌어서<br>원하는 곳에 놓으세요.
               </div>
             </section>
 
@@ -1845,6 +1843,7 @@
               </div>
 
               <p class="canvas-instructions">빈 화면을 끌어 이동 · 파란 점을 끌어 연결 · Delete 키로 삭제</p>
+              <p id="execution-summary" class="execution-summary" role="status">실행 결과가 여기에 표시됩니다. 자세한 내용은 오른쪽 ‘실행 과정’을 펼쳐 확인하세요.</p>
               <!-- 순서도 자유 캔버스 영역 (화면을 꽉 채우는 도트 모눈 그리드 & D&D 드롭존) -->
               <div id="free-flowchart-canvas" class="w-full flex-1 entry-canvas-grid relative overflow-hidden select-none min-h-0" ondragover="handleCanvasDragOver(event)" ondrop="handleCanvasDrop(event)">
                 <!-- 캔버스 단일 가상 작업대 (Stage Layer, 100% 절대 좌표계) -->
@@ -1887,14 +1886,14 @@
             <!-- [4단 우측] 디버그 스튜디오 (변수 추적기 & 입출력 콘솔) -->
             <section id="debugger-studio-panel" class="bg-slate-50 flex flex-col h-full overflow-hidden border-l border-slate-200 relative min-w-0">
               <!-- 펼침 뷰 -->
-              <div class="debugger-panel-full-view flex flex-col min-h-0 overflow-hidden flex-1">
+              <div id="execution-panel-content" class="debugger-panel-full-view hidden flex flex-col min-h-0 overflow-hidden flex-1">
                 <!-- 헤더 (캔버스 상단 툴바와 완벽한 h-12 수평 일치 & 깔끔한 여백) -->
                 <div class="h-12 flex items-center justify-between px-3 border-b border-slate-200 bg-white shrink-0">
                   <div class="flex items-center gap-1.5 shrink-0">
                     <span class="w-6 h-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold"><i class="fa-solid fa-bug"></i></span>
                     <h3 class="text-xs font-black text-slate-900 whitespace-nowrap">실행 과정 살펴보기</h3>
                   </div>
-                  <button onclick="toggleDebuggerPanel()" class="w-7 h-7 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-xs transition cursor-pointer" title="디버거 패널 접기">
+                  <button onclick="toggleDebuggerPanel()" class="w-7 h-7 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-xs transition cursor-pointer" title="실행 과정 접기" aria-label="실행 과정 접기" aria-controls="execution-panel-content" aria-expanded="false">
                     <i class="fa-solid fa-angles-right text-[10px]"></i>
                   </button>
                 </div>
@@ -1940,14 +1939,10 @@
               </div>
 
               <!-- 접힘 뷰 (세로 바) -->
-              <div class="debugger-panel-collapsed-view hidden flex flex-col items-center py-2 h-full bg-slate-100 border-l border-slate-200">
-                <button onclick="toggleDebuggerPanel()" class="w-7 h-7 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-black transition border border-indigo-200 shadow-xs cursor-pointer" title="디버거 펼치기">
-                  <i class="fa-solid fa-angles-left text-[10px]"></i>
-                </button>
-                <div class="writing-mode-vertical text-[11px] font-black text-slate-500 tracking-wider py-3">
-                  🐞 디버거
-                </div>
-              </div>
+              <button type="button" onclick="toggleDebuggerPanel()" class="debugger-panel-collapsed-view execution-panel-rail" title="실행 과정 펼치기" aria-label="실행 과정 펼치기" aria-controls="execution-panel-content" aria-expanded="false">
+                <i class="fa-solid fa-angles-left" aria-hidden="true"></i>
+                <span>실행 과정</span>
+              </button>
             </section>
 
           </div>
@@ -2050,7 +2045,7 @@
               <span class="text-xs text-slate-400 font-bold">남은 시간:</span>
               <span id="eval-exam-timer" class="text-base sm:text-lg font-black font-mono text-amber-300">30:00</span>
             </div>
-            <button type="button" onclick="window.studentEvalApp.submitExam(false)" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs sm:text-sm font-black transition shadow-md shadow-emerald-600/30 cursor-pointer flex items-center gap-1.5">
+            <button type="button" data-eval-submit disabled onclick="window.studentEvalApp.submitExam(false)" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs sm:text-sm font-black transition shadow-md shadow-emerald-600/30 cursor-pointer flex items-center gap-1.5">
               <span>최종 제출</span> <i class="fa-solid fa-paper-plane text-xs"></i>
             </button>
           </div>
@@ -2081,7 +2076,7 @@
         <!-- Part 2 문항 컨테이너 (6단답형) -->
         <div id="eval-part2-container" class="space-y-4 hidden">
           <div class="p-4 bg-amber-50/70 border border-amber-100 rounded-2xl text-xs font-bold text-amber-900 flex items-center justify-between">
-            <span>✏️ 알고리즘 핵심 개념과 제어 구조에 대한 단답형 문제입니다. 알맞은 단어나 용어를 적어주세요. (각 5점, 총 30점)</span>
+            <span>✏️ 알고리즘 핵심 개념과 제어 구조에 대한 단답형 문제입니다. 알맞은 용어나 실행 결과를 적어주세요. (각 5점, 총 30점)</span>
             <span class="font-mono">6문항 전체</span>
           </div>
           <div id="eval-part2-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
@@ -2089,55 +2084,30 @@
 
         <!-- Part 3 순서도 나만의 백지 조립 캔버스 스튜디오 (40점) -->
         <div id="eval-part3-container" class="hidden">
+          <div id="eval-free-design" hidden></div>
           <div class="eval-task-chooser">
             <span>설계할 문제</span><div id="eval-part3-theme-selector" aria-label="수행평가 문제 선택"></div>
           </div>
-          <div class="eval-workspace">
-            <aside class="eval-planning-panel">
-              <div class="eval-panel-heading"><span class="eval-section-number">1</span><h3>문제와 나의 처방전</h3></div>
-              <div class="eval-planning-content">
-                <details class="eval-task-brief" open>
-                  <summary>문제 안내 <span>접기·펼치기</span></summary>
-                  <p id="eval-task-situation"></p>
-                  <dl><dt>주어지는 정보</dt><dd id="eval-task-input"></dd><dt>요구되는 결과</dt><dd id="eval-task-requirement"></dd></dl>
-                </details>
-                <div class="eval-plan-fields">
-                  <label for="eval-plan-current">현재 상태</label>
-                  <textarea id="eval-plan-current" rows="2" maxlength="500" placeholder="지금 어떤 상황인가요?" oninput="studentEvalApp.setAssessmentPlanField('current',this.value)"></textarea>
-                  <label for="eval-plan-goal">목표 상태</label>
-                  <textarea id="eval-plan-goal" rows="2" maxlength="500" placeholder="어떤 상태가 되면 해결된 걸까요?" oninput="studentEvalApp.setAssessmentPlanField('goal',this.value)"></textarea>
-                </div>
-                <div class="eval-plan-heading"><h4>내가 만든 자연어 알고리즘</h4><button type="button" onclick="studentEvalApp.addAssessmentStep()">+ 단계 추가</button></div>
-                <p class="eval-support-text">짧은 구절로 적어도 괜찮아요. 필요한 만큼 단계를 추가하고 순서를 바꿔 보세요.</p>
-                <p id="eval-plan-empty" class="eval-plan-empty">아직 작성한 단계가 없어요.</p>
-                <ol id="eval-plan-steps"></ol>
+          <details class="eval-task-brief" open>
+            <summary>문제 안내 · 접기/펼치기</summary><p id="eval-task-situation"></p>
+            <dl><dt>주어지는 정보</dt><dd id="eval-task-input"></dd><dt>요구되는 결과</dt><dd id="eval-task-requirement"></dd></dl>
+          </details>
+          <div id="eval-shared-workspace"></div>
+          <div id="eval-plan-guide" class="eval-plan-fields" hidden>
+            <details open><summary>나의 처방전 · 작성 안내</summary>
+              <div class="eval-prescription-body">
+              <label for="eval-plan-current">현재 상태</label><textarea id="eval-plan-current" rows="2" maxlength="500" placeholder="지금 어떤 상황인가요?" oninput="studentEvalApp.setAssessmentPlanField('current',this.value)"></textarea>
+              <label for="eval-plan-goal">목표 상태</label><textarea id="eval-plan-goal" rows="2" maxlength="500" placeholder="무엇이 달라지면 해결된 걸까요?" oninput="studentEvalApp.setAssessmentPlanField('goal',this.value)"></textarea>
+              <div id="eval-condition-editor" hidden>
+                <label for="eval-plan-conditions">지켜야 할 조건</label><textarea id="eval-plan-conditions" rows="3" maxlength="1000" placeholder="시간·횟수·사용할 수 있는 자원처럼 지켜야 할 조건을 한 줄씩 적어 보세요." oninput="studentEvalApp.setAssessmentPlanField('conditions',this.value)"></textarea>
+                <button type="button" id="eval-suggest-conditions" onclick="studentEvalApp.suggestConditions()">조건 아이디어 받기</button>
+                <p id="eval-condition-status" role="status">직접 적어도 되고, 제안받은 조건을 고쳐서 사용해도 됩니다.</p>
+                <div id="eval-condition-candidates"></div>
+                <p class="eval-support-text">평가 기준: 문제·조건의 명확성, 자연어 알고리즘의 논리성, 자연어와 순서도의 일치, 순서도 구조·동작의 타당성 (각 10점)</p>
               </div>
-            </aside>
-            <section class="eval-drawing-panel" aria-label="순서도 작업대">
-              <div class="eval-panel-heading eval-canvas-heading">
-                <div class="eval-heading-title"><span class="eval-section-number">2</span><h3>내 계획을 순서도로</h3></div>
-                <div class="eval-canvas-actions">
-                  <button type="button" onclick="studentEvalApp.autoAlignPart3Canvas()">정렬</button>
-                  <button type="button" onclick="studentEvalApp.clearPart3Canvas()">순서도 비우기</button>
-                  <button type="button" class="eval-primary-action" onclick="studentEvalApp.verifyPart3Flowchart()">실행 결과 확인</button>
-                </div>
+              <p class="eval-support-text">필요한 순차·선택·반복 카드를 골라 짧게 적어 보세요. 세 종류를 모두 쓸 필요는 없어요.</p>
               </div>
-              <div class="eval-symbol-toolbar" aria-label="추가할 순서도 기호">
-                <span>기호 추가</span>
-                <button type="button" data-shape="terminal" onclick="studentEvalApp.addPart3Block('terminal')">⬭ 단말 <small>시작·끝</small></button>
-                <button type="button" data-shape="io" onclick="studentEvalApp.addPart3Block('io')">▱ 자료 <small>입력·출력</small></button>
-                <button type="button" data-shape="decision" onclick="studentEvalApp.addPart3Block('decision')">◇ 판단 <small>조건</small></button>
-                <button type="button" data-shape="process" onclick="studentEvalApp.addPart3Block('process')">▭ 처리 <small>동작</small></button>
-              </div>
-              <p class="eval-canvas-help">기호를 추가해 내용을 적고, 연결점을 드래그해 이어 주세요.</p>
-              <div id="eval-part3-canvas" class="entry-canvas-grid">
-                <div id="eval-part3-stage"><svg id="eval-part3-svg" class="absolute inset-0 w-full h-full overflow-visible"></svg></div>
-              </div>
-              <section class="eval-results-panel" aria-label="실행 결과">
-                <div class="eval-result-heading"><h4>실행 결과</h4><span id="eval-part3-score-badge">아직 실행하지 않았어요</span></div>
-                <div id="eval-execution-feedback" role="status" aria-live="polite"></div>
-              </section>
-            </section>
+            </details>
           </div>
         </div>
       </div>
@@ -2148,14 +2118,15 @@
         </div>
         <div class="space-y-1.5">
           <h2 class="text-2xl sm:text-3xl font-black text-slate-900">수행평가 제출이 성공적으로 완료되었습니다!</h2>
-          <p class="text-xs sm:text-sm text-slate-500">답안과 순서도 채점 결과가 교단 PC 관제탑으로 안전하게 전송되었습니다.</p>
+          <p class="text-xs sm:text-sm text-slate-500">답안이 저장되었습니다. 선생님께서 제출 내용을 검토합니다.</p>
         </div>
 
         <div class="w-full max-w-lg p-6 bg-gradient-to-br from-indigo-50 via-white to-violet-50 rounded-3xl border border-indigo-200 space-y-5 shadow-lg">
-          <div class="text-xs font-bold text-indigo-700">100% 완전 자동 채점 총점</div>
+          <div class="text-xs font-bold text-indigo-700">자동 채점 참고 점수</div>
           <div id="eval-result-total-score" class="text-5xl sm:text-6xl font-black text-indigo-950 font-mono tracking-tight">
             0점
           </div>
+          <p class="eval-review-status">교사 검토 전</p>
           <div id="eval-result-breakdown" class="pt-2"></div>
         </div>
 
@@ -2436,6 +2407,9 @@
   <script src="js/labs/lab-flowchart.js"></script>
   <script src="js/labs/lab-sandwich.js"></script>
   <script src="js/labs/lab-quiz.js"></script>
+  <script src="js/core/assessment-policy.js"></script>
+  <script src="js/core/assessment-review-ui.js"></script>
+  <script src="js/core/assessment-workspace.js"></script>
   <script src="js/labs/lab-eval.js"></script>
 
   <!-- ========================================== -->
@@ -2614,7 +2588,8 @@
           <div id="classroom-live-modal-p3" class="bg-white p-2 rounded-lg text-slate-700 font-bold"></div>
         </div>
 
-        <div class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+        <div id="classroom-assessment-review" hidden></div>
+        <div id="classroom-legacy-score" class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
           <label class="font-black text-slate-800 flex items-center justify-between">
             <span>선생님 최종 성적 수동 조정 (Override):</span>
             <span class="text-[11px] text-slate-400 font-normal">비워두면 자동채점 총점 적용</span>
