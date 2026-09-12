@@ -1,0 +1,102 @@
+{
+  "at": "2026-09-12T16:19:00.435Z",
+  "url": "https://algorithm-studio-ten.vercel.app/",
+  "product": "0d777f4",
+  "merge": "ade1f7b6ebbe8069814c60e1aca9d220b4a57af5",
+  "assets": [
+    {
+      "file": "index.html",
+      "sha256": "e21d0b6c71db40d2838858431801c218dab021c69deb5aa168b0c98513b8df10"
+    },
+    {
+      "file": "css/studio-ui.css",
+      "sha256": "727fb5b65f2eff62002546361ac90895c08f388b4b0e44b8ce52cd9f4f07821d"
+    },
+    {
+      "file": "css/common.css",
+      "sha256": "73cf3454edced7c0f855ba5299b6a5e62fd4ff11ba5d5cecdb55dad79d630f6c"
+    },
+    {
+      "file": "css/classroom-layout.css",
+      "sha256": "e522af36d10ee45df25022f688cafa89ef1bd7cf6f18858bfb03f02d66358080"
+    },
+    {
+      "file": "css/flowchart.css",
+      "sha256": "cc4ac749a73f550ea8d674be7e935e20c688cb9599b48dfdcbdedd4cabb8283d"
+    },
+    {
+      "file": "js/core/navigation.js",
+      "sha256": "a5363dace24bfd7a6d10907e8e5d2e9238ca6b7fa0c3817f8eeae51b3870ce91"
+    },
+    {
+      "file": "js/core/classroom.js",
+      "sha256": "bd1ade62a9bdb00bb56501ff6792af1db1ee5a1ba94402f9a9bc83937853059a"
+    },
+    {
+      "file": "js/core/assessment-workspace.js",
+      "sha256": "a7e35a6318d45e317c50d5fe4acf0d5b267513df8f3b36335c9bbda951272ebf"
+    },
+    {
+      "file": "js/core/assessment-policy.js",
+      "sha256": "fdd6a2483e7a96ee51ad8038eda6bd64e6f0cf434dcf21cb68b2a910f68eddf9"
+    },
+    {
+      "file": "js/core/assessment-review-ui.js",
+      "sha256": "29b8e61a5ed70ed2ef07bb9531d40a522f7fbec011f19bc98222907302f11648"
+    },
+    {
+      "file": "js/labs/lab-eval.js",
+      "sha256": "92fa41903c6dac95b073b8562d372242e786a2e6048c3f44c60d8197a82fd4de"
+    },
+    {
+      "file": "js/core/ai-service.js",
+      "sha256": "6feefded2877e1a823e48b0136f048ec3fa731475d02739b5035236aded2d0bc"
+    },
+    {
+      "file": "js/core/eval-service.js",
+      "sha256": "3dc645e3537f72b7b7b1f9322a0d12d3d55268103b30915caf1cc34ce3987081"
+    },
+    {
+      "file": "js/core/flow-validation.js",
+      "sha256": "3c13712b73fec8bf47ac8a6193f9fe1728872afc32cf77f3dbd9af13feaa99db"
+    },
+    {
+      "file": "js/data/eval-questions.js",
+      "sha256": "cb4d1eaff91dcfc833a33d084faa6a76cd0a158d91cf9b8586cd6348b687977f"
+    }
+  ],
+  "checks": [
+    {
+      "width": 1440,
+      "home": true,
+      "concept": true,
+      "menuKeyboard": true,
+      "teacherButtonReachable": true,
+      "assessmentLobby": true
+    },
+    {
+      "width": 1024,
+      "home": true,
+      "concept": true,
+      "menuKeyboard": true,
+      "teacherButtonReachable": true,
+      "assessmentLobby": true
+    },
+    {
+      "width": 390,
+      "home": true,
+      "concept": true,
+      "menuKeyboard": true,
+      "teacherButtonReachable": true,
+      "assessmentLobby": true
+    }
+  ],
+  "pageErrors": [],
+  "consoleErrors": [],
+  "api": {
+    "methodGuard": 405,
+    "authenticationGuard": 401
+  },
+  "passed": true,
+  "scope": "Read-only UI and deployed asset verification. No teacher sign-in, student join, AI call or database write."
+}
