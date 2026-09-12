@@ -26,6 +26,7 @@ class AssessmentWorkspace {
       window[name]=(...args)=>{if(isAssessmentLocked()||this.active)return;return original(...args);};
     }
     const originalReset=resetDebugger;
+    this.originals.resetDebugger=originalReset;
     window.resetDebugger=(...args)=>{if(this.active)this.stop();return originalReset(...args);};
     for(const event of ['input','change','mouseup','drop','keyup','focusout']) {
       document.addEventListener(event,()=>{if(this.active)queueMicrotask(()=>this.capture());});
@@ -49,7 +50,8 @@ class AssessmentWorkspace {
     document.querySelector('.debugger-panel-full-view').classList.add('hidden');
     document.querySelector('.debugger-panel-collapsed-view').classList.remove('hidden');
     this.guide=document.getElementById('eval-plan-guide');this.guide.hidden=false;
-    document.getElementById('nl-cards-container').before(this.guide);
+    if(app.isFreeDesign())document.getElementById('eval-free-design').appendChild(this.guide);
+    else document.getElementById('nl-cards-container').before(this.guide);
     const part=app.answers.part3;
     freeBlocks=structuredClone(part.blocks||[]);freeConnections=structuredClone(part.connections||[]);
     nlCards=app.getAssessmentPlan().steps.map(s=>({...s,type:s.type||'seq'}));
@@ -101,6 +103,7 @@ class AssessmentWorkspace {
     this.readOnly=value;
     if(!this.element)return;
     this.element.querySelectorAll('textarea,[contenteditable]').forEach(e=>{if(e.tagName==='TEXTAREA')e.disabled=value;else e.contentEditable=String(!value);});
+    this.guide?.querySelectorAll('textarea,button').forEach(e=>e.disabled=value);
     this.element.classList.toggle('assessment-readonly',value);
     if(value){isDraggingBlock=false;draggedBlockObj=null;isConnecting=false;connectionSource=null;this.stop();}
   }
@@ -121,27 +124,18 @@ class AssessmentWorkspace {
       row.appendChild(controls);
     });
   }
-  stop() {clearInterval(this.timer);this.timer=null;this.frames=null;this.cursor=0;if(this.active)syncExecutionButtonUI(false);}
+  stop() {clearInterval(this.timer);this.timer=null;if(this.active)this.originals.resetDebugger();}
   run(single=false) {
-    if(!this.active)return;
+    if(!this.active||this.readOnly)return;
     this.capture();
-    if(!single&&this.timer){clearInterval(this.timer);this.timer=null;syncExecutionButtonUI(false);return;}
-    if(single&&this.timer){clearInterval(this.timer);this.timer=null;syncExecutionButtonUI(false);}
-    if(!this.frames) {
-      const result=inspectAssessmentFlow(this.app.answers.part3);
+    if(!debuggerExec || debuggerExec.done) {
+      const result=validateFlowGraph(freeBlocks,freeConnections);
       clearDebugConsole();this.element.querySelectorAll('.execution-issue').forEach(e=>e.classList.remove('execution-issue'));
       result.issues.forEach(issue=>{if(issue.blockId)document.getElementById('free-blk-'+issue.blockId)?.classList.add('execution-issue');logDebugConsole(issue.message,true);});
-      this.frames=result.cases.flatMap(c=>[...c.trace.map(step=>({blockId:step.blockId,message:`${c.input} · ${step.text}`})),{message:`${c.input}：예상 ${c.expected} / 실제 ${c.actual}`,error:!c.passed}]);
-      if(!this.frames.length){setDebuggerStatus('실행 중단');this.frames=null;return;}
-      this.cursor=0;
+      if(!result.valid){setDebuggerStatus('실행 중단');return;}
+      if(!initDebugger())return;
     }
-    const advance=()=>{
-      const frame=this.frames?.[this.cursor++];if(!frame)return;
-      if(frame.blockId){this.element.querySelectorAll('.flowchart-block-simulating').forEach(e=>e.classList.remove('flowchart-block-simulating'));document.getElementById('free-blk-'+frame.blockId)?.classList.add('flowchart-block-simulating');}
-      logDebugConsole(frame.message,frame.error);setDebuggerStatus('실행 확인 중');
-      if(this.cursor>=this.frames.length){clearInterval(this.timer);this.timer=null;this.frames=null;setDebuggerStatus('확인 종료');syncExecutionButtonUI(false);}
-    };
-    advance();if(!single&&this.frames){syncExecutionButtonUI(true);this.timer=setInterval(advance,350);}
+    if(single)this.originals.stepDebugger();else this.originals.toggleDebuggerRun();
   }
 }
 window.assessmentWorkspace=new AssessmentWorkspace();

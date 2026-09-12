@@ -198,7 +198,7 @@ fs.mkdirSync(output,{recursive:true});
       await teacher.evaluate(()=>{currentLiveStudents=window.roster;openLiveStudentModal(1);});
       assert.ok((await teacher.locator('#classroom-live-modal-p3').textContent()).includes('기온을 확인한다'));
       await page.evaluate(()=>{const saved=window.confirm;window.confirm=()=>false;studentEvalApp.selectPart3Theme('theme_vending');window.confirm=saved;});
-      assert.equal(await page.evaluate(()=>studentEvalApp.answers.part3.selectedThemeId),'theme_greenhouse');
+      assert.equal(await page.evaluate(()=>studentEvalApp.answers.part3.selectedThemeId),'custom');
     });
     await check('refresh restores answers and same-theme graph',async()=>{
       await page.evaluate(()=>{studentEvalApp.onSelectPart1('q1',2);studentEvalApp.onInputPart2('q11','"><img src=x onerror=window.xss=2>');studentEvalApp.addPart3Block('process');studentEvalApp.handlePart3BlockText(freeBlocks.at(-1).id,'학생 작업');});
@@ -221,7 +221,7 @@ fs.mkdirSync(output,{recursive:true});
       await page.bringToFront();
       await page.evaluate(()=>{studentEvalApp.switchPart('part3');studentEvalApp.verifyPart3Flowchart();});
       assert.ok(await page.locator('#free-flowchart-stage .execution-issue').count()>0);
-      assert.equal(await page.evaluate(()=>studentEvalApp.calculateScores().scores.part3),0);
+      assert.equal(await page.evaluate(()=>studentEvalApp.calculateScores().scores.part3),null);
       await page.waitForTimeout(250);
       assert.equal(await page.locator('#eval-tab-btn-part3').getAttribute('aria-selected'),'true');
       await page.waitForFunction(()=>getComputedStyle(document.getElementById('eval-tab-btn-part3')).backgroundColor==='rgb(79, 70, 229)');

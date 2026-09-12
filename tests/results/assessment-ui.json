@@ -17,7 +17,7 @@
       "pass": true
     },
     {
-      "name": "execution facts stay in the shared panel without answer generation and stop on edits",
+      "name": "one run asks for input, follows one path and never claims an automatic correct answer",
       "pass": true
     },
     {
@@ -26,6 +26,10 @@
     },
     {
       "name": "failed submission preserves shared draft; retry succeeds and practice data is restored",
+      "pass": true
+    },
+    {
+      "name": "AI scores remain proposals until teacher review; failed confirmation and stale answers cannot finalize",
       "pass": true
     },
     {

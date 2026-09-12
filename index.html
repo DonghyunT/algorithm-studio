@@ -2084,6 +2084,7 @@
 
         <!-- Part 3 순서도 나만의 백지 조립 캔버스 스튜디오 (40점) -->
         <div id="eval-part3-container" class="hidden">
+          <div id="eval-free-design" hidden></div>
           <div class="eval-task-chooser">
             <span>설계할 문제</span><div id="eval-part3-theme-selector" aria-label="수행평가 문제 선택"></div>
           </div>
@@ -2094,9 +2095,18 @@
           <div id="eval-shared-workspace"></div>
           <div id="eval-plan-guide" class="eval-plan-fields" hidden>
             <details open><summary>나의 처방전 · 작성 안내</summary>
+              <div class="eval-prescription-body">
               <label for="eval-plan-current">현재 상태</label><textarea id="eval-plan-current" rows="2" maxlength="500" placeholder="지금 어떤 상황인가요?" oninput="studentEvalApp.setAssessmentPlanField('current',this.value)"></textarea>
               <label for="eval-plan-goal">목표 상태</label><textarea id="eval-plan-goal" rows="2" maxlength="500" placeholder="무엇이 달라지면 해결된 걸까요?" oninput="studentEvalApp.setAssessmentPlanField('goal',this.value)"></textarea>
+              <div id="eval-condition-editor" hidden>
+                <label for="eval-plan-conditions">지켜야 할 조건</label><textarea id="eval-plan-conditions" rows="3" maxlength="1000" placeholder="시간·횟수·사용할 수 있는 자원처럼 지켜야 할 조건을 한 줄씩 적어 보세요." oninput="studentEvalApp.setAssessmentPlanField('conditions',this.value)"></textarea>
+                <button type="button" id="eval-suggest-conditions" onclick="studentEvalApp.suggestConditions()">조건 아이디어 받기</button>
+                <p id="eval-condition-status" role="status">직접 적어도 되고, 제안받은 조건을 고쳐서 사용해도 됩니다.</p>
+                <div id="eval-condition-candidates"></div>
+                <p class="eval-support-text">평가 기준: 문제·조건의 명확성, 자연어 알고리즘의 논리성, 자연어와 순서도의 일치, 순서도 구조·동작의 타당성 (각 10점)</p>
+              </div>
               <p class="eval-support-text">필요한 순차·선택·반복 카드를 골라 짧게 적어 보세요. 세 종류를 모두 쓸 필요는 없어요.</p>
+              </div>
             </details>
           </div>
         </div>
@@ -2108,7 +2118,7 @@
         </div>
         <div class="space-y-1.5">
           <h2 class="text-2xl sm:text-3xl font-black text-slate-900">수행평가 제출이 성공적으로 완료되었습니다!</h2>
-          <p class="text-xs sm:text-sm text-slate-500">답안과 순서도 채점 결과가 교단 PC 관제탑으로 안전하게 전송되었습니다.</p>
+          <p class="text-xs sm:text-sm text-slate-500">답안이 저장되었습니다. 선생님께서 제출 내용을 검토합니다.</p>
         </div>
 
         <div class="w-full max-w-lg p-6 bg-gradient-to-br from-indigo-50 via-white to-violet-50 rounded-3xl border border-indigo-200 space-y-5 shadow-lg">
@@ -2397,6 +2407,8 @@
   <script src="js/labs/lab-flowchart.js"></script>
   <script src="js/labs/lab-sandwich.js"></script>
   <script src="js/labs/lab-quiz.js"></script>
+  <script src="js/core/assessment-policy.js"></script>
+  <script src="js/core/assessment-review-ui.js"></script>
   <script src="js/core/assessment-workspace.js"></script>
   <script src="js/labs/lab-eval.js"></script>
 
@@ -2576,7 +2588,8 @@
           <div id="classroom-live-modal-p3" class="bg-white p-2 rounded-lg text-slate-700 font-bold"></div>
         </div>
 
-        <div class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+        <div id="classroom-assessment-review" hidden></div>
+        <div id="classroom-legacy-score" class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
           <label class="font-black text-slate-800 flex items-center justify-between">
             <span>선생님 최종 성적 수동 조정 (Override):</span>
             <span class="text-[11px] text-slate-400 font-normal">비워두면 자동채점 총점 적용</span>

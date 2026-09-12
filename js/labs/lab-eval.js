@@ -63,6 +63,7 @@ class StudentEvalApp {
     try { sessionStorage.setItem(this.draftKey(), JSON.stringify({answers:this.answers,deadlineMs:this.deadlineMs,studentName:this.studentName,lastResetAt:this.lastResetAt,isSubmitted:this.isSubmitted,visitedPart3:this.visitedPart3,currentPart:this.currentPart})); } catch(error) { console.warn("임시 저장 실패",error); }
   }
   restoreDraft(student) {
+    this.latestStudent=student;
     this.attemptId=student?.attemptId||null;
     let draft=null; try { draft=JSON.parse(sessionStorage.getItem(this.draftKey())); } catch {}
     const validDraft=draft && draft.studentName===this.studentName && draft.lastResetAt===(student?.resetAt||null);
@@ -168,6 +169,11 @@ class StudentEvalApp {
     // 2) 학생 개별 상태 리스너 구독 (교사의 재시험 허용 실시간 감지 및 시험장 자동 복귀)
     if (window.evalService && !this.studentUnsub) {
       this.studentUnsub = window.evalService.listenStudent(this.currentClass, this.studentNum, (stData) => {
+        this.latestStudent=stData;
+        if(this.isSubmitted&&stData?.status==='submitted'){
+          this.calculateScores();
+          if(!document.getElementById('eval-screen-result').classList.contains('hidden'))this.renderResult();
+        }
         if (stData?.resetAt && stData.resetAt !== this.lastResetAt) {
           this.lastResetAt=stData.resetAt;
           alert("🔔 선생님께서 재시험을 허용하셨습니다!\n답안이 초기화되며 시험 화면으로 복귀합니다.");
@@ -311,17 +317,17 @@ class StudentEvalApp {
     const p1Box = document.getElementById('eval-part1-list');
     if (p1Box) {
       p1Box.innerHTML = questions.part1.map((q,i) => `
-        <div class="p-5 bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-3.5">
+        <div class="eval-question-card p-5 bg-white rounded-2xl border border-slate-200 shadow-2xs">
           <div class="flex items-center justify-between">
             <span class="text-xs font-black px-3 py-1 bg-indigo-50 text-indigo-700 rounded-lg border border-indigo-100">${i+1}번 문제</span>
             <span class="text-xs font-black text-slate-400 font-mono">${q.points}점</span>
           </div>
           <p class="text-xs sm:text-sm font-bold text-slate-800 leading-relaxed">${q.desc}</p>
-          <div class="space-y-2 pt-1">
+          <div class="eval-question-options space-y-2 pt-1">
             ${q.options.map((opt, optIdx) => `
               <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition text-xs sm:text-sm font-medium">
                 <input type="radio" name="${q.id}" value="${optIdx}" ${this.answers.part1[q.id] === optIdx ? 'checked' : ''} onchange="window.studentEvalApp.onSelectPart1('${q.id}', ${optIdx})" class="w-4 h-4 text-indigo-600 focus:ring-indigo-500">
-                <span>${opt.replace(/\s*\([A-Za-z ]+\)/g,'')}</span>
+                <span>${opt.replace(/\s*\([^)]*\)/g,'')}</span>
               </label>
             `).join('')}
           </div>
@@ -365,6 +371,18 @@ class StudentEvalApp {
   // ============================================================================
 
   initPart3Canvas() {
+    const free=this.isFreeDesign();
+    document.querySelector('#eval-part3-container .eval-task-chooser').hidden=free;
+    document.querySelector('#eval-part3-container .eval-task-brief').hidden=free;
+    document.getElementById('eval-free-design').hidden=!free;
+    document.getElementById('eval-condition-editor').hidden=!free;
+    if(free){
+      document.getElementById('eval-condition-candidates').replaceChildren();
+      document.getElementById('eval-condition-status').textContent='직접 적어도 되고, 제안받은 조건을 고쳐서 사용해도 됩니다.';
+      this.answers.part3.selectedThemeId='custom';
+      if(!this.answers.part3.blocks.length)this.answers.part3.blocks=[{id:'eblk_start',shape:'terminal',text:'시작',x:100,y:30}];
+      this.renderAssessmentPlan();return;
+    }
     // 1. 4가지 균등 난이도 테마 선택기 렌더링
     const themeSelectBox = document.getElementById('eval-part3-theme-selector');
     if (themeSelectBox) {
@@ -380,6 +398,7 @@ class StudentEvalApp {
 
   // 테마 선택 시 좌측 자연어 카드 & 캔버스 초기화
   selectPart3Theme(themeId) {
+    if(this.isFreeDesign())return;
     if (this.isSubmitted || this.isSubmitting || this.sessionStatus === "ended") return;
     if (!EVAL_QUESTIONS.part3Themes.some(theme=>theme.id===themeId)) return;
     const sameTheme=this.answers.part3.selectedThemeId===themeId;
@@ -413,26 +432,43 @@ class StudentEvalApp {
     if(!Array.isArray(part.plan.steps))part.plan.steps=[];
     return part.plan;
   }
+  isFreeDesign(){return (this.latestSession?.questionVersion||this.answers.part3.questionVersion)===3;}
   hasAssessmentPlan() {
     const plan=this.getAssessmentPlan();
     return !!(plan.current || plan.goal || plan.steps.some(step=>step.text?.trim()));
   }
   canEditPlan() { return !this.isSubmitted && !this.isSubmitting && this.sessionStatus!=='ended'; }
   setAssessmentPlanField(field,value) {
-    if(!this.canEditPlan() || !['current','goal'].includes(field))return;
-    this.getAssessmentPlan()[field]=value.slice(0,500);this.syncStudentProgress();
+    if(!this.canEditPlan() || !['current','goal','conditions'].includes(field))return;
+    this.getAssessmentPlan()[field]=value.slice(0,field==='conditions'?1000:500);this.syncStudentProgress();
   }
   addAssessmentStep(type='seq') { if(assessmentWorkspace.active&&this.canEditPlan())addNlCard(type); }
   renderAssessmentSteps() { if(assessmentWorkspace.active)renderNlCards(); }
   renderAssessmentPlan() {
     const theme=EVAL_QUESTIONS.part3Themes.find(item=>item.id===this.answers.part3.selectedThemeId);
-    if(!theme)return;
-    for(const [id,text] of [['eval-task-situation',theme.situation],['eval-task-input',theme.input],['eval-task-requirement',theme.requirement]]){
+    for(const [id,text] of [['eval-task-situation',theme?.situation||''],['eval-task-input',theme?.input||''],['eval-task-requirement',theme?.requirement||'']]){
       const element=document.getElementById(id);if(element)element.textContent=text;
     }
     const plan=this.getAssessmentPlan();
-    for(const field of ['current','goal']){const input=document.getElementById('eval-plan-'+field);if(input){input.value=plan[field]||'';input.disabled=!this.canEditPlan();}}
+    for(const field of ['current','goal','conditions']){const input=document.getElementById('eval-plan-'+field);if(input){input.value=plan[field]||'';input.disabled=!this.canEditPlan();}}
     this.renderAssessmentSteps();
+  }
+  async suggestConditions(){
+    if(!this.canEditPlan()||!this.isFreeDesign()||this.requestingConditions)return;
+    const plan=this.getAssessmentPlan(),context=JSON.stringify([plan.current,plan.goal]);
+    const status=document.getElementById('eval-condition-status'),box=document.getElementById('eval-condition-candidates'),button=document.getElementById('eval-suggest-conditions');
+    if(!plan.current.trim()||!plan.goal.trim()){status.textContent='현재 상태와 목표 상태를 먼저 적어 주세요.';return;}
+    this.requestingConditions=true;button.disabled=true;box.replaceChildren();status.textContent='조건 아이디어를 확인하고 있습니다…';
+    try{
+      const result=await requestAssessmentAI({purpose:'conditions',current:plan.current,goal:plan.goal});
+      if(!this.canEditPlan()||this.getAssessmentPlan()!==plan||JSON.stringify([plan.current,plan.goal])!==context){status.textContent='내용이 변경되었습니다. 필요하면 다시 요청해 주세요.';return;}
+      status.textContent=result.demo?'로컬 시연용 예시입니다. 실제 AI가 만든 조건이 아닙니다.':'필요한 조건만 골라 수정하세요. 선택하지 않아도 됩니다.';
+      result.conditions.forEach(text=>{
+        const choice=document.createElement('button');choice.type='button';choice.textContent=text;
+        choice.onclick=()=>{if(!this.canEditPlan())return;const lines=(plan.conditions||'').split('\n').filter(Boolean);if(!lines.includes(text))lines.push(text);this.setAssessmentPlanField('conditions',lines.join('\n'));document.getElementById('eval-plan-conditions').value=plan.conditions;choice.disabled=true;};box.appendChild(choice);
+      });
+    }catch(error){status.textContent=error.message+' 조건을 직접 작성하여 계속할 수 있습니다.';}
+    finally{this.requestingConditions=false;button.disabled=!this.canEditPlan();}
   }
 
   // Compatibility entry points all use the common studio now.
@@ -461,7 +497,7 @@ class StudentEvalApp {
     },500);
   }
   // 4. 100% 완전 자동 채점 계산 (총점 100점)
-  calculateScores() { const result=gradeEvaluation(this.answers,this.latestSession?.questionVersion||this.answers.part3.questionVersion||1); this.scores=result.scores; return result; }
+  calculateScores() { const result=gradeEvaluation(this.answers,this.latestSession?.questionVersion||this.answers.part3.questionVersion||1); result.scores=applyConfirmedAssessmentReview(result.scores,this.latestStudent);this.scores=result.scores; return result; }
 
   // 5. 최종 제출 처리
   async submitExam(isAuto = false) {
@@ -509,7 +545,8 @@ class StudentEvalApp {
     this.showScreen('result');
     const scoreTotalEl = document.getElementById('eval-result-total-score');
     const scoreBreakdownEl = document.getElementById('eval-result-breakdown');
-    if (scoreTotalEl) scoreTotalEl.textContent = `${this.scores.total}점`;
+    if (scoreTotalEl) scoreTotalEl.textContent = this.scores.pendingReview?`${this.scores.objectiveTotal} / 60점`:`${this.scores.total}점`;
+    document.querySelector('.eval-review-status').textContent=this.scores.pendingReview?'Part 1·2 참고 점수 · Part 3 교사 채점 대기':this.isFreeDesign()?'교사 검토 완료':'교사 검토 전';
     if (scoreBreakdownEl) {
       scoreBreakdownEl.innerHTML = `
         <div class="grid grid-cols-3 gap-3 text-center">
@@ -523,7 +560,7 @@ class StudentEvalApp {
           </div>
           <div class="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
             <div class="text-xs font-bold text-emerald-800">Part 3. 순서도 조립</div>
-            <div class="text-xl font-black text-emerald-900 mt-1">${this.scores.part3} / 40점</div>
+            <div class="text-xl font-black text-emerald-900 mt-1">${this.scores.pendingReview?'채점 대기':this.scores.part3+' / 40점'}</div>
           </div>
         </div>
       `;

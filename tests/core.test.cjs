@@ -50,6 +50,11 @@ test('legacy answers retain the original short-question rubric',()=>{
   assert.equal(ctx.gradeEvaluation({part3:{questionVersion:2},part2:{p2_q5_v2:'켜기',p2_q6_v2:'3번'}}).scores.part2,10);
   assert.equal(ctx.gradeEvaluation({part3:{questionVersion:1},part2:{p2_q5:'변수',p2_q6:'디버깅'}},2).scores.part2,0);
 });
+
+test('free-design answers remain pending without turning ungraded work into zero',()=>{
+ const ctx=context(),result=ctx.gradeEvaluation({part2:{p2_q5_v2:'켜기'},part3:{questionVersion:3,isVerified:true}},3);
+ assert.equal(result.scores.part2,5);assert.equal(result.scores.part3,null);assert.equal(result.scores.total,null);assert.equal(result.scores.pendingReview,true);
+});
 test('teacher grading waits for the trusted round version and unsubscribes both listeners',()=>{
   const ctx=context();let sessionListener,studentsListener,stopped=0;const received=[];
   const db={collection:()=>({doc:()=>({onSnapshot:cb=>{sessionListener=cb;return()=>stopped++;},collection:()=>({onSnapshot:cb=>{studentsListener=cb;return()=>stopped++;}})})})};

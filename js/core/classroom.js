@@ -212,7 +212,7 @@ function renderLiveGrid(students = []) {
           ? s.scores.teacherOverride
           : (s.scores?.total || 0);
         statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-600 text-white font-bold">제출완료</span>`;
-        scoreDisplay = `<span class="text-sm font-black text-emerald-700">${finalScore}점</span>`;
+        scoreDisplay = `<span class="text-sm font-black text-emerald-700">${s.scores?.pendingReview?'채점 대기':finalScore+'점'}</span>`;
       }
     }
 
@@ -298,13 +298,13 @@ function openLiveStudentModal(studentNum) {
     const graph=s.answers?.part3||{};
     p3El.style.whiteSpace='pre-wrap';
     const plan=graph.plan||{};
-    const planText='현재 상태: '+(plan.current||'미작성')+'\n목표 상태: '+(plan.goal||'미작성')+'\n자연어 알고리즘\n'+
+    const planText='현재 상태: '+(plan.current||'미작성')+'\n목표 상태: '+(plan.goal||'미작성')+'\n조건: '+(plan.conditions||'미작성')+'\n자연어 알고리즘\n'+
       (Array.isArray(plan.steps)?plan.steps:[]).map((step,index)=>{
         if(step.type==='sel')return `${index+1}. [선택] 조건: ${step.condition||'미작성'}\n   맞으면: ${step.yesAction||'미작성'}\n   아니면: ${step.noAction||'미작성'}`;
         if(step.type==='loop')return `${index+1}. [반복] 지속 조건: ${step.condition||'미작성'}\n   반복할 행동: ${step.loopAction||'미작성'}`;
         return `${index+1}. [순차] ${step.text||'미작성'}`;
       }).join('\n');
-    p3El.textContent=planText+'\n\n순서도\n자동 계산 참고값: '+(s.scores?.part3||0)+' / 40점 (최종 교사 검토 필요)\n'+
+    p3El.textContent=planText+'\n\n순서도\n'+(s.questionVersion===3?'교사 검토 후 40점 범위에서 확정':'자동 계산 참고값: '+(s.scores?.part3||0)+' / 40점 (최종 교사 검토 필요)')+'\n'+
       (Array.isArray(graph.blocks)?graph.blocks:[]).filter(Boolean).map(b=>b.id+' ['+b.shape+'] '+b.text).join('\n')+'\n연결\n'+
       (Array.isArray(graph.connections)?graph.connections:[]).filter(Boolean).map(c=>c.from+' ('+c.fromPort+') → '+c.to).join('\n');
   }
@@ -314,6 +314,8 @@ function openLiveStudentModal(studentNum) {
     : (s.scores?.total || 0);
 
   if (scoreInp) scoreInp.value = currentScore;
+  document.getElementById('classroom-legacy-score').hidden=s.questionVersion===3;
+  renderAssessmentReview(s,getClassIdFromSelected());
 
   // 교사 점수 수동 조정 저장 버튼
   const saveBtn = document.getElementById('classroom-live-save-score-btn');

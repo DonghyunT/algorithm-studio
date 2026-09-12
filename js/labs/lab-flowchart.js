@@ -3561,6 +3561,11 @@ function stepDebugger() {
         if (outConns.length === 0) throw new Error("'시작' 기호에서 나가는 화살표가 없습니다.");
         nextId = outConns[0].to;
       } else if (isEnd) {
+        if(window.assessmentWorkspace?.active){
+          debuggerExec.done=true;pauseDebugger();setDebuggerStatus('실행 종료');
+          logDebugConsole('종료에 도착했습니다. 이번 입력에 대한 실행이 끝났습니다. 문제의 목표를 만족하는지는 직접 확인해 보세요.');
+          updateBlockHighlights(curBlock.id,debuggerExec.prevId);return;
+        }
         logDebugConsole(`🎉 [종료] 알고리즘이 성공적으로 완주했습니다! (총 ${debuggerExec.steps}단계)`);
         debuggerExec.done = true;
         setDebuggerStatus("완주 성공");
@@ -3756,6 +3761,7 @@ function stepDebugger() {
     }
   } catch (err) {
     logDebugConsole(`❌ 오류 발생: ${err.message}`, true);
+    if(window.assessmentWorkspace?.active)document.getElementById('free-blk-'+curBlock.id)?.classList.add('execution-issue');
     setDebuggerStatus("오류 멈춤");
     pauseDebugger();
     if (typeof playSfx === 'function') playSfx('warning');
@@ -3813,8 +3819,9 @@ function handleSimDecisionChoice(blockId, choice) {
   stepDebugger();
 
   // 만약 연속 실행 중이었고 아직 완주되지 않았고 또 다른 분기 선택을 기다리지 않는다면 연속 실행 자동 재개!
-  if (resumeContinuous && debuggerExec && !debuggerExec.done && !debuggerExec.isWaitingUserChoice) {
-    startDebuggerContinuousTimer();
+  if (resumeContinuous && debuggerExec && !debuggerExec.done) {
+    if(debuggerExec.isWaitingUserChoice)debuggerExec.wasContinuousRunning=true;
+    else startDebuggerContinuousTimer();
   }
 }
 window.handleSimDecisionChoice = handleSimDecisionChoice;
@@ -3883,8 +3890,9 @@ function handleSimInputSubmit(blockId, varName) {
 
   stepDebugger();
 
-  if (resumeContinuous && debuggerExec && !debuggerExec.done && !debuggerExec.isWaitingUserChoice) {
-    startDebuggerContinuousTimer();
+  if (resumeContinuous && debuggerExec && !debuggerExec.done) {
+    if(debuggerExec.isWaitingUserChoice)debuggerExec.wasContinuousRunning=true;
+    else startDebuggerContinuousTimer();
   }
 }
 window.parseIoInputVarName = parseIoInputVarName;
