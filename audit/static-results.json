@@ -1,0 +1,94 @@
+{
+  "syntax": [
+    {
+      "file": "js/app.js",
+      "ok": true
+    },
+    {
+      "file": "js/core/ai-service.js",
+      "ok": true
+    },
+    {
+      "file": "js/core/ai-tutor.js",
+      "ok": true
+    },
+    {
+      "file": "js/core/audio.js",
+      "ok": true
+    },
+    {
+      "file": "js/core/classroom.js",
+      "ok": true
+    },
+    {
+      "file": "js/core/concept.js",
+      "ok": true
+    },
+    {
+      "file": "js/core/eval-service.js",
+      "ok": true
+    },
+    {
+      "file": "js/core/navigation.js",
+      "ok": true
+    },
+    {
+      "file": "js/data/abstraction-data.js",
+      "ok": true
+    },
+    {
+      "file": "js/data/config.example.js",
+      "ok": true
+    },
+    {
+      "file": "js/data/config.js",
+      "ok": true
+    },
+    {
+      "file": "js/data/firebase-config.js",
+      "ok": true
+    },
+    {
+      "file": "js/data/flowchart-missions.js",
+      "ok": true
+    },
+    {
+      "file": "js/labs/lab-abstraction.js",
+      "ok": true
+    },
+    {
+      "file": "js/labs/lab-eval.js",
+      "ok": true
+    },
+    {
+      "file": "js/labs/lab-flowchart.js",
+      "ok": true
+    },
+    {
+      "file": "js/labs/lab-quiz.js",
+      "ok": true
+    },
+    {
+      "file": "js/labs/lab-sandwich.js",
+      "ok": true
+    },
+    {
+      "file": "api/chat.js",
+      "ok": true
+    }
+  ],
+  "missingAssets": [],
+  "unauthenticatedProxy": {
+    "status": 200,
+    "forwarded": true,
+    "response": {
+      "choices": [
+        {
+          "message": {
+            "content": "mock"
+          }
+        }
+      ]
+    }
+  }
+}

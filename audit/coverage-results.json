@@ -1,0 +1,710 @@
+{
+  "results": [
+    {
+      "name": "all navigation pairs",
+      "value": [
+        {
+          "from": "roadmap",
+          "to": "roadmap",
+          "visible": [
+            "view-roadmap"
+          ]
+        },
+        {
+          "from": "roadmap",
+          "to": "unit1",
+          "visible": [
+            "view-concept"
+          ]
+        },
+        {
+          "from": "roadmap",
+          "to": "unit2",
+          "visible": [
+            "view-concept"
+          ]
+        },
+        {
+          "from": "roadmap",
+          "to": "unit3",
+          "visible": [
+            "view-lab"
+          ]
+        },
+        {
+          "from": "roadmap",
+          "to": "eval",
+          "visible": [
+            "view-eval"
+          ]
+        },
+        {
+          "from": "roadmap",
+          "to": "classroom",
+          "visible": [
+            "view-classroom"
+          ]
+        },
+        {
+          "from": "unit1",
+          "to": "roadmap",
+          "visible": [
+            "view-roadmap"
+          ]
+        },
+        {
+          "from": "unit1",
+          "to": "unit1",
+          "visible": [
+            "view-concept"
+          ]
+        },
+        {
+          "from": "unit1",
+          "to": "unit2",
+          "visible": [
+            "view-concept"
+          ]
+        },
+        {
+          "from": "unit1",
+          "to": "unit3",
+          "visible": [
+            "view-lab"
+          ]
+        },
+        {
+          "from": "unit1",
+          "to": "eval",
+          "visible": [
+            "view-eval"
+          ]
+        },
+        {
+          "from": "unit1",
+          "to": "classroom",
+          "visible": [
+            "view-classroom"
+          ]
+        },
+        {
+          "from": "unit2",
+          "to": "roadmap",
+          "visible": [
+            "view-roadmap"
+          ]
+        },
+        {
+          "from": "unit2",
+          "to": "unit1",
+          "visible": [
+            "view-concept"
+          ]
+        },
+        {
+          "from": "unit2",
+          "to": "unit2",
+          "visible": [
+            "view-concept"
+          ]
+        },
+        {
+          "from": "unit2",
+          "to": "unit3",
+          "visible": [
+            "view-lab"
+          ]
+        },
+        {
+          "from": "unit2",
+          "to": "eval",
+          "visible": [
+            "view-eval"
+          ]
+        },
+        {
+          "from": "unit2",
+          "to": "classroom",
+          "visible": [
+            "view-classroom"
+          ]
+        },
+        {
+          "from": "unit3",
+          "to": "roadmap",
+          "visible": [
+            "view-roadmap"
+          ]
+        },
+        {
+          "from": "unit3",
+          "to": "unit1",
+          "visible": [
+            "view-concept"
+          ]
+        },
+        {
+          "from": "unit3",
+          "to": "unit2",
+          "visible": [
+            "view-concept"
+          ]
+        },
+        {
+          "from": "unit3",
+          "to": "unit3",
+          "visible": [
+            "view-lab"
+          ]
+        },
+        {
+          "from": "unit3",
+          "to": "eval",
+          "visible": [
+            "view-eval"
+          ]
+        },
+        {
+          "from": "unit3",
+          "to": "classroom",
+          "visible": [
+            "view-lab",
+            "view-classroom"
+          ]
+        },
+        {
+          "from": "eval",
+          "to": "roadmap",
+          "visible": [
+            "view-roadmap"
+          ]
+        },
+        {
+          "from": "eval",
+          "to": "unit1",
+          "visible": [
+            "view-concept",
+            "view-eval"
+          ]
+        },
+        {
+          "from": "eval",
+          "to": "unit2",
+          "visible": [
+            "view-concept",
+            "view-eval"
+          ]
+        },
+        {
+          "from": "eval",
+          "to": "unit3",
+          "visible": [
+            "view-lab",
+            "view-eval"
+          ]
+        },
+        {
+          "from": "eval",
+          "to": "eval",
+          "visible": [
+            "view-eval"
+          ]
+        },
+        {
+          "from": "eval",
+          "to": "classroom",
+          "visible": [
+            "view-classroom"
+          ]
+        },
+        {
+          "from": "classroom",
+          "to": "roadmap",
+          "visible": [
+            "view-roadmap"
+          ]
+        },
+        {
+          "from": "classroom",
+          "to": "unit1",
+          "visible": [
+            "view-concept",
+            "view-classroom"
+          ]
+        },
+        {
+          "from": "classroom",
+          "to": "unit2",
+          "visible": [
+            "view-concept",
+            "view-classroom"
+          ]
+        },
+        {
+          "from": "classroom",
+          "to": "unit3",
+          "visible": [
+            "view-lab",
+            "view-classroom"
+          ]
+        },
+        {
+          "from": "classroom",
+          "to": "eval",
+          "visible": [
+            "view-eval"
+          ]
+        },
+        {
+          "from": "classroom",
+          "to": "classroom",
+          "visible": [
+            "view-classroom"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mission validation correct and wrong",
+      "value": [
+        {
+          "id": 1,
+          "correct": {
+            "s2": "b-m1-1",
+            "s3": "b-m1-2",
+            "s4": "b-m1-3"
+          },
+          "correctPass": true,
+          "wrongPass": false,
+          "emptyPass": false
+        },
+        {
+          "id": 2,
+          "correct": {
+            "s2": "b-m2-1",
+            "s3": "b-m2-2",
+            "s4_yes": "b-m2-yes",
+            "s4_no": "b-m2-no"
+          },
+          "correctPass": true,
+          "wrongPass": false,
+          "emptyPass": false
+        },
+        {
+          "id": 3,
+          "correct": {
+            "s2": "b-m3-in",
+            "s3": "b-m3-chk",
+            "s4_yes": "b-m3-yes",
+            "s4_no": "b-m3-no"
+          },
+          "correctPass": true,
+          "wrongPass": false,
+          "emptyPass": false
+        }
+      ]
+    },
+    {
+      "name": "quiz answer and retry",
+      "value": [
+        {
+          "unit": "abstraction",
+          "wrongCount": 0,
+          "correctCount": 4
+        },
+        {
+          "unit": "algorithm",
+          "wrongCount": 0,
+          "correctCount": 4
+        },
+        {
+          "unit": "flowchart",
+          "wrongCount": 0,
+          "correctCount": 4
+        }
+      ]
+    },
+    {
+      "name": "draggable inventory",
+      "value": [
+        {
+          "id": "block-b-m1-2",
+          "text": "가스레인지 켜서 물 끓이기"
+        },
+        {
+          "id": "block-b-m1-1",
+          "text": "물 500ml 냄비에 붓기"
+        },
+        {
+          "id": "block-b-m1-3",
+          "text": "면과 분말스프 넣고 4분 끓이기"
+        }
+      ]
+    },
+    {
+      "name": "puzzle replacement conservation",
+      "value": {
+        "placed": {
+          "s2": "b-m1-2"
+        },
+        "inventory": "면과 분말스프 넣고 4분 끓이기\n가스레인지 켜서 물 끓이기\n물 500ml 냄비에 붓기"
+      }
+    },
+    {
+      "name": "wrong puzzle sim shows expected instead",
+      "value": {
+        "valid": false,
+        "output": "🎢 키 150cm 이상! 탑승 환영합니다.",
+        "trace": "•\n🚀 [시뮬레이터 시작] 데이터 흐름 추적 시작...\n•\n① [단말] 탑승 판정기 시작\n•\n② [입출력] 사용자 키 입력: 160cm\n•\n③ [판단] 키(160) >= 150 검사 ➔ 결과: [예]\n•\n④ [분기-예] '탑승 가능' 블록 실행\n•\n⑤ [단말] 판정 종료 합류"
+      }
+    },
+    {
+      "name": "palette actual double click",
+      "value": {
+        "before": 3,
+        "after": 4
+      }
+    },
+    {
+      "name": "block coordinate move setup",
+      "value": {
+        "id": "blk-p1",
+        "x": 228,
+        "y": 160
+      }
+    },
+    {
+      "name": "actual block drag",
+      "value": [
+        {
+          "id": "blk-start",
+          "x": 278,
+          "y": 60
+        },
+        {
+          "id": "blk-p1",
+          "x": 228,
+          "y": 160
+        },
+        {
+          "id": "blk-end",
+          "x": 228,
+          "y": 300
+        },
+        {
+          "id": "blk-1789207813445",
+          "x": 240,
+          "y": 320
+        }
+      ]
+    },
+    {
+      "name": "parser matrix",
+      "value": [
+        {
+          "text": "x=2+3*4",
+          "value": 14
+        },
+        {
+          "text": "x=(2+3)*4",
+          "value": 20
+        },
+        {
+          "text": "x=-2*3",
+          "value": -6
+        },
+        {
+          "text": "x=7%3",
+          "value": 1
+        },
+        {
+          "text": "x=3.14",
+          "value": 3.14
+        },
+        {
+          "text": "x=.5",
+          "value": 0.5
+        },
+        {
+          "text": "x=1.2.3",
+          "value": 1.2
+        },
+        {
+          "text": "x=..5",
+          "error": "사용할 수 없는 기호입니다: '.'"
+        },
+        {
+          "text": "x=2/0",
+          "error": "0으로 나눌 수 없습니다."
+        },
+        {
+          "text": "x=2%0",
+          "error": "0으로 나눈 나머지를 구할 수 없습니다."
+        },
+        {
+          "text": "x=z+1",
+          "error": "아직 값이 지정되지 않은 변수 'z'입니다."
+        },
+        {
+          "text": "x=(2+3",
+          "error": "닫는 괄호 ')'가 빠졌습니다."
+        }
+      ]
+    },
+    {
+      "name": "portfolio actual image",
+      "value": {
+        "width": 840,
+        "height": 990
+      }
+    },
+    {
+      "name": "fresh studio geometry 1920",
+      "value": {
+        "canvas": {
+          "x": 496.5,
+          "y": 232.625,
+          "width": 1060,
+          "height": 657.625
+        },
+        "bar": {
+          "x": 825.5390625,
+          "y": 817.25,
+          "width": 401.921875,
+          "height": 51
+        },
+        "overflow": false
+      }
+    },
+    {
+      "name": "fresh studio geometry 1440",
+      "value": {
+        "canvas": {
+          "x": 463,
+          "y": 227.75,
+          "width": 647,
+          "height": 662.75
+        },
+        "bar": {
+          "x": 624.75,
+          "y": 773.75,
+          "width": 323.5,
+          "height": 94.75
+        },
+        "overflow": false
+      }
+    },
+    {
+      "name": "fresh studio geometry 1366",
+      "value": {
+        "canvas": {
+          "x": 420,
+          "y": 222.875,
+          "width": 637,
+          "height": 535.875
+        },
+        "bar": {
+          "x": 579.25,
+          "y": 644.375,
+          "width": 318.5,
+          "height": 92.375
+        },
+        "overflow": true
+      }
+    },
+    {
+      "name": "fresh studio geometry 1024",
+      "value": {
+        "canvas": {
+          "x": 378,
+          "y": 222.875,
+          "width": 357,
+          "height": 667.875
+        },
+        "bar": {
+          "x": 397.625,
+          "y": 776.375,
+          "width": 317.75,
+          "height": 92.375
+        },
+        "overflow": true
+      }
+    },
+    {
+      "name": "fresh studio geometry 768",
+      "value": {
+        "canvas": {
+          "x": 33,
+          "y": 681.34375,
+          "width": 687,
+          "height": 0
+        },
+        "bar": {
+          "x": 204.75,
+          "y": 601.34375,
+          "width": 343.5,
+          "height": 58
+        },
+        "overflow": true
+      }
+    },
+    {
+      "name": "evaluation block shapes versus port geometry",
+      "value": [
+        {
+          "shape": "terminal",
+          "actual": {
+            "width": 51,
+            "height": 59.5
+          },
+          "expectedBottom": {
+            "x": 310,
+            "y": 94
+          },
+          "actualBottom": {
+            "x": 25.5,
+            "y": 59.5
+          },
+          "background": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "shape": "io",
+          "actual": {
+            "width": 123.71875,
+            "height": 59.5
+          },
+          "expectedBottom": {
+            "x": 310,
+            "y": 174
+          },
+          "actualBottom": {
+            "x": 61.859375,
+            "y": 59.5
+          },
+          "background": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "shape": "decision",
+          "actual": {
+            "width": 220,
+            "height": 120
+          },
+          "expectedBottom": {
+            "x": 320,
+            "y": 310
+          },
+          "actualBottom": {
+            "x": 110,
+            "y": 120
+          },
+          "background": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "shape": "process",
+          "actual": {
+            "width": 110.96875,
+            "height": 59.5
+          },
+          "expectedBottom": {
+            "x": 310,
+            "y": 334
+          },
+          "actualBottom": {
+            "x": 55.484375,
+            "y": 59.5
+          },
+          "background": "rgba(0, 0, 0, 0)"
+        },
+        {
+          "shape": "terminal",
+          "actual": {
+            "width": 60.4375,
+            "height": 59.5
+          },
+          "expectedBottom": {
+            "x": 310,
+            "y": 414
+          },
+          "actualBottom": null,
+          "background": "rgba(0, 0, 0, 0)"
+        }
+      ]
+    },
+    {
+      "name": "evaluation score and answers count",
+      "value": {
+        "part1Count": 10,
+        "part2Count": 6,
+        "scores": {
+          "part1": 30,
+          "part2": 30,
+          "part3": 0,
+          "total": 60,
+          "teacherOverride": null
+        }
+      }
+    },
+    {
+      "name": "evaluation rejoin clears existing answers",
+      "value": {
+        "num": 1,
+        "numStr": "01",
+        "name": "테스트",
+        "status": "waiting",
+        "joinedAt": "2026-09-12T10:10:23.734Z",
+        "submittedAt": null,
+        "progress": {
+          "part1": 0,
+          "part2": 0,
+          "part3": 0
+        },
+        "answers": {
+          "part1": {},
+          "part2": {},
+          "part3": null
+        },
+        "scores": {
+          "part1": 0,
+          "part2": 0,
+          "part3": 0,
+          "total": 0,
+          "teacherOverride": null
+        },
+        "feedback": {
+          "part2": "",
+          "part3": ""
+        }
+      }
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED"
+  ]
+}

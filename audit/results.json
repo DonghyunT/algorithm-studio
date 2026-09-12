@@ -1,0 +1,294 @@
+{
+  "results": [
+    {
+      "name": "duplicate DOM ids",
+      "value": []
+    },
+    {
+      "name": "roadmap",
+      "value": {
+        "views": [
+          "view-roadmap"
+        ],
+        "overflow": false
+      }
+    },
+    {
+      "name": "abstraction-concept",
+      "value": {
+        "views": [
+          "view-concept"
+        ],
+        "overflow": false
+      }
+    },
+    {
+      "name": "abstraction-quiz",
+      "value": {
+        "views": [
+          "view-quiz"
+        ],
+        "overflow": false
+      }
+    },
+    {
+      "name": "abstraction-lab",
+      "value": {
+        "views": [
+          "view-lab"
+        ],
+        "overflow": false
+      }
+    },
+    {
+      "name": "algorithm-concept",
+      "value": {
+        "views": [
+          "view-concept"
+        ],
+        "overflow": false
+      }
+    },
+    {
+      "name": "algorithm-quiz",
+      "value": {
+        "views": [
+          "view-quiz"
+        ],
+        "overflow": false
+      }
+    },
+    {
+      "name": "algorithm-lab",
+      "value": {
+        "views": [
+          "view-lab"
+        ],
+        "overflow": false
+      }
+    },
+    {
+      "name": "flowchart-concept",
+      "value": {
+        "views": [
+          "view-concept"
+        ],
+        "overflow": false
+      }
+    },
+    {
+      "name": "flowchart-quiz",
+      "value": {
+        "views": [
+          "view-quiz"
+        ],
+        "overflow": false
+      }
+    },
+    {
+      "name": "flowchart-1",
+      "value": {
+        "views": [
+          "view-lab"
+        ],
+        "overflow": false
+      }
+    },
+    {
+      "name": "flowchart-2",
+      "value": {
+        "views": [
+          "view-lab"
+        ],
+        "overflow": false
+      }
+    },
+    {
+      "name": "flowchart-3",
+      "value": {
+        "views": [
+          "view-lab"
+        ],
+        "overflow": false
+      }
+    },
+    {
+      "name": "flowchart-4",
+      "value": {
+        "views": [
+          "view-lab"
+        ],
+        "overflow": false
+      }
+    },
+    {
+      "name": "flowchart-5",
+      "value": {
+        "views": [
+          "view-lab"
+        ],
+        "overflow": false
+      }
+    },
+    {
+      "name": "eval",
+      "value": {
+        "views": [
+          "view-eval"
+        ],
+        "overflow": false
+      }
+    },
+    {
+      "name": "classroom",
+      "value": {
+        "views": [
+          "view-classroom"
+        ],
+        "overflow": false
+      }
+    },
+    {
+      "name": "engine probes",
+      "value": {
+        "io": [
+          {
+            "text": "나이 입력",
+            "input": "나",
+            "output": "나  입력"
+          },
+          {
+            "text": "합계 입력",
+            "input": "합계",
+            "output": "합계 입력"
+          },
+          {
+            "text": "기온 입력",
+            "input": "기온",
+            "output": "기온 입력"
+          },
+          {
+            "text": "점수를 입력받는다",
+            "input": "점수",
+            "output": "점수  입력받 다"
+          },
+          {
+            "text": "결과 출력",
+            "input": "결과",
+            "output": "결과"
+          },
+          {
+            "text": "나이 출력",
+            "input": "나",
+            "output": "나"
+          },
+          {
+            "text": "1 + 2 출력",
+            "input": "출력",
+            "output": "1 + 2"
+          }
+        ],
+        "parser": [
+          {
+            "text": "x = 1 + 2 * 3",
+            "value": 7
+          },
+          {
+            "text": "x = (1+2)*3",
+            "value": 9
+          },
+          {
+            "text": "x = 1.2.3",
+            "value": 1.2
+          },
+          {
+            "text": "x = 1 / 0",
+            "error": "0으로 나눌 수 없습니다."
+          }
+        ],
+        "emptyRunPassed": true,
+        "emptyConsistency": {
+          "isConsistent": true,
+          "issues": [],
+          "compliments": [
+            "시작과 종료 단말 기호가 바르게 배치되어 있으며, 모든 경로가 종료까지 완벽하게 이어집니다."
+          ],
+          "stats": {
+            "nlTotal": 0,
+            "seqCards": 0,
+            "selCards": 0,
+            "loopCards": 0,
+            "blocksTotal": 2,
+            "process": 0,
+            "decision": 0,
+            "io": 0,
+            "connections": 1,
+            "loopbacks": 0
+          }
+        },
+        "disconnectedExamPassed": true,
+        "disconnectedExamScore": 40
+      }
+    },
+    {
+      "name": "fallback teacher sees joined student",
+      "value": []
+    },
+    {
+      "name": "exam started",
+      "value": {
+        "status": "in_progress",
+        "remaining": 1800
+      }
+    },
+    {
+      "name": "exam after teacher ends",
+      "value": {
+        "status": "in_progress",
+        "submitted": false,
+        "timerRunning": true
+      }
+    },
+    {
+      "name": "reload retains work",
+      "value": {
+        "answers": {},
+        "nlCards": [
+          {
+            "id": "nl-1",
+            "type": "seq",
+            "text": "아침 알람을 듣고 침대에서 일어난다."
+          },
+          {
+            "id": "nl-2",
+            "type": "seq",
+            "text": "세수를 하고 거울을 본다."
+          },
+          {
+            "id": "nl-3",
+            "type": "sel",
+            "condition": "배가 고픈가?",
+            "yesAction": "토스트를 구워 먹는다.",
+            "noAction": "물 한 잔을 마신다."
+          },
+          {
+            "id": "nl-4",
+            "type": "seq",
+            "text": "가방을 메고 학교로 출발한다."
+          }
+        ],
+        "freeBlocks": [],
+        "storageKeys": [
+          "EVAL_STUDENTS_2-1",
+          "EVAL_STUDENTS_audit-test"
+        ]
+      }
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED"
+  ]
+}

@@ -1,0 +1,640 @@
+{
+  "results": [
+    {
+      "name": "static handlers missing",
+      "value": [
+        {
+          "element": "BUTTON",
+          "event": "onclick",
+          "code": "exportClassroomCSV()",
+          "fn": "exportClassroomCSV"
+        },
+        {
+          "element": "BUTTON",
+          "event": "onclick",
+          "code": "copyPadletFormat()",
+          "fn": "copyPadletFormat"
+        },
+        {
+          "element": "BUTTON",
+          "event": "onclick",
+          "code": "closeStudentDetailModal()",
+          "fn": "closeStudentDetailModal"
+        },
+        {
+          "element": "BUTTON",
+          "event": "onclick",
+          "code": "closeStudentDetailModal()",
+          "fn": "closeStudentDetailModal"
+        }
+      ]
+    },
+    {
+      "name": "quiz all units",
+      "value": [
+        {
+          "unit": "abstraction",
+          "count": 4,
+          "invalid": []
+        },
+        {
+          "unit": "algorithm",
+          "count": 4,
+          "invalid": []
+        },
+        {
+          "unit": "flowchart",
+          "count": 4,
+          "invalid": []
+        }
+      ]
+    },
+    {
+      "name": "abstraction full tutorial",
+      "value": {
+        "completed": true,
+        "tab": "workspace",
+        "step": 4
+      }
+    },
+    {
+      "name": "abstraction offline prescription",
+      "value": {
+        "currentStatus": "늦잠",
+        "goalStatus": "정시 등교",
+        "conditions": [
+          "7시 기상"
+        ],
+        "coreVariables": [
+          "시각",
+          "알람",
+          "준비 시간"
+        ],
+        "trashVariables": [],
+        "plans": [
+          "1단계: [시각] 파악 및 기준 정리",
+          "2단계: [알람]에 맞춰 분량 및 계획 배분",
+          "3단계: [준비 시간] 달성을 위한 실제 실천 및 피드백"
+        ]
+      }
+    },
+    {
+      "name": "mission validation",
+      "value": [
+        {
+          "id": 1,
+          "slots": [
+            {
+              "id": "s1",
+              "type": "terminal",
+              "label": "시작",
+              "fixed": true,
+              "shape": "terminal"
+            },
+            {
+              "id": "s2",
+              "type": "io",
+              "hint": "입출력 ▱ (물 500ml 붓기)",
+              "shape": "io"
+            },
+            {
+              "id": "s3",
+              "type": "process",
+              "hint": "처리 ▭ (물 끓이기)",
+              "shape": "process"
+            },
+            {
+              "id": "s4",
+              "type": "process",
+              "hint": "처리 ▭ (면과 스프 넣기)",
+              "shape": "process"
+            },
+            {
+              "id": "s5",
+              "type": "terminal",
+              "label": "종료 (라면 완성)",
+              "fixed": true,
+              "shape": "terminal"
+            }
+          ],
+          "blocks": [
+            {
+              "id": "b-m1-1",
+              "text": "물 500ml 냄비에 붓기",
+              "shape": "io"
+            },
+            {
+              "id": "b-m1-2",
+              "text": "가스레인지 켜서 물 끓이기",
+              "shape": "process"
+            },
+            {
+              "id": "b-m1-3",
+              "text": "면과 분말스프 넣고 4분 끓이기",
+              "shape": "process"
+            }
+          ],
+          "emptyPass": false
+        },
+        {
+          "id": 2,
+          "slots": [
+            {
+              "id": "s1",
+              "type": "terminal",
+              "label": "시작",
+              "fixed": true,
+              "shape": "terminal"
+            },
+            {
+              "id": "s2",
+              "type": "io",
+              "hint": "입출력 ▱ (키 입력받기)",
+              "shape": "io"
+            },
+            {
+              "id": "s3",
+              "type": "decision",
+              "hint": "판단 ◇ (키 >= 150cm 인가?)",
+              "shape": "decision"
+            },
+            {
+              "id": "s4_yes",
+              "type": "io",
+              "hint": "출력 ▱ (탑승 가능 안내)",
+              "shape": "io"
+            },
+            {
+              "id": "s4_no",
+              "type": "io",
+              "hint": "출력 ▱ (탑승 불가 안내)",
+              "shape": "io"
+            },
+            {
+              "id": "s5",
+              "type": "terminal",
+              "label": "종료",
+              "fixed": true,
+              "shape": "terminal"
+            }
+          ],
+          "blocks": [
+            {
+              "id": "b-m2-1",
+              "text": "사용자 키(Height) 입력",
+              "shape": "io"
+            },
+            {
+              "id": "b-m2-2",
+              "text": "키 >= 150cm 인가?",
+              "shape": "decision"
+            },
+            {
+              "id": "b-m2-yes",
+              "text": "'탑승 가능' 안내 출력",
+              "shape": "io"
+            },
+            {
+              "id": "b-m2-no",
+              "text": "'탑승 불가' 안내 출력",
+              "shape": "io"
+            }
+          ],
+          "emptyPass": false
+        },
+        {
+          "id": 3,
+          "slots": [
+            {
+              "id": "s1",
+              "type": "terminal",
+              "label": "시작",
+              "fixed": true,
+              "shape": "terminal"
+            },
+            {
+              "id": "s2",
+              "type": "io",
+              "hint": "입출력 ▱ (비밀번호 입력받기)",
+              "shape": "io"
+            },
+            {
+              "id": "s3",
+              "type": "decision",
+              "hint": "판단 ◇ (비밀번호 == 7777 인가?)",
+              "shape": "decision"
+            },
+            {
+              "id": "s4_yes",
+              "type": "io",
+              "hint": "출력 ▱ [예] (로그인 성공 출력)",
+              "shape": "io"
+            },
+            {
+              "id": "s4_no",
+              "type": "process",
+              "hint": "처리 ▭ [아니오] (불일치 안내 처리)",
+              "shape": "process"
+            },
+            {
+              "id": "s5",
+              "type": "terminal",
+              "label": "종료",
+              "fixed": true,
+              "shape": "terminal"
+            }
+          ],
+          "blocks": [
+            {
+              "id": "b-m3-in",
+              "text": "비밀번호 입력받기",
+              "shape": "io"
+            },
+            {
+              "id": "b-m3-chk",
+              "text": "비밀번호 == 7777 인가?",
+              "shape": "decision"
+            },
+            {
+              "id": "b-m3-yes",
+              "text": "'로그인 성공' 안내 출력",
+              "shape": "io"
+            },
+            {
+              "id": "b-m3-no",
+              "text": "'비밀번호 불일치' 안내 처리",
+              "shape": "process"
+            }
+          ],
+          "emptyPass": false
+        }
+      ]
+    },
+    {
+      "name": "sandwich correct and error actions",
+      "value": {
+        "early": {
+          "success": false,
+          "name": "식빵 꺼내기",
+          "msg": "오류: 빵 봉지가 닫혀 있습니다!"
+        },
+        "outcomes": [
+          {
+            "success": true,
+            "name": "봉지 열기",
+            "msg": "빵 봉지를 열었습니다."
+          },
+          {
+            "success": true,
+            "name": "식빵 꺼내기",
+            "msg": "식빵 1을 접시 왼쪽에 놓았습니다."
+          },
+          {
+            "success": true,
+            "name": "식빵 꺼내기",
+            "msg": "식빵 2를 접시 오른쪽에 놓았습니다."
+          },
+          {
+            "success": true,
+            "name": "딸기잼 뚜껑 열기",
+            "msg": "딸기잼 뚜껑을 열었습니다."
+          },
+          {
+            "success": true,
+            "name": "딸기잼 뜨기",
+            "msg": "칼에 딸기잼을 묻혔습니다."
+          },
+          {
+            "success": true,
+            "name": "식빵1 잼 도포",
+            "msg": "식빵 1 넓은 면에 딸기잼을 골고루 펴 발랐습니다."
+          },
+          {
+            "success": true,
+            "name": "땅콩버터 뚜껑 열기",
+            "msg": "땅콩버터 뚜껑을 열었습니다."
+          },
+          {
+            "success": true,
+            "name": "땅콩버터 뜨기",
+            "msg": "칼에 땅콩버터를 묻혔습니다."
+          },
+          {
+            "success": true,
+            "name": "식빵2 땅콩버터 도포",
+            "msg": "식빵 2 넓은 면에 땅콩버터를 골고루 발랐습니다."
+          },
+          {
+            "success": true,
+            "name": "치즈 비닐 제거",
+            "msg": "치즈의 비닐 포장을 벗겨냈습니다."
+          },
+          {
+            "success": true,
+            "name": "치즈 올리기",
+            "msg": "치즈를 식빵 1 위에 얹었습니다."
+          },
+          {
+            "success": true,
+            "name": "마주보게 덮기",
+            "msg": "식빵 2를 뒤집어 잼/버터 면이 마주보도록 깔끔하게 포개었습니다."
+          }
+        ],
+        "result": {
+          "title": "트리플 PB&J 치즈 샌드위치",
+          "review": "✨ 마주보게 깔끔하게 포개고 재료도 정석대로 도포된 완벽한 샌드위치입니다! 미슐랭 셰프가 인정합니다. 👏",
+          "isFlawless": true,
+          "badgeType": "perfect",
+          "isStickyOutside": false
+        }
+      }
+    },
+    {
+      "name": "sandwich fallback order",
+      "value": [
+        {
+          "text": "잼 뚜껑을 열고 칼에 잼을 떠서 빵에 골고루 발라",
+          "parsed": {
+            "type": "ACTION",
+            "actions": [
+              "SCOOP_JAM",
+              "SPREAD_JAM_BREAD1_FLAT"
+            ]
+          }
+        },
+        {
+          "text": "빵을 꺼내고 봉지를 열어",
+          "parsed": {
+            "type": "ACTION",
+            "actions": [
+              "OPEN_BAG",
+              "TAKE_BREAD"
+            ]
+          }
+        },
+        {
+          "text": "빵 봉지 열기",
+          "parsed": {
+            "type": "ACTION",
+            "actions": [
+              "OPEN_BAG"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "sandwich reset during active queue",
+      "value": {
+        "state": {
+          "bagOpened": false,
+          "breadOnPlate": 0,
+          "jamOpened": true,
+          "pbOpened": false,
+          "cheeseUnwrapped": false,
+          "cheeseOnBread": null,
+          "cheesePlasticIncluded": false,
+          "knifeHolding": "none",
+          "bread1Spread": "none",
+          "bread2Spread": "none",
+          "isFlippedCover": false,
+          "completed": false
+        },
+        "queue": []
+      }
+    },
+    {
+      "name": "teacher assignment detail handler",
+      "value": {
+        "handler": "undefined",
+        "sampleRows": 2
+      }
+    },
+    {
+      "name": "student name interpreted as executable HTML",
+      "value": {
+        "marker": 1
+      }
+    },
+    {
+      "name": "submission rejected by server",
+      "value": {
+        "submitted": true,
+        "resultVisible": true
+      }
+    },
+    {
+      "name": "AI outage still awards pass",
+      "value": {
+        "passed": true,
+        "banner": "🤖\nSolar AI 알고리즘 설계 검사 리포트\n\n자연어 기획서와 순서도 캔버스를 2단계로 정밀 대조 검사합니다.\n\n💮\nSolar AI 설계 검사 통과!\n2022 개정 정보 표준\n자연어 기획서와 순서도 캔버스가 완벽하게 일치합니다.\n📊 기획서 vs 순서도 기호 대조표\n총 1단계 ➔ 3개 블록\n📝 자연어 기획서\n1단계\n• 순차: 1개\n• 선택: 0개\n• 반복: 0개\n📐 캔버스 순서도\n3블록\n• 처리: 1개 / 입출력: 0개\n• 판단: 0개\n• 연결선: 2개 (루프백 0개)\n자연어와 순서도 기호가 빠짐없이 완벽하게 대응되었습니다.\nSolar AI의 설계 검사 종합 의견\n자연어 기획서와 순서도 블록이 단계별로 일관되게 잘 구성되어 있습니다. 완성 후 [띵커보드 제출]을 진행해 보세요!\n캔버스 확인\n합격 도장 찍고 띵커보드 제출하기"
+      }
+    },
+    {
+      "name": "editing approved work preserves pass",
+      "value": {
+        "passed": true,
+        "consistency": {
+          "isConsistent": true,
+          "issues": [],
+          "compliments": [
+            "시작과 종료 단말 기호가 바르게 배치되어 있으며, 모든 경로가 종료까지 완벽하게 이어집니다."
+          ],
+          "stats": {
+            "nlTotal": 1,
+            "seqCards": 1,
+            "selCards": 0,
+            "loopCards": 0,
+            "blocksTotal": 3,
+            "process": 1,
+            "decision": 0,
+            "io": 0,
+            "connections": 2,
+            "loopbacks": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "single branch false follows yes",
+      "value": {
+        "current": "e",
+        "previous": "p",
+        "log": "> 콘솔이 초기화되었습니다.\n> 준비 완료. [한 단계] 또는 [실행]을 누르세요.\n> 🚀 디버그 세션을 시작합니다. [한 단계] 또는 [실행]을 누르세요.\n> [시작] 알고리즘을 출발합니다.\n> 🤔 [판단] '배가 고픈가?' ➔ [예] 또는 [아니오] 분기를 직접 선택하세요.\n> 👉 [분기 선택] '배가 고픈가?' ➔ [아니오] 선택 완료!\n> [명령] '밥 먹기' 실행 완료"
+      }
+    },
+    {
+      "name": "portfolio image generation",
+      "value": {
+        "width": 840,
+        "height": 990
+      }
+    },
+    {
+      "name": "studio geometry 1920",
+      "value": [
+        {
+          "id": "sim-drag-floating-bar",
+          "x": 807.296875,
+          "y": 159.625,
+          "w": 438.40625,
+          "h": 51,
+          "scrollW": 436,
+          "clientW": 436
+        },
+        {
+          "id": "free-flowchart-canvas",
+          "x": 496.5,
+          "y": 232.625,
+          "w": 1060,
+          "h": 0,
+          "scrollW": 1060,
+          "clientW": 1060
+        },
+        {
+          "id": "flowchart-studio-l3",
+          "missing": true
+        },
+        {
+          "id": "debugger-panel",
+          "missing": true
+        }
+      ]
+    },
+    {
+      "name": "studio geometry 1440",
+      "value": [
+        {
+          "id": "sim-drag-floating-bar",
+          "x": 607.046875,
+          "y": 120.75,
+          "w": 358.90625,
+          "h": 94.75,
+          "scrollW": 357,
+          "clientW": 357
+        },
+        {
+          "id": "free-flowchart-canvas",
+          "x": 463,
+          "y": 227.75,
+          "w": 647,
+          "h": 9.75,
+          "scrollW": 647,
+          "clientW": 647
+        },
+        {
+          "id": "flowchart-studio-l3",
+          "missing": true
+        },
+        {
+          "id": "debugger-panel",
+          "missing": true
+        }
+      ]
+    },
+    {
+      "name": "studio geometry 1366",
+      "value": [
+        {
+          "id": "sim-drag-floating-bar",
+          "x": 561.3828125,
+          "y": 108.5,
+          "w": 354.234375,
+          "h": 92.375,
+          "scrollW": 352,
+          "clientW": 352
+        },
+        {
+          "id": "free-flowchart-canvas",
+          "x": 420,
+          "y": 222.875,
+          "w": 637,
+          "h": 0,
+          "scrollW": 637,
+          "clientW": 637
+        },
+        {
+          "id": "flowchart-studio-l3",
+          "missing": true
+        },
+        {
+          "id": "debugger-panel",
+          "missing": true
+        }
+      ]
+    },
+    {
+      "name": "studio geometry 1024",
+      "value": [
+        {
+          "id": "sim-drag-floating-bar",
+          "x": 379.3828125,
+          "y": 142.375,
+          "w": 354.234375,
+          "h": 92.375,
+          "scrollW": 352,
+          "clientW": 352
+        },
+        {
+          "id": "free-flowchart-canvas",
+          "x": 378,
+          "y": 222.875,
+          "w": 357,
+          "h": 33.875,
+          "scrollW": 427,
+          "clientW": 357
+        },
+        {
+          "id": "flowchart-studio-l3",
+          "missing": true
+        },
+        {
+          "id": "debugger-panel",
+          "missing": true
+        }
+      ]
+    },
+    {
+      "name": "studio geometry 768",
+      "value": [
+        {
+          "id": "sim-drag-floating-bar",
+          "x": 201.71875,
+          "y": 150,
+          "w": 349.5625,
+          "h": 90,
+          "scrollW": 348,
+          "clientW": 348
+        },
+        {
+          "id": "free-flowchart-canvas",
+          "x": 33,
+          "y": 262,
+          "w": 687,
+          "h": 0,
+          "scrollW": 687,
+          "clientW": 687
+        },
+        {
+          "id": "flowchart-studio-l3",
+          "missing": true
+        },
+        {
+          "id": "debugger-panel",
+          "missing": true
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Error: ⚠️ AI API 키가 설정되지 않았습니다.\n(로컬: js/data/config.js 키 입력 / 배포: Vercel 환경변수 UPSTAGE_API_KEY 등록 필요)\n    at callSolarAI (http://127.0.0.1:49544/js/core/ai-service.js:57:11)\n    at async generateFinalPrescription (http://127.0.0.1:49544/js/labs/lab-abstraction.js:862:21)\n    at async eval (eval at evaluate (:311:30), <anonymous>:1:198)\n    at async <anonymous>:337:30",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "제출 Firestore 저장 실패: Error: Audit simulated permission denied\n    at Object.set (eval at evaluate (:311:30), <anonymous>:1:124)\n    at EvalService.submitStudentExam (http://127.0.0.1:49544/js/core/eval-service.js:280:12)\n    at StudentEvalApp.submitExam (http://127.0.0.1:49544/js/labs/lab-eval.js:1237:32)\n    at eval (eval at evaluate (:311:30), <anonymous>:1:241)\n    at UtilityScript.evaluate (<anonymous>:313:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  ]
+}

@@ -1,0 +1,132 @@
+{
+  "results": [
+    {
+      "name": "Step4 actual yes branch",
+      "value": 0
+    },
+    {
+      "name": "Step4 actual no branch",
+      "value": 0
+    },
+    {
+      "name": "Step4 stop",
+      "value": {
+        "running": false,
+        "overlay": false
+      }
+    },
+    {
+      "name": "numeric loop sums one through three",
+      "value": {
+        "done": true,
+        "steps": 15,
+        "vars": {
+          "i": 4,
+          "sum": 6
+        }
+      }
+    },
+    {
+      "name": "constant comparison automatically evaluated",
+      "value": {
+        "waiting": true,
+        "curId": "d"
+      }
+    },
+    {
+      "name": "orthogonal paths near alignment",
+      "value": [
+        {
+          "dx": 0,
+          "path": "M 100 100 L 100 200"
+        },
+        {
+          "dx": 1,
+          "path": "M 100 100 L 101 200"
+        },
+        {
+          "dx": 4,
+          "path": "M 100 100 L 104 200"
+        },
+        {
+          "dx": 7,
+          "path": "M 100 100 L 107 200"
+        },
+        {
+          "dx": 8,
+          "path": "M 100 100 V 150 H 108 V 200"
+        }
+      ]
+    },
+    {
+      "name": "actual port drag creates connection",
+      "value": [
+        {
+          "from": "blk-start",
+          "fromPort": "out",
+          "to": "blk-p1",
+          "toPort": "in"
+        }
+      ]
+    },
+    {
+      "name": "pan retains endpoint relative position",
+      "value": {
+        "before": "M 328 122.75 L 333 162",
+        "after": "M 328 122.75 L 333 162"
+      }
+    },
+    {
+      "name": "teacher CSV quote handling",
+      "value": "학급,번호,이름,응시상태,Part1(객관식/30),Part2(주관식/30),Part3(순서도/40),자동채점총점,선생님조정점수,최종성적,제출시각\n\"audit반\",1,\"테스트\"이름\",\"응시완료\",0,0,0,60,,60,\"-\"\n"
+    },
+    {
+      "name": "teacher score bounds",
+      "value": {
+        "part1": 0,
+        "part2": 0,
+        "part3": 0,
+        "total": 0,
+        "teacherOverride": 150
+      }
+    },
+    {
+      "name": "exam wall clock gap",
+      "value": {
+        "initial": 1800,
+        "afterTwoMinuteClockGap": 1800
+      }
+    },
+    {
+      "name": "same theme click erases work",
+      "value": {
+        "before": 2,
+        "after": 1
+      }
+    },
+    {
+      "name": "direct file opening",
+      "value": {
+        "protocol": "file:",
+        "appReady": true,
+        "missionCount": 3,
+        "roadmapVisible": true
+      }
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED"
+  ]
+}

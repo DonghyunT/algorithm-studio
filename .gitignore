@@ -33,3 +33,4 @@ js/data/config.js
 .env.*
 !.env.example
 
+.vercel
