@@ -2,7 +2,7 @@
 
 중학교 정보 수업의 **추수활동**을 위한 웹앱입니다. 문제 추상화, 알고리즘 설계, 순서도를 학생이 쉽게 적용하고 직접 완성하도록 돕습니다. 수행평가 탭은 별도의 평가 원칙을 따릅니다.
 
-> 갱신: 2026-09-12. 실습·평가 정책과 신뢰성 보완을 사용자 승인으로 로컬 main에 병합했습니다. 원격 push·운영 배포는 아직 하지 않았습니다. [구현 검토서](docs/IMPLEMENTATION_REVIEW.md), [PRD](PRD.md), [원본 감사](audit/AUDIT_REPORT.md)를 확인하세요.
+> 갱신: 2026-09-12. GitHub main·Vercel 운영 배포·Firestore classrooms 구조와 보안 규칙을 반영했습니다. 실제 익명 로그인·DB 권한·AI 연결을 확인했으며 교사 최초 Google 로그인과 권한 연결은 대기 중입니다. [배포 기록](docs/DEPLOYMENT.md), [DB 설계](docs/DATABASE.md), [구현 검토서](docs/IMPLEMENTATION_REVIEW.md)를 확인하세요.
 
 ## 수업에서 활용하기
 
