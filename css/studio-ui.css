@@ -105,6 +105,24 @@ body > div:first-child, main { min-width:0; }
 #tutor-chat-window { max-width:100%; margin-right:0; max-height:calc(100dvh - 110px); border-radius:var(--ui-radius); }
 #view-classroom > div { min-width:0; flex-wrap:wrap; }
 #view-classroom .teacher-control-bar { gap:18px; }
+.teacher-session-heading { display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin-top:12px; }
+.teacher-session-status { border:1px solid #8493a7; color:#edf2f8; border-radius:5px; padding:4px 9px; font-size:13px; font-weight:700; }
+.teacher-session-status[data-state="waiting"] { color:#ffe1a0; border-color:#a39065; }
+.teacher-session-status[data-state="running"] { color:#b7dfef; border-color:#779fac; }
+.teacher-session-status[data-state="ended"] { color:#bce7d7; border-color:#77998d; }
+.teacher-session-time { font-size:14px; font-variant-numeric:tabular-nums; }
+.teacher-session-hint { color:#d1dbe7; font-size:13px; line-height:1.6; margin:8px 0; max-width:52ch; word-break:keep-all; overflow-wrap:anywhere; }
+.teacher-session-counts { flex-wrap:wrap; row-gap:6px; }
+.teacher-session-feedback { color:#ffe1a0; font-size:13px; line-height:1.6; margin-top:8px; max-width:52ch; }
+.teacher-session-feedback:empty { display:none; }
+.teacher-session-actions { align-self:center; }
+.teacher-session-action, .teacher-export-action { padding:11px 16px; font-size:14px; font-weight:700; white-space:nowrap; cursor:pointer; }
+.teacher-session-action { min-width:132px; color:#233247; background:#eef4ff; border:1px solid #eef4ff; }
+.teacher-session-action[data-action="end"] { color:#f4d4d4; background:transparent; border-color:#b497a0; }
+.teacher-session-action:disabled { opacity:.6; cursor:wait; }
+.teacher-export-action { color:#e0e8f1; background:transparent; border:1px solid #718096; display:inline-flex; align-items:center; gap:8px; }
+.teacher-session-action:focus-visible, .teacher-export-action:focus-visible { outline:3px solid #9cc3ff; outline-offset:3px; }
+.teacher-session-action:not(:disabled):hover, .teacher-export-action:hover { filter:brightness(1.12); }
 .canvas-instructions { flex-shrink:0; padding:8px 12px; border-bottom:1px solid var(--ui-line); font-size:11px; line-height:1.6; color:var(--ui-muted); background:#fafbfc; }
 #classroom-section-live > div:last-child > div:first-child { align-items:flex-start; }
 body.studio-mode #view-lab { height:calc(100dvh - var(--app-header-height)) !important; }

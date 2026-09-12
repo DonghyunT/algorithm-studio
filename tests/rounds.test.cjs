@@ -34,6 +34,24 @@ test('failed archival transaction preserves current answer',async()=>{
  assert.equal([...records.keys()].some(path=>path.includes('/archives/')),false);
 });
 
+test('teacher controls reject stale rounds and failed end writes preserve the active exam',async()=>{
+ const {records,service,setFail}=setup();
+ await service.prepareSession('2-1');
+ const ready=records.get('classrooms/2-1'), expected={attemptId:ready.attemptId,status:'waiting'};
+ await assert.rejects(service.startSession('2-1',30,{attemptId:'old',status:'waiting'}),/다른 화면/);
+ await service.startSession('2-1',30,expected);
+ await assert.rejects(service.prepareSession('2-1',expected),/다른 화면/);
+ const running={...expected,status:'in_progress'};
+ setFail(true);await assert.rejects(service.endSession('2-1',running),/write failed/);
+ assert.equal(records.get('classrooms/2-1').status,'in_progress');setFail(false);
+ await service.endSession('2-1',running);
+ assert.equal(records.get('classrooms/2-1').status,'ended');
+ await service.prepareSession('2-1',{...expected,status:'ended'});
+ await service.startSession('2-1');
+ await assert.rejects(service.endSession('2-1',running),/다른 화면/);
+ assert.equal(records.get('classrooms/2-1').status,'in_progress');
+});
+
 test('teacher review is bound to the submitted answer; failures and resets do not confirm stale scores',async()=>{
  const {records,service,setFail}=setup(),policy=require('../js/core/assessment-policy.js');
  await service.prepareSession('2-1');const s=await service.joinWaitingRoom('2-1',1,'검증');await service.startSession('2-1');

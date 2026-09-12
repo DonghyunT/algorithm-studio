@@ -1,0 +1,40 @@
+{
+  "at": "2026-09-12T23:54:06.834Z",
+  "results": [
+    {
+      "name": "one action moves from unprepared to ready without starting the timer",
+      "pass": true
+    },
+    {
+      "name": "pending and double clicks send one start; state changes only after success",
+      "pass": true
+    },
+    {
+      "name": "cancelled end and failed server write leave the running state intact",
+      "pass": true
+    },
+    {
+      "name": "wide and narrow teacher toolbar has reachable controls and no page overflow",
+      "pass": true
+    },
+    {
+      "name": "end then prepare archives the old round and displays a new waiting round",
+      "pass": true
+    },
+    {
+      "name": "remote teacher updates are reflected and class switching removes old listeners",
+      "pass": true
+    },
+    {
+      "name": "expired session is shown as ended and can prepare the next round without restarting it",
+      "pass": true
+    },
+    {
+      "name": "subscription failure disables mutations until retry and leaving cleans up the dashboard",
+      "pass": true
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "passed": true
+}

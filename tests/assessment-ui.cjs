@@ -22,7 +22,7 @@ const root = path.resolve(__dirname, '..'), output = path.join(__dirname, 'resul
     page.on('console', msg => {if(msg.type()==='error')consoleErrors.push(msg.text());});
     page.on('dialog', d => d.accept());
     await page.goto(`http://127.0.0.1:${server.address().port}/index.html?demo=1`, {waitUntil:'networkidle'});
-    async function check(name, task) {try {await task(); results.push({name,pass:true});} catch(error) {results.push({name,pass:false,error:error.message});}}
+    async function check(name, task) {console.log('Checking: '+name);try {await task(); results.push({name,pass:true});} catch(error) {results.push({name,pass:false,error:error.message});}}
     const teacher=await page.context().newPage();teacher.on('dialog',d=>d.accept());teacher.on('pageerror',e=>errors.push(e.message));
     const url=page.url();await teacher.goto(url,{waitUntil:'networkidle'});
     await page.evaluate(()=>{nlCards=[{id:'practice-card',type:'seq',text:'실습 전용 초안'}];freeBlocks=[{id:'practice-start',shape:'terminal',text:'시작',x:80,y:40}];freeConnections=[];savePracticeDraft();});
