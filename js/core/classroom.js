@@ -10,7 +10,7 @@
  */
 
 const CLASSROOM_STORAGE_KEY = "ALGO_LAB_CLASSROOM_DATA_V3";
-const DEFAULT_TEACHER_PIN = "geumokcs";
+
 
 // 전국 중학교 표준 11개 반 구성
 const DEFAULT_CLASSES = [
@@ -26,39 +26,7 @@ let liveEvalUnsub = null;
 let currentLiveStudents = [];
 
 // 1. 클래스룸 데이터 로드 및 초기화
-function getClassroomData() {
-  try {
-    const raw = sessionStorage.getItem(CLASSROOM_STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch (e) {
-    console.warn("Classroom data parse error:", e);
-  }
-
-  const initialData = {};
-  DEFAULT_CLASSES.forEach((cName, idx) => {
-    initialData[cName] = (idx === 0) ? [
-      {
-        studentNum: "20101",
-        studentName: "강민준",
-        unit1: { completed: true, score: "A", date: "2026-09-05 10:15", prescription: { current: "늦잠으로 지각 위기", goal: "정시 등교 성공", variables: ["현재시각", "알람소리"], plan: "1. 기상 즉시 세수\n2. 07:40 버스 탑승" } },
-        unit2: { completed: true, score: "A", date: "2026-09-05 10:30", stepsCount: 4, debugSuccess: true },
-        unit3: { completed: true, score: "A", date: "2026-09-05 10:45", summary: "지각 방지 등교 순서도 완성" },
-        teacherFeedback: "문제 분석과 순서도 기호 분기가 매우 논리적임."
-      },
-      {
-        studentNum: "20102",
-        studentName: "김서연",
-        unit1: { completed: true, score: "A", date: "2026-09-05 10:18", prescription: { current: "시험 공부 시간 부족", goal: "하루 2시간 집중 공부", variables: ["공부시간", "스마트폰사용"], plan: "1. 스마트폰 전원 끄기\n2. 타이머 40분 설정" } },
-        unit2: { completed: true, score: "B", date: "2026-09-05 10:35", stepsCount: 5, debugSuccess: true },
-        unit3: { completed: false, score: "-", date: "-", summary: "미완료" },
-        teacherFeedback: "순서도 백지 캔버스 실습 이어갈 것."
-      }
-    ] : [];
-  });
-
-  saveClassroomData(initialData);
-  return initialData;
-}
+function getClassroomData() { return Object.fromEntries(DEFAULT_CLASSES.map(name => [name, []])); }
 
 function saveClassroomData(data) {
   try {
@@ -77,21 +45,16 @@ function openClassroomTab() {
   }
 }
 
-function promptTeacherPin() {
-  const pin = prompt("🔐 교사용 클래스룸 & 실시간 관제탑입니다.\n선생님 비밀번호를 입력하세요:", "");
-  if (pin === null) return;
-
-  if (pin.trim() === DEFAULT_TEACHER_PIN) {
+async function promptTeacherPin() {
+  try {
+    await window.authService.teacher();
     isTeacherAuthenticated = true;
-    if (typeof playSfx === 'function') playSfx('success');
     showClassroomView();
-  } else {
-    if (typeof playSfx === 'function') playSfx('error');
-    alert("❌ 비밀번호가 올바르지 않습니다.");
-  }
+  } catch (error) { alert(error.message); }
 }
 
 function showClassroomView() {
+  if (typeof disableStudioMode === "function") disableStudioMode();
   // 모든 메인 뷰 숨기고 view-classroom 단독 노출
   ['view-roadmap', 'view-concept', 'view-quiz', 'view-lab', 'view-eval'].forEach(id => {
     const el = document.getElementById(id);
@@ -188,9 +151,11 @@ function initLiveEvalDashboard() {
 
   if (window.evalService) {
     liveEvalUnsub = window.evalService.listenStudents(classId, (students) => {
+      const label=document.getElementById('classroom-connection-status');
+      if(label) label.textContent=window.evalService.isDemo() ? '로컬 시연 · 운영 DB와 분리됨' : '답안 수신됨 · 연결 상태는 갱신 시 확인';
       currentLiveStudents = students || [];
       renderLiveGrid(currentLiveStudents);
-    });
+    }, error=>{const label=document.getElementById('classroom-connection-status');if(label)label.textContent='답안 수신 실패 · 연결과 권한 확인 필요';alert(error.message);});
   }
 }
 
@@ -233,7 +198,7 @@ function renderLiveGrid(students = []) {
         statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-200 text-amber-800 font-bold">대기중</span>`;
       } else if (s.status === 'in_progress') {
         statusBg = "bg-blue-50/80 border-blue-400 text-blue-900";
-        const pCount = (s.progress?.part1 || 0) + (s.progress?.part2 || 0);
+        const pCount = (Number(s.progress?.part1) || 0) + (Number(s.progress?.part2) || 0);
         statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-600 text-white font-bold animate-pulse">풀이중 (${pCount}문항)</span>`;
       } else if (s.status === 'submitted') {
         statusBg = "bg-emerald-50 border-emerald-400 text-emerald-950 shadow-xs";
@@ -253,7 +218,7 @@ function renderLiveGrid(students = []) {
           <span class="text-xs font-black font-mono px-2 py-0.5 rounded-md bg-white/80 border border-slate-200">${numStr}번</span>
           ${statusBadge}
         </div>
-        <div class="truncate text-xs sm:text-sm font-black text-slate-800 py-1.5 leading-snug" title="${studentName}">${studentName}</div>
+        <div class="truncate text-xs sm:text-sm font-black text-slate-800 py-1.5 leading-snug" title="${escapeHtml(studentName)}">${escapeHtml(studentName)}</div>
         <div class="flex items-center justify-between pt-1 border-t border-slate-200/60">
           <span class="text-[10px] text-slate-400">성적:</span>
           ${scoreDisplay}
@@ -273,7 +238,7 @@ async function handleTeacherStartExam() {
   }
 
   if (window.evalService) {
-    await window.evalService.startSession(classId, 30);
+    try { await window.evalService.startSession(classId, 30); } catch(error) { alert(error.message); return; }
     alert(`🎉 [${currentSelectedClass}] 30분 실시간 수행평가가 시작되었습니다!\n타이머가 가동됩니다.`);
   }
 }
@@ -286,7 +251,7 @@ async function handleTeacherEndExam() {
   }
 
   if (window.evalService) {
-    await window.evalService.endSession(classId);
+    try { await window.evalService.endSession(classId); } catch(error) { alert(error.message); return; }
     alert(`🛑 [${currentSelectedClass}] 수행평가 세션이 마감되었습니다.`);
   }
 }
@@ -317,7 +282,13 @@ function openLiveStudentModal(studentNum) {
 
   if (p1El) p1El.textContent = JSON.stringify(s.answers?.part1 || {}, null, 2);
   if (p2El) p2El.textContent = JSON.stringify(s.answers?.part2 || {}, null, 2);
-  if (p3El) p3El.textContent = `순서도 블록 ${s.answers?.part3?.blocks?.length || s.answers?.part3?.placedBlocks?.length || 0}개 조립 및 검증 (${s.scores?.part3 || 0}점)`;
+  if (p3El) {
+    const graph=s.answers?.part3||{};
+    p3El.style.whiteSpace='pre-wrap';
+    p3El.textContent='자동 계산 참고값: '+(s.scores?.part3||0)+' / 40점 (최종 교사 검토 필요)\n'+
+      (Array.isArray(graph.blocks)?graph.blocks:[]).filter(Boolean).map(b=>b.id+' ['+b.shape+'] '+b.text).join('\n')+'\n연결\n'+
+      (Array.isArray(graph.connections)?graph.connections:[]).filter(Boolean).map(c=>c.from+' ('+c.fromPort+') → '+c.to).join('\n');
+  }
 
   const currentScore = (s.scores?.teacherOverride !== null && s.scores?.teacherOverride !== undefined)
     ? s.scores.teacherOverride
@@ -329,10 +300,10 @@ function openLiveStudentModal(studentNum) {
   const saveBtn = document.getElementById('classroom-live-save-score-btn');
   if (saveBtn) {
     saveBtn.onclick = async () => {
-      const newScore = parseInt(scoreInp.value, 10);
+      const newScore = scoreInp.value;
       const classId = getClassIdFromSelected();
       if (window.evalService) {
-        await window.evalService.overrideStudentScore(classId, s.num, newScore);
+        try { await window.evalService.overrideStudentScore(classId, s.num, newScore); } catch(error) { alert(error.message); return; }
         alert(`✅ ${s.name} 학생의 최종 성적이 [${newScore}점]으로 조정되었습니다.`);
         closeLiveStudentModal();
       }
@@ -348,7 +319,7 @@ function openLiveStudentModal(studentNum) {
       }
       const classId = getClassIdFromSelected();
       if (window.evalService) {
-        await window.evalService.resetStudentExam(classId, s.num);
+        try { await window.evalService.resetStudentExam(classId, s.num); } catch(error) { alert(error.message); return; }
         alert(`🔄 ${s.name} 학생의 재시험이 승인되었습니다. 답안이 초기화되었습니다.`);
         closeLiveStudentModal();
       }
@@ -368,63 +339,9 @@ function closeLiveStudentModal() {
 // ============================================================================
 
 function renderAssignmentsTable() {
-  const container = document.getElementById('classroom-table-container');
-  const allData = getClassroomData();
-  const studentList = allData[currentSelectedClass] || [];
-  studentList.sort((a, b) => a.studentNum.localeCompare(b.studentNum));
-
-  if (!container) return;
-
-  if (studentList.length === 0) {
-    container.innerHTML = `
-      <div class="p-12 text-center text-slate-400">
-        <div class="text-4xl mb-3">📭</div>
-        <div class="font-bold text-slate-600 text-base">아직 ${currentSelectedClass}에 제출된 단원 과제가 없습니다.</div>
-        <p class="text-xs text-slate-400 mt-1">학생들이 각 단원에서 [과제 제출] 버튼을 누르면 실시간으로 이곳에 등록됩니다.</p>
-      </div>
-    `;
-    return;
-  }
-
-  container.innerHTML = `
-    <div class="overflow-x-auto">
-      <table class="w-full text-left text-xs sm:text-sm">
-        <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
-          <tr>
-            <th class="p-3.5 pl-5">학번</th>
-            <th class="p-3.5">이름</th>
-            <th class="p-3.5 text-center">Unit 1 (추상화)</th>
-            <th class="p-3.5 text-center">Unit 2 (로봇)</th>
-            <th class="p-3.5 text-center">Unit 3 (순서도)</th>
-            <th class="p-3.5 text-center">종합 성취도</th>
-            <th class="p-3.5 text-center pr-5">상세 검토</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100 font-medium">
-          ${studentList.map(s => {
-            const u1 = s.unit1.completed ? `<span class="text-violet-600 font-bold">✓ 완료</span>` : `<span class="text-slate-300">-</span>`;
-            const u2 = s.unit2.completed ? `<span class="text-amber-600 font-bold">✓ 완료</span>` : `<span class="text-slate-300">-</span>`;
-            const u3 = s.unit3.completed ? `<span class="text-indigo-600 font-bold">✓ 완료</span>` : `<span class="text-slate-300">-</span>`;
-            const isAll = s.unit1.completed && s.unit2.completed && s.unit3.completed;
-            const totalBadge = isAll ? `<span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-md font-bold">탁월 (A)</span>` : `<span class="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md">진행중</span>`;
-            return `
-              <tr class="hover:bg-slate-50/80 transition">
-                <td class="p-3.5 pl-5 font-mono font-bold text-slate-700">${s.studentNum}</td>
-                <td class="p-3.5 font-bold text-slate-900">${s.studentName}</td>
-                <td class="p-3.5 text-center">${u1}</td>
-                <td class="p-3.5 text-center">${u2}</td>
-                <td class="p-3.5 text-center">${u3}</td>
-                <td class="p-3.5 text-center">${totalBadge}</td>
-                <td class="p-3.5 text-center pr-5">
-                  <button onclick="openStudentDetailModal('${s.studentNum}')" class="px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-600 rounded-xl text-xs font-bold transition border border-slate-200 flex items-center gap-1.5 mx-auto">
-                    <i class="fa-solid fa-magnifying-glass text-[10px]"></i> 검토
-                  </button>
-                </td>
-              </tr>
-            `;
-          }).join('')}
-        </tbody>
-      </table>
-    </div>
-  `;
+  const container=document.getElementById('classroom-table-container');
+  if(container) container.textContent='단원별 과제 자동 취합은 아직 연결되지 않았습니다. 실습 결과는 이미지·텍스트로 내보내 선생님이 안내한 게시판에 제출해 주세요. 수행평가 답안은 실시간 관제실에서 확인할 수 있습니다.';
 }
+function exportClassroomCSV() { alert('단원별 과제 취합은 아직 연결되지 않았습니다. 수행평가 성적은 실시간 관제실의 CSV 버튼을 사용해 주세요.'); }
+function closeStudentDetailModal() { document.getElementById('classroom-detail-modal')?.classList.add('hidden'); }
+function copyPadletFormat() { alert('단원별 과제 취합은 아직 연결되지 않았습니다.'); }

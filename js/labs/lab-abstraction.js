@@ -79,6 +79,7 @@ function switchAbstractionSubTab(tab) {
     };
 
     function initTutorialUI() {
+      if(window.hasPracticeDraft) { updateTutorialStepUI(); return; }
       tutStep = 1;
       currentTutScenario = 'chat';
       tutTrashTags = [];

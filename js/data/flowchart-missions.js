@@ -90,8 +90,8 @@ const level2Walkthrough = {
     {
       stepIdx: 1,
       cardTitle: "1단계: 순차 구조 (자료 입력)",
-      cardBadge: "🟠 자료 입출력 (▱)",
-      badgeClass: "bg-orange-50 text-orange-700 border-orange-200",
+      cardBadge: "🟢 자료 입출력 (▱)",
+      badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200",
       naturalText: "오전 7시 알람 소리를 듣고 현재 시각을 확인한다.",
       symbolType: "io",
       symbolShapeName: "평행사변형 (입출력)",
@@ -101,8 +101,8 @@ const level2Walkthrough = {
     {
       stepIdx: 2,
       cardTitle: "2단계: 순차 구조 (명령 동작)",
-      cardBadge: "🟣 처리 동작 (▭)",
-      badgeClass: "bg-purple-50 text-purple-700 border-purple-200",
+      cardBadge: "🔵 처리 동작 (▭)",
+      badgeClass: "bg-blue-50 text-blue-700 border-blue-200",
       naturalText: "침대에서 일어나 세수를 한다.",
       symbolType: "process",
       symbolShapeName: "직사각형 (처리)",
@@ -112,8 +112,8 @@ const level2Walkthrough = {
     {
       stepIdx: 3,
       cardTitle: "3단계: 선택 구조 (조건 판단)",
-      cardBadge: "🔵 조건 판단 (분기 ◇)",
-      badgeClass: "bg-sky-50 text-sky-700 border-sky-200",
+      cardBadge: "🟠 조건 판단 (분기 ◇)",
+      badgeClass: "bg-amber-50 text-amber-700 border-amber-200",
       condition: "현재 시각 <= 07:30 인가?",
       yesAction: "여유롭게 아침밥을 먹는다.",
       noAction: "서둘러 즉시 출발 준비를 한다.",
@@ -127,7 +127,7 @@ const level2Walkthrough = {
     {
       stepIdx: 4,
       cardTitle: "4단계: 순차 구조 (동작 합류 & 완료)",
-      cardBadge: "🟣 처리 합류 ➔ 🟢 종료 (⬭)",
+      cardBadge: "🔵 처리 합류 ➔ 🟣 종료 (⬭)",
       badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200",
       naturalText: "현관문을 열고 등교 버스를 타러 간다.",
       symbolType: "process",

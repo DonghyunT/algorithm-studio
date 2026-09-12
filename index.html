@@ -12,6 +12,7 @@
   <!-- Firebase Web SDK Compat (CDN) -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
   
   <!-- 모듈화된 전용 스타일시트 -->
   <link rel="stylesheet" href="css/common.css">
@@ -2000,7 +2001,7 @@
                   <!-- 띵커보드 원클릭 제출 버튼 -->
                   <button id="btn-toolbar-thinker-submit" onclick="openThinkerSubmissionModal()" class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black rounded-xl text-xs transition flex items-center gap-1.5 border border-slate-300 shadow-2xs cursor-pointer" disabled>
                     <i class="fa-solid fa-lock text-[10px] text-amber-500"></i>
-                    <span>AI 검사 후 제출</span>
+                    <span>현재 상태로 제출</span>
                   </button>
                 </div>
               </div>
@@ -2206,6 +2207,7 @@
             </div>
             <div>
               <div id="eval-exam-st-info" class="text-sm sm:text-base font-black text-white">2학년 1반 1번 홍길동</div>
+              <div id="eval-save-status" role="status" class="text-xs text-amber-200">답안 작성 전</div>
               <div class="text-xs text-slate-400">중2 정보 알고리즘 30분 실시간 수행평가 (총점 100점)</div>
             </div>
           </div>
@@ -2226,7 +2228,7 @@
             <span>Part 1. 객관식 10문항 (30점)</span>
           </button>
           <button type="button" id="eval-tab-btn-part2" onclick="window.studentEvalApp.switchPart('part2')" class="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer flex items-center gap-1.5">
-            <span>Part 2. 주관식 단답형 5문항 (30점)</span>
+            <span>Part 2. 주관식 단답형 6문항 (30점)</span>
           </button>
           <button type="button" id="eval-tab-btn-part3" onclick="window.studentEvalApp.switchPart('part3')" class="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer flex items-center gap-1.5">
             <span>Part 3. 순서도 나만의 백지 조립 (40점)</span>
@@ -2347,7 +2349,7 @@
                   <span class="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs font-bold"><i class="fa-solid fa-cubes"></i></span>
                   <h4 class="text-xs sm:text-sm font-black text-slate-900 whitespace-nowrap">순서도 백지 캔버스 작업대</h4>
                   <div id="eval-part3-score-badge" class="px-2.5 py-1 rounded-xl text-xs font-bold bg-slate-100 border border-slate-200 text-slate-500 flex items-center gap-1.5">
-                    <i class="fa-solid fa-circle-info"></i> <span>검사 대기: 0 / 40점</span>
+                    <i class="fa-solid fa-circle-info"></i> <span>실행 결과를 확인해 보세요</span>
                   </div>
                 </div>
 
@@ -2359,11 +2361,12 @@
                     <i class="fa-solid fa-trash-can text-[10px]"></i> <span>비우기</span>
                   </button>
                   <button type="button" onclick="window.studentEvalApp.verifyPart3Flowchart()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-md shadow-indigo-600/25 transition cursor-pointer flex items-center gap-1.5">
-                    <i class="fa-solid fa-circle-check"></i> <span>순서도 완성 검사 및 40점 획득</span>
+                    <i class="fa-solid fa-circle-check"></i> <span>실행 결과 확인</span>
                   </button>
                 </div>
               </div>
 
+              <div id="eval-execution-feedback" role="status" class="text-xs text-slate-700 space-y-1"></div>
               <!-- 순서도 캔버스 영역 (화면을 채우는 도트 모눈 그리드 & D&D 드롭존) -->
               <div id="eval-part3-canvas" class="w-full flex-1 entry-canvas-grid relative overflow-hidden select-none min-h-[440px]">
                 <!-- 캔버스 가상 작업대 (Stage Layer) -->
@@ -2395,6 +2398,7 @@
           <div id="eval-result-breakdown" class="pt-2"></div>
         </div>
 
+        <button type="button" onclick="finishSharedSession()" class="px-6 py-3 text-slate-600 text-sm font-bold">로그아웃 · 사용 종료</button>
         <button type="button" onclick="window.studentEvalApp.exitExam()" class="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs sm:text-sm rounded-2xl transition cursor-pointer shadow-md">
           확인 및 학습 로드맵으로 나가기
         </button>
@@ -2422,6 +2426,7 @@
           </div>
         </div>
         <div class="flex items-center gap-3">
+          <button type="button" onclick="finishSharedSession()" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold">로그아웃 · 사용 종료</button>
           <button type="button" onclick="exitClassroomView()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 cursor-pointer">
             <i class="fa-solid fa-arrow-left"></i> <span>학습 로드맵으로</span>
           </button>
@@ -2449,7 +2454,7 @@
         </div>
         <div class="text-xs text-slate-500 font-bold flex items-center gap-2">
           <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-          <span>교실 실시간 네트워크 연결됨</span>
+          <span id="classroom-connection-status">서버 응답 확인 중</span>
         </div>
       </div>
 
@@ -2645,7 +2650,6 @@
   <!-- ========================================== -->
   <!-- 1. 설정 및 데이터 (문제를 수정할 때 여기를 편집하세요) -->
   <!-- ========================================== -->
-  <script src="js/data/config.js" onerror="console.info('로컬 config.js 미로드 (Vercel 배포 환경 /api/chat 모드로 동작)')"></script>
   <script src="js/data/firebase-config.js"></script>
   <script src="js/data/abstraction-data.js"></script>
   <script src="js/data/flowchart-missions.js"></script>
@@ -2653,6 +2657,10 @@
   <!-- ========================================== -->
   <!-- 2. 공통 엔진 (사운드 효과음, 네비게이션, AI 통신 서비스, AI 튜터, 실시간 평가) -->
   <!-- ========================================== -->
+  <script src="js/data/eval-questions.js"></script>
+  <script src="js/core/flow-expressions.js"></script>
+  <script src="js/core/flow-validation.js"></script>
+  <script src="js/core/auth-service.js"></script>
   <script src="js/core/ai-service.js"></script>
   <script src="js/core/audio.js"></script>
   <script src="js/core/navigation.js"></script>
@@ -2673,6 +2681,7 @@
   <!-- ========================================== -->
   <!-- 4. 앱 초기화 실행 진입점 -->
   <!-- ========================================== -->
+  <script src="js/core/session-drafts.js"></script>
   <script src="js/app.js"></script>
 
   <!-- ========================================== -->

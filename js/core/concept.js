@@ -349,7 +349,7 @@ function runFinitenessSim(mode) {
         <span class="text-rose-400 font-black">🚨 무한루프(Infinite Loop) 발생!</span>
         <span class="text-rose-400 animate-ping">● 경고</span>
       </div>
-      <div class="text-sm font-bold text-white">명령어: "물이 찰 때까지 컵에 물을 계속 부어라 (종료 조건 없음)"</div>
+      <div class="text-sm font-bold text-white">명령어: "컵에 물을 계속 부어라 (종료 조건 없음)"</div>
       <div class="text-xs text-rose-300 leading-relaxed">
         🌊 물이 100% 찼는데도 멈추라는 규칙이 없어 계속 붓다가 책상과 바닥이 물바다가 되었습니다.<br>
         • <strong>유한성 결여</strong>: 컴퓨터 프로그램이라면 렉이 걸려 화면이 멈추거나 먹통(Freezing)이 됩니다!
@@ -383,22 +383,22 @@ function runFinitenessSim(mode) {
 const SYMBOL_ENTRY_MAP = {
   terminal: {
     shape: "⬭ 단말 (Oval)",
-    entryBlock: "🟢 [시작/종료] 알고리즘의 시작과 끝",
+    entryBlock: "🟣 [시작/종료] 알고리즘의 시작과 끝",
     desc: "알고리즘의 가장 첫 시작과 최종 종료를 알리는 기호입니다. 프로그램이 어디서 시작하고 어디서 끝나는지 명확히 표시합니다."
   },
   io: {
     shape: "▱ 입출력 (Parallelogram)",
-    entryBlock: "🟠 [입출력] 데이터 입력받기 / 결과 화면 출력",
+    entryBlock: "🟢 [입출력] 데이터 입력받기 / 결과 화면 출력",
     desc: "사용자로부터 데이터를 키보드로 입력받거나 화면에 처리 결과를 보여주는 기호입니다. (예: 현재 시각 확인, '탑승 가능' 안내 출력)"
   },
   process: {
     shape: "▭ 처리 (Rectangle)",
-    entryBlock: "🟣 [명령/연산] 행동 수행 및 데이터 계산",
+    entryBlock: "🔵 [명령/연산] 행동 수행 및 데이터 계산",
     desc: "계산, 변수 값 대입, 조리하기, 이동 등 컴퓨터가 수행해야 할 구체적인 동작이나 연산 명령을 나타냅니다. (예: 세수하기, 냄비에 물 붓기)"
   },
   decision: {
     shape: "◇ 판단 (Diamond)",
-    entryBlock: "🔵 [조건/분기] 조건 검사 후 참(예) / 거짓(아니오) 분기",
+    entryBlock: "🟠 [조건/분기] 조건 검사 후 참(예) / 거짓(아니오) 분기",
     desc: "주어진 조건이 참(예)인지 거짓(아니오)인지 검사하여 실행 흐름을 두 갈래 길로 나누는 분기 기호입니다. (예: 현재 시각 <= 07:30?)"
   }
 };

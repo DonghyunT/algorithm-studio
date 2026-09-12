@@ -132,6 +132,7 @@ function switchUnit(unitId, targetStep = null) {
  * 2. 단원 내부 3단계 (개념 ➔ 퀴즈 ➔ 실습) 전환 함수
  */
 function switchUnitStep(unitIdOrKey, stepName) {
+  ["view-classroom", "view-eval"].forEach(id => document.getElementById(id)?.classList.add("hidden"));
   // unitId 표준화 ('abstraction' -> 'unit1')
   let unitId = unitIdOrKey;
   if (unitIdOrKey === 'abstraction') unitId = 'unit1';

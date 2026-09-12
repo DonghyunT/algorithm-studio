@@ -30,6 +30,7 @@ window.isFirebaseReady = false;
  * @returns {object|null} Firestore DB 인스턴스
  */
 function initFirebaseApp() {
+  if (window.authService?.isDemo()) return null;
   // 이미 초기화된 경우 기존 인스턴스 반환
   if (window.firebaseDb) {
     return window.firebaseDb;
@@ -43,10 +44,10 @@ function initFirebaseApp() {
       }
       window.firebaseDb = firebase.firestore();
       window.isFirebaseReady = true;
-      console.info("🔥 [Firebase] donghyun-algo 프로젝트 연결 성공 (Cloud Firestore 활성화)");
+      console.info("Firebase SDK 초기화 완료. 서버 접근 권한은 요청 시 확인합니다.");
       return window.firebaseDb;
     } else {
-      console.warn("⚠️ [Firebase] SDK 스크립트가 아직 로드되지 않았습니다. 로컬 채널 모드로 준비합니다.");
+      console.warn("Firebase SDK를 불러오지 못했습니다. 서버 기능을 사용할 수 없습니다.");
       return null;
     }
   } catch (err) {
