@@ -40,4 +40,6 @@
 * Vercel Production `dpl_Ay8QMzDoNBrHXqBDaZ2GRatgd1UE` (`algorithm-studio-fmm3o4ygh-donghyun2.vercel.app`) Ready, `algorithm-studio-ten.vercel.app` 연결 확인.
 * main GitHub 검사: https://github.com/DonghyunT/algorithm-studio/actions/runs/34697588279 — success.
 * 운영 주소의 HTML·CSS·JS 7개가 로컬 검증본과 일치합니다. 1440/1024/390px에서 홈·개념·전체 메뉴 키보드 조작·교사용 버튼 접근·평가 입장을 확인했습니다. 시연 모드는 꺼져 있으며 이번 운영 검사는 학생 입장·DB 쓰기·AI 호출을 수행하지 않았습니다.
-* 최초 운영 UI 확인에서는 페이지 예외는 없었으나 기존 `favicon.ico` 누락 404가 있었습니다. 같은 배포 작업에서 외부 요청이 필요 없는 SVG 탭 아이콘을 추가하여 보완합니다. 최종 재확인 결과는 `tests/results/ui-production.json`에 보관합니다.
+* 최초 운영 UI 확인에서는 페이지 예외는 없었으나 기존 `favicon.ico` 누락 404가 있었습니다. 외부 요청이 필요 없는 SVG 탭 아이콘으로 보완했습니다(`93e8f27`, main `3b0f6a6d2e016dece0818d67df1f597f31b1f131`). 보완 배포 `algorithm-studio-1ir2d5sk6-donghyun2.vercel.app` Production Ready.
+* 최종 운영 재확인: 2026-09-12 22:55 KST, 7개 파일 일치·세 창 폭의 주요 동작 통과, 페이지 예외·콘솔 오류 0개. [검증 결과](../tests/results/ui-production.json), [운영 홈](../tests/results/ui-production-home.png), [좁은 창](../tests/results/ui-production-390.png).
+* 보완 main 검사: https://github.com/DonghyunT/algorithm-studio/actions/runs/34697770550 — success. 이후 검증 기록만 추가한 커밋은 UI 제품 파일을 변경하지 않습니다.
