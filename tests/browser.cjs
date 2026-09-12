@@ -27,6 +27,81 @@ fs.mkdirSync(output,{recursive:true});
     const url='http://127.0.0.1:'+server.address().port+'/?demo=1';
     await page.goto(url,{waitUntil:'networkidle'});
     async function check(name,task) {try{await task();results.push({name,pass:true});}catch(error){results.push({name,pass:false,error:error.message});}}
+    await check('header actions remain visible and separate across window widths',async()=>{
+      for(const width of [1920,1440,1351,1350,1251,1250,1100,900,768,681,680,540,431,430,390,360,320]) {
+        await page.setViewportSize({width,height:900});
+        await page.evaluate(()=>switchUnit('roadmap'));
+        await page.waitForTimeout(60);
+        const issues=await page.evaluate(()=>{
+          const buttons=[...document.querySelectorAll('#global-header .site-header-inner button')].filter(b=>b.getBoundingClientRect().width>0);
+          const boxes=buttons.map(b=>({id:b.id||'brand',rect:b.getBoundingClientRect()}));
+          const bad=boxes.filter(b=>b.rect.left<0 || b.rect.right>document.documentElement.clientWidth+1).map(b=>b.id+' clipped');
+          for(let i=0;i<boxes.length;i++)for(let j=i+1;j<boxes.length;j++){
+            const a=boxes[i].rect,b=boxes[j].rect;
+            if(Math.min(a.right,b.right)-Math.max(a.left,b.left)>1 && Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1)bad.push(boxes[i].id+' overlaps '+boxes[j].id);
+          }
+          if(document.documentElement.scrollWidth>document.documentElement.clientWidth+1)bad.push('page overflow');
+          return bad;
+        });
+        assert.deepEqual(issues,[],width+'px: '+issues.join(', '));
+      }
+      assert.equal(await page.locator('#main-nav-bar #nav-btn-classroom').count(),0);
+      assert.equal(await page.locator('#view-roadmap [onclick*="classroom"]').count(),0);
+      await page.screenshot({path:path.join(output,'home-320.png'),fullPage:true});
+      await page.setViewportSize({width:1440,height:900});
+    });
+    await check('menu opens explicitly, supports keyboard and closes on navigation',async()=>{
+      await page.locator('#main-nav-bar').hover();await page.waitForTimeout(1650);
+      assert.equal(await page.locator('#btn-mega-menu-toggle').getAttribute('aria-expanded'),'false');
+      await page.locator('#btn-mega-menu-toggle').focus();await page.keyboard.press('Enter');
+      assert.equal(await page.locator('#btn-mega-menu-toggle').getAttribute('aria-expanded'),'true');
+      assert.equal(await page.locator('#mega-menu-dropdown button').first().evaluate(e=>document.activeElement===e),true);
+      await page.keyboard.press('Escape');
+      assert.equal(await page.locator('#btn-mega-menu-toggle').evaluate(e=>document.activeElement===e),true);
+      await page.locator('#btn-mega-menu-toggle').click();
+      await page.locator('#mega-menu-dropdown button').filter({hasText:'핵심 개념'}).first().click();
+      assert.equal(await page.locator('#view-concept').isVisible(),true);
+      assert.equal(await page.locator('#btn-mega-menu-toggle').getAttribute('aria-expanded'),'false');
+    });
+    await check('optional result action and larger text keep header usable',async()=>{
+      try {
+      await page.evaluate(()=>document.getElementById('btn-reopen-summary').classList.remove('hidden'));
+      for(const width of [1440,1351,1024,390]) {
+        await page.setViewportSize({width,height:900});
+        for(const id of ['nav-btn-classroom','btn-mega-menu-toggle','btn-reopen-summary','nav-btn-eval'])await page.locator('#'+id).click({trial:true});
+        assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1));
+      }
+      await page.evaluate(()=>{document.getElementById('btn-reopen-summary').classList.add('hidden');document.documentElement.style.fontSize='24px';});
+      await page.setViewportSize({width:768,height:900});
+      await page.locator('#btn-mega-menu-toggle').click({trial:true});
+      await page.locator('#nav-btn-unit3').click({trial:true});
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1));
+      } finally {
+        await page.evaluate(()=>{document.getElementById('btn-reopen-summary').classList.add('hidden');document.documentElement.style.removeProperty('font-size');});
+        await page.setViewportSize({width:1440,height:900});
+      }
+    });
+    await check('home shortcuts open every advertised learning activity',async()=>{
+      for(const unit of ['unit1','unit2','unit3'])for(const [step,target] of [['concept','view-concept'],['quiz','view-quiz'],['lab','view-lab']]) {
+        await page.evaluate(()=>switchUnit('roadmap'));
+        await page.locator('.home-course[data-course="'+unit+'"] button[onclick*="\''+step+'\'"]').click();
+        assert.equal(await page.locator('#'+target).isVisible(),true);
+        assert.equal(await page.locator('#nav-btn-'+unit).getAttribute('aria-current'),'page');
+      }
+    });
+    await check('reading, lobby and teacher pages fit narrow windows',async()=>{
+      for(const width of [1440,1024,768,390]) {
+        await page.setViewportSize({width,height:900});
+        for(const [unit,step] of [['unit1','concept'],['unit2','quiz'],['eval',null],['classroom',null]]) {
+          await page.evaluate(({unit,step})=>{isTeacherAuthenticated=true;switchUnit(unit,step);},{unit,step});
+          await page.waitForTimeout(350);
+          const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);
+          assert.ok(overflow<=1,unit+' at '+width+' overflows '+overflow+'px');
+          await page.screenshot({path:path.join(output,'ui-'+unit+'-'+width+'.png')});
+        }
+      }
+      await page.setViewportSize({width:1440,height:900});
+    });
     await check('reading pages have centered margins on wide screens',async()=>{
       await page.setViewportSize({width:1920,height:1000});
       for(const [unit,step,id] of [['roadmap',null,'view-roadmap'],['unit1','concept','view-concept'],['unit1','quiz','view-quiz']]){
@@ -189,6 +264,7 @@ fs.mkdirSync(output,{recursive:true});
         await page.evaluate(()=>{switchUnit('unit3','lab');switchFlowchartStep(5);});
         await page.waitForTimeout(150);
         const rect=await page.locator('#free-flowchart-canvas').boundingBox();assert.ok(rect.height>=250,'canvas at '+width+': '+JSON.stringify(rect));
+        for(const id of ['fc-step-btn-1','fc-step-btn-5'])await page.locator('#'+id).click({trial:true});
         await page.screenshot({path:path.join(output,'studio-'+width+'.png')});
       }
     });

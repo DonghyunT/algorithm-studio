@@ -1,6 +1,26 @@
 {
   "results": [
     {
+      "name": "header actions remain visible and separate across window widths",
+      "pass": true
+    },
+    {
+      "name": "menu opens explicitly, supports keyboard and closes on navigation",
+      "pass": true
+    },
+    {
+      "name": "optional result action and larger text keep header usable",
+      "pass": true
+    },
+    {
+      "name": "home shortcuts open every advertised learning activity",
+      "pass": true
+    },
+    {
+      "name": "reading, lobby and teacher pages fit narrow windows",
+      "pass": true
+    },
+    {
       "name": "reading pages have centered margins on wide screens",
       "pass": true
     },

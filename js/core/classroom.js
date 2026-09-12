@@ -72,7 +72,8 @@ function showClassroomView() {
   // 상단 네비게이션 활성화
   const btn = document.getElementById('nav-btn-classroom');
   if (btn) {
-    btn.className = "px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition flex items-center gap-1.5 bg-white text-indigo-600 shadow-xs border border-indigo-100 whitespace-nowrap";
+    document.querySelectorAll('#global-header [aria-current]').forEach(item=>item.removeAttribute('aria-current'));
+    btn.setAttribute('aria-current','page');
   }
 
   renderClassroomDashboard();

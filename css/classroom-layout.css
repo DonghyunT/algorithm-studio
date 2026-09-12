@@ -1,7 +1,6 @@
 /* Reading pages use a comfortable measure; making pages keep their workspace. */
 #view-roadmap, #view-concept, #view-quiz { max-width:1200px !important; margin-inline:auto; padding-inline:24px !important; }
 #view-quiz [id^="quiz-container-"] { max-width:1080px; margin-inline:auto; width:100%; }
-body.reading-mode #global-header > div:first-child { max-width:1200px; margin-inline:auto; }
 body.assessment-active #global-header button:disabled { opacity:.38; cursor:not-allowed; box-shadow:none; }
 body.assessment-active #global-header { position:relative; }
 body.assessment-active #global-header [onclick="switchUnit('roadmap')"] { cursor:default; }

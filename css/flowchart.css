@@ -595,12 +595,12 @@ body.studio-mode #fc-level3-view > * + * {
   margin-top: 0.5rem !important;
 }
 
-/* 상단 서브바 높이와 안쪽 패딩 1px 고정 (Step 1~5 완전 일치, 기준 56px) */
+/* Allow the course tabs to wrap without being covered by the workspace. */
 body.studio-mode #lab-flowchart-content > div:first-child {
   min-height: 56px !important;
-  height: 56px !important;
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
+  height: auto !important;
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
   padding-left: 1rem !important;
   padding-right: 1rem !important;
   flex-shrink: 0 !important;

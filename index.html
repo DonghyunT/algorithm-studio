@@ -18,66 +18,34 @@
   <link rel="stylesheet" href="css/common.css">
   <link rel="stylesheet" href="css/flowchart.css">
   <link rel="stylesheet" href="css/classroom-layout.css">
+  <link rel="stylesheet" href="css/studio-ui.css">
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col justify-between select-none relative antialiased text-sm md:text-base">
   
   <div class="w-full flex-1 flex flex-col">
     <!-- 상단 글로벌 네비게이션 헤더 -->
     <header id="global-header" class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs relative">
-      <div class="max-w-[1720px] 2xl:max-w-[1840px] mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4">
-        
-        <!-- 로고 및 사이트 타이틀 -->
-        <div class="flex items-center gap-3 cursor-pointer flex-shrink-0" onclick="switchUnit('roadmap')">
-          <div class="w-10 h-10 sm:w-11 sm:h-11 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-2xl flex items-center justify-center text-xl text-white shadow-md shadow-indigo-600/20">
-            <i class="fa-solid fa-shapes"></i>
-          </div>
-          <div>
-            <div class="flex items-center gap-2">
-              <h1 class="text-base sm:text-lg font-black text-slate-900 tracking-tight">정보 알고리즘 스튜디오</h1>
-              <span class="text-[11px] font-bold px-2.5 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full">2022 개정 중학 정보</span>
-            </div>
-            <p class="hidden sm:block text-xs text-slate-400 font-medium">알고리즘과 프로그래밍 원스톱 실습실</p>
-          </div>
-        </div>
-
-        <!-- 단원 중심 메인 네비게이션 (마우스 1.5초 이상 호버 시 넥슨 스타일 메가 드롭다운 오픈) -->
-        <nav id="main-nav-bar" onmouseenter="scheduleMegaMenuOpen(1500)" onmouseleave="scheduleMegaMenuClose(250)" class="flex items-center gap-1 sm:gap-1.5 bg-slate-100 p-1.5 rounded-2xl border border-slate-200 flex-shrink-0 overflow-x-auto">
-          <button id="nav-btn-roadmap" onclick="switchUnit('roadmap')" class="px-2.5 sm:px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black transition flex items-center gap-1.5 bg-white text-indigo-600 shadow-xs border border-indigo-100 whitespace-nowrap" title="학습 로드맵">
-            <i class="fa-solid fa-map"></i> <span class="hidden md:inline">로드맵</span>
-          </button>
-          <button id="nav-btn-unit1" onclick="switchUnit('unit1', 'concept')" class="px-2.5 sm:px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900 whitespace-nowrap" title="문제 이해와 추상화">
-            <i class="fa-solid fa-lightbulb text-violet-500"></i> <span>문제 추상화</span>
-          </button>
-          <button id="nav-btn-unit2" onclick="switchUnit('unit2', 'concept')" class="px-2.5 sm:px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900 whitespace-nowrap" title="명령어 설계와 샌드위치 로봇">
-            <i class="fa-solid fa-robot text-amber-500"></i> <span>알고리즘 설계</span>
-          </button>
-          <button id="nav-btn-unit3" onclick="switchUnit('unit3', 'concept')" class="px-2.5 sm:px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900 whitespace-nowrap" title="3대 제어 구조와 순서도 연구소">
-            <i class="fa-solid fa-diagram-project text-blue-500"></i> <span>순서도 연구소</span>
-          </button>
-          <button id="nav-btn-classroom" onclick="switchUnit('classroom')" class="px-2.5 sm:px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 text-indigo-700 bg-indigo-50/80 hover:bg-indigo-100 border border-indigo-200 whitespace-nowrap" title="선생님 클래스룸 & 수행평가">
-            <i class="fa-solid fa-chalkboard-user"></i> <span class="hidden sm:inline">교사용</span> <i class="fa-solid fa-lock text-[9px] opacity-70"></i>
-          </button>
-          <button id="nav-btn-eval" onclick="window.studentEvalApp ? window.studentEvalApp.openLobby() : alert('수행평가 모듈을 로딩 중입니다.')" class="px-2.5 sm:px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black transition flex items-center gap-1.5 text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 whitespace-nowrap cursor-pointer shadow-2xs" title="30분 실시간 수행평가 응시">
-            <i class="fa-solid fa-file-pen text-rose-500"></i> <span>수행평가</span>
-          </button>
+      <div class="site-header-inner">
+        <button type="button" class="site-brand" onclick="switchUnit('roadmap')" aria-label="정보 알고리즘 스튜디오 홈">
+          <span class="site-brand-mark" aria-hidden="true"><i class="fa-solid fa-shapes"></i></span>
+          <span class="site-brand-name">정보 알고리즘 스튜디오</span>
+        </button>
+        <nav id="main-nav-bar" aria-label="학습 메뉴">
+          <button type="button" id="nav-btn-roadmap" onclick="switchUnit('roadmap')" aria-current="page">홈</button>
+          <button type="button" id="nav-btn-unit1" onclick="switchUnit('unit1', 'concept')">문제 추상화</button>
+          <button type="button" id="nav-btn-unit2" onclick="switchUnit('unit2', 'concept')">알고리즘 설계</button>
+          <button type="button" id="nav-btn-unit3" onclick="switchUnit('unit3', 'concept')">순서도 연구소</button>
+          <button type="button" id="nav-btn-eval" onclick="window.studentEvalApp ? window.studentEvalApp.openLobby() : alert('수행평가를 준비 중입니다. 잠시 후 다시 눌러 주세요.')">수행평가</button>
         </nav>
-
-        <!-- 우측 상태 및 메가 메뉴 토글 버튼 -->
-        <div class="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-          <button id="btn-mega-menu-toggle" onclick="toggleMegaMenu()" class="px-3 sm:px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200/80 text-slate-700 border border-slate-200 shadow-2xs cursor-pointer" title="전체 코스 메가 메뉴 펼치기/접기">
-            <i class="fa-solid fa-bars-staggered text-indigo-600"></i>
-            <span class="hidden sm:inline font-black">전체 메뉴</span>
-            <i id="mega-chevron" class="fa-solid fa-chevron-down text-[10px] text-slate-400 transition-transform duration-200"></i>
-          </button>
-          <button id="btn-reopen-summary" onclick="reopenSummaryModal()" class="hidden bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 shadow-md shadow-indigo-600/20">
-            <i class="fa-solid fa-clipboard-list"></i> <span class="hidden sm:inline">샌드위치 결과 보기</span>
-          </button>
+        <div class="site-utilities" aria-label="관리 및 전체 메뉴">
+          <button type="button" id="nav-btn-classroom" title="교사용 클래스룸" onclick="switchUnit('classroom')"><i class="fa-solid fa-chalkboard-user" aria-hidden="true"></i><span>교사용</span></button>
+          <button type="button" id="btn-mega-menu-toggle" onclick="toggleMegaMenu()" aria-expanded="false" aria-controls="mega-menu-dropdown"><i class="fa-solid fa-bars" aria-hidden="true"></i><span>전체 메뉴</span><i id="mega-chevron" class="fa-solid fa-chevron-down" aria-hidden="true"></i></button>
+          <button type="button" id="btn-reopen-summary" onclick="reopenSummaryModal()" class="hidden" title="샌드위치 결과 보기"><i class="fa-solid fa-clipboard-list" aria-hidden="true"></i><span>실습 결과</span></button>
         </div>
-
       </div>
 
       <!-- 🎮 [넥슨 게임 포털 스타일 3단 메가 드롭다운 메뉴] -->
-      <div id="mega-menu-dropdown" class="mega-menu-hidden absolute top-full left-0 w-full bg-white border-b border-slate-200 shadow-xl z-50 transition-all duration-200 overflow-hidden" style="background-color: #ffffff !important;" onmouseenter="cancelMegaMenuClose()" onmouseleave="scheduleMegaMenuClose(240)">
+      <div id="mega-menu-dropdown" aria-label="전체 학습 목차" class="mega-menu-hidden absolute top-full left-0 w-full bg-white border-b border-slate-200 shadow-xl z-50 transition-all duration-200 overflow-hidden" style="background-color: #ffffff !important;">
         <div class="max-w-[1720px] 2xl:max-w-[1840px] mx-auto px-6 sm:px-10 py-6">
           
           <!-- 4열 심플 텍스트 목차 그리드 (넥슨 스타일) -->
@@ -193,12 +161,12 @@
                 </li>
                 <li>
                   <button type="button" onclick="navigateToMega('classroom')" class="hover:text-indigo-600 hover:font-bold transition-colors cursor-pointer text-left w-full py-0.5">
-                    선생님 클래스룸 & 관제탑
+                    교사용 클래스룸
                   </button>
                 </li>
                 <li>
                   <button type="button" onclick="navigateToMega('eval')" class="text-rose-600 hover:text-rose-700 font-bold transition-colors cursor-pointer text-left w-full py-0.5 flex items-center gap-1">
-                    <span>📝 30분 실시간 수행평가</span>
+                    <span>수행평가 입장</span>
                   </button>
                 </li>
               </ul>
@@ -223,176 +191,44 @@
 
 
     <!-- [TAB 1] 🧭 단원별 학습 로드맵 (Roadmap Dashboard) -->
-    <main id="view-roadmap" class="max-w-[1720px] 2xl:max-w-[1840px] mx-auto w-full px-4 sm:px-8 py-6 sm:py-8 flex-1 flex flex-col justify-between gap-6 sm:gap-8">
-      
-      <!-- 히어로 배너: 단원별 원스톱 학습 안내 -->
-      <section class="bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 rounded-3xl p-6 sm:p-8 md:p-10 text-white shadow-xl border border-slate-800 relative overflow-hidden flex flex-col justify-between">
-        
-        <div class="space-y-4 max-w-3xl relative z-10">
-          <div class="inline-flex items-center gap-2 px-3 py-1 bg-indigo-500/20 border border-indigo-400/30 rounded-full text-xs font-bold text-indigo-300">
-            <i class="fa-solid fa-graduation-cap"></i> 2022 개정 중학교 정보 교육과정 연계 (알고리즘과 프로그래밍)
-          </div>
-
-          <h2 class="text-2xl sm:text-3xl md:text-4xl font-black leading-tight sm:leading-snug tracking-tight text-white">
-            "복잡한 문제를 단순하게 분해하고,<br class="hidden sm:block">
-            <span class="text-amber-400 underline decoration-amber-400/50 decoration-wavy">논리적인 순서도와 레시피로</span> 완성합니다."
-          </h2>
-
-          <p class="text-sm md:text-base text-slate-300 leading-relaxed font-normal">
-            컴퓨터는 계산이 엄청나게 빠르지만 스스로 생각하지 못합니다. 우리가 어떻게 문제를 정의하고 어떤 순서로 조건을 주느냐가 전부입니다.<br class="hidden md:block">
-            <strong>[핵심 개념 배움터 ➔ 쏙쏙 퀴즈 ➔ 실전 실습실]</strong>의 3단계 흐름을 따라 나만의 알고리즘 역량을 완성해 보세요.
-          </p>
-        </div>
-
-        <div class="mt-8 pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3 relative z-10">
-          <div class="text-xs sm:text-sm text-slate-400">
-            💡 <strong>추천 학습 순서</strong>: <strong>[문제 추상화]</strong> ➔ <strong>[알고리즘 설계]</strong> ➔ <strong>[순서도 연구소]</strong> 순서대로 차근차근 진행해 보세요!
-          </div>
-          <div class="flex items-center gap-2.5">
-            <button onclick="switchUnit('unit1', 'concept')" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-2 shadow-md shadow-indigo-600/30">
-              <i class="fa-solid fa-play"></i> 추상화부터 학습 시작
-            </button>
-            <button onclick="switchUnit('eval')" class="bg-rose-600 hover:bg-rose-500 text-white px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-2 shadow-md shadow-rose-600/30">
-              <i class="fa-solid fa-file-pen"></i> 실시간 수행평가
-            </button>
-            <button onclick="switchUnit('classroom')" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-2">
-              <i class="fa-solid fa-chalkboard-user"></i> 선생님 클래스룸 <i class="fa-solid fa-lock text-[10px] opacity-70"></i>
-            </button>
-          </div>
-        </div>
-
-        <div class="absolute -right-8 -bottom-10 text-[180px] sm:text-[220px] opacity-5 select-none pointer-events-none">
-          🚀
+    <main id="view-roadmap" class="w-full flex-1">
+      <section class="home-intro" aria-labelledby="home-heading">
+        <p class="home-eyebrow">중학교 정보 · 알고리즘과 프로그래밍</p>
+        <h1 id="home-heading">배운 개념을, 내 생각으로.</h1>
+        <p>문제를 정리하고, 해결 순서를 만들고, 순서도로 표현해 보세요.</p>
+        <div class="home-learning-note"><span>개념 이해</span><i class="fa-solid fa-angle-right" aria-hidden="true"></i><span>퀴즈로 확인</span><i class="fa-solid fa-angle-right" aria-hidden="true"></i><span>직접 실습</span></div>
+      </section>
+      <section aria-labelledby="home-courses-heading">
+        <div class="home-section-heading"><h2 id="home-courses-heading">오늘의 학습</h2><p>처음부터 차근차근, 또는 필요한 활동부터 시작하세요.</p></div>
+        <div class="home-courses">
+          <article class="home-course" data-course="unit1">
+            <div class="home-course-label"><span>학습 01</span><i class="fa-solid fa-lightbulb" aria-hidden="true"></i></div>
+            <h3>문제 추상화</h3><p class="home-course-subtitle">문제에서 꼭 필요한 것만 찾기</p>
+            <p class="home-course-description">현재와 목표 상태를 정리하고, 해결에 필요한 조건을 골라 보세요.</p>
+            <div class="home-course-links"><button type="button" onclick="switchUnit('unit1','concept')" aria-label="문제 추상화 개념">개념</button><button type="button" onclick="switchUnit('unit1','quiz')" aria-label="문제 추상화 퀴즈">퀴즈</button></div>
+            <button type="button" class="home-course-action" onclick="switchUnit('unit1','lab')">생각 다이어트 워크북<i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+          </article>
+          <article class="home-course" data-course="unit2">
+            <div class="home-course-label"><span>학습 02</span><i class="fa-solid fa-robot" aria-hidden="true"></i></div>
+            <h3>알고리즘 설계</h3><p class="home-course-subtitle">컴퓨터가 이해할 수 있는 순서 만들기</p>
+            <p class="home-course-description">샌드위치 로봇에게 명령을 내리며 순서와 표현을 다듬어 보세요.</p>
+            <div class="home-course-links"><button type="button" onclick="switchUnit('unit2','concept')" aria-label="알고리즘 설계 개념">개념</button><button type="button" onclick="switchUnit('unit2','quiz')" aria-label="알고리즘 설계 퀴즈">퀴즈</button></div>
+            <button type="button" class="home-course-action" onclick="switchUnit('unit2','lab')">샌드위치 로봇 실습<i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+          </article>
+          <article class="home-course" data-course="unit3">
+            <div class="home-course-label"><span>학습 03</span><i class="fa-solid fa-diagram-project" aria-hidden="true"></i></div>
+            <h3>순서도 연구소</h3><p class="home-course-subtitle">내 생각을 기호와 연결선으로 표현하기</p>
+            <p class="home-course-description">순차·선택·반복을 익히고 나만의 알고리즘을 순서도로 옮겨 보세요.</p>
+            <div class="home-course-links"><button type="button" onclick="switchUnit('unit3','concept')" aria-label="순서도 연구소 개념">개념</button><button type="button" onclick="switchUnit('unit3','quiz')" aria-label="순서도 연구소 퀴즈">퀴즈</button></div>
+            <button type="button" class="home-course-action" onclick="switchUnit('unit3','lab')">순서도 만들기<i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+          </article>
         </div>
       </section>
-
-      <!-- 컴퓨터와 알고리즘의 3대 핵심 포인트 -->
-      <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        
-        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs flex flex-col justify-between gap-4">
-          <div class="space-y-2.5">
-            <div class="w-11 h-11 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center text-xl font-bold">
-              <i class="fa-solid fa-lightbulb"></i>
-            </div>
-            <h3 class="font-bold text-slate-900 text-base sm:text-lg">1. 핵심만 남기는 추상화</h3>
-            <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
-              문제에서 불필요한 군더더기 정보는 과감히 덜어내고, 해결에 꼭 필요한 상태와 핵심 요소만 단순화하여 추출합니다.
-            </p>
-          </div>
-          <div class="text-xs font-mono font-bold text-violet-700 bg-violet-50/80 p-2.5 rounded-xl border border-violet-100">
-            초기/현재/목표 상태 분석 ➔ 핵심 변수 추출
-          </div>
-        </div>
-
-        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs flex flex-col justify-between gap-4">
-          <div class="space-y-2.5">
-            <div class="w-11 h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl font-bold">
-              <i class="fa-solid fa-robot"></i>
-            </div>
-            <h3 class="font-bold text-slate-900 text-base sm:text-lg">2. 순서와 규칙을 세우는 알고리즘 설계</h3>
-            <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
-              컴퓨터 로봇은 시키는 대로만 작동합니다. 명령어가 모호하지 않고 5대 조건을 만족하도록 완벽한 레시피를 설계합니다.
-            </p>
-          </div>
-          <div class="text-xs font-mono font-bold text-amber-700 bg-amber-50/80 p-2.5 rounded-xl border border-amber-100">
-            알고리즘 5대 조건 만족 ➔ 정밀한 명령어 설계
-          </div>
-        </div>
-
-        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs flex flex-col justify-between gap-4">
-          <div class="space-y-2.5">
-            <div class="w-11 h-11 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl font-bold">
-              <i class="fa-solid fa-diagram-project"></i>
-            </div>
-            <h3 class="font-bold text-slate-900 text-base sm:text-lg">3. 구조화하는 순서도</h3>
-            <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
-              순차·선택·반복 3대 제어 구조와 4대 표준 기호(단말·입출력·처리·판단)를 활용해 흐름을 한눈에 시각화합니다.
-            </p>
-          </div>
-          <div class="text-xs font-mono font-bold text-blue-700 bg-blue-50/80 p-2.5 rounded-xl border border-blue-100">
-            3대 제어 구조 조립 ➔ 나만의 알고리즘 완성
-          </div>
-        </div>
-
+      <section class="home-evaluation" aria-labelledby="home-eval-heading">
+        <div><h2 id="home-eval-heading">수행평가</h2><p>선생님의 안내를 받은 뒤 학급·번호·이름으로 입장하세요.</p></div>
+        <button type="button" onclick="window.studentEvalApp.openLobby()">평가 입장<i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
       </section>
-
-      <!-- 교과 단원별 원스톱 학습 코스 (4대 카드 그리드) -->
-      <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        
-        <!-- 문제 추상화 카드 -->
-        <div onclick="switchUnit('unit1', 'concept')" class="group bg-white p-5 rounded-3xl border-2 border-slate-200 hover:border-violet-500 shadow-xs hover:shadow-md transition cursor-pointer flex flex-col justify-between gap-3">
-          <div class="flex items-center gap-3.5">
-            <div class="w-11 h-11 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center text-xl group-hover:scale-105 transition-transform flex-shrink-0">
-              <i class="fa-solid fa-lightbulb"></i>
-            </div>
-            <div>
-              <span class="text-[11px] font-bold text-violet-600 uppercase tracking-wider">주제 1</span>
-              <h4 class="font-bold text-slate-900 text-sm sm:text-base group-hover:text-violet-600 transition">문제 이해와 추상화</h4>
-            </div>
-          </div>
-          <p class="text-xs text-slate-500 leading-relaxed">문제 상태 분석(초기·현재·목표), 조건 탐색, 생각 다이어트와 핵심 변수 추출 & 처방전 과제 제출</p>
-          <div class="text-xs font-bold text-violet-600 flex items-center justify-between pt-2 border-t border-slate-100">
-            <span>[개념 ➔ 퀴즈 ➔ 실습]</span>
-            <i class="fa-solid fa-chevron-right text-xs group-hover:translate-x-1 transition"></i>
-          </div>
-        </div>
-
-        <!-- 알고리즘 설계 카드 -->
-        <div onclick="switchUnit('unit2', 'concept')" class="group bg-white p-5 rounded-3xl border-2 border-slate-200 hover:border-amber-500 shadow-xs hover:shadow-md transition cursor-pointer flex flex-col justify-between gap-3">
-          <div class="flex items-center gap-3.5">
-            <div class="w-11 h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl group-hover:scale-105 transition-transform flex-shrink-0">
-              <i class="fa-solid fa-robot"></i>
-            </div>
-            <div>
-              <span class="text-[11px] font-bold text-amber-600 uppercase tracking-wider">주제 2</span>
-              <h4 class="font-bold text-slate-900 text-sm sm:text-base group-hover:text-amber-600 transition">알고리즘 설계와 로봇 레시피</h4>
-            </div>
-          </div>
-          <p class="text-xs text-slate-500 leading-relaxed">알고리즘 5대 조건(입력·출력·명확성·유한성·수행가능성), 샌드위치 로봇 조작 & 오류 수정 레시피</p>
-          <div class="text-xs font-bold text-amber-600 flex items-center justify-between pt-2 border-t border-slate-100">
-            <span>[개념 ➔ 퀴즈 ➔ 실습]</span>
-            <i class="fa-solid fa-chevron-right text-xs group-hover:translate-x-1 transition"></i>
-          </div>
-        </div>
-
-        <!-- 순서도 연구소 카드 -->
-        <div onclick="switchUnit('unit3', 'concept')" class="group bg-white p-5 rounded-3xl border-2 border-slate-200 hover:border-blue-500 shadow-xs hover:shadow-md transition cursor-pointer flex flex-col justify-between gap-3">
-          <div class="flex items-center gap-3.5">
-            <div class="w-11 h-11 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl group-hover:scale-105 transition-transform flex-shrink-0">
-              <i class="fa-solid fa-diagram-project"></i>
-            </div>
-            <div>
-              <span class="text-[11px] font-bold text-blue-600 uppercase tracking-wider">주제 3</span>
-              <h4 class="font-bold text-slate-900 text-sm sm:text-base group-hover:text-blue-600 transition">제어 구조와 순서도 연구소</h4>
-            </div>
-          </div>
-          <p class="text-xs text-slate-500 leading-relaxed">순차·선택·반복 3대 제어 구조, 교과서 4대 표준 기호, 5단계 순서도 공방 & 포트폴리오 제출</p>
-          <div class="text-xs font-bold text-blue-600 flex items-center justify-between pt-2 border-t border-slate-100">
-            <span>[개념 ➔ 퀴즈 ➔ 실습]</span>
-            <i class="fa-solid fa-chevron-right text-xs group-hover:translate-x-1 transition"></i>
-          </div>
-        </div>
-
-        <!-- 심화 탐구 카드 -->
-        <div onclick="switchUnit('deepening', 1)" class="group bg-white p-5 rounded-3xl border-2 border-slate-200 hover:border-emerald-500 shadow-xs hover:shadow-md transition cursor-pointer flex flex-col justify-between gap-3">
-          <div class="flex items-center gap-3.5">
-            <div class="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl group-hover:scale-105 transition-transform flex-shrink-0">
-              <i class="fa-solid fa-chart-line"></i>
-            </div>
-            <div>
-              <span class="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">심화 탐구</span>
-              <h4 class="font-bold text-slate-900 text-sm sm:text-base group-hover:text-emerald-600 transition">해결 전략 & 효율성</h4>
-            </div>
-          </div>
-          <p class="text-xs text-slate-500 leading-relaxed">문제 해결 4대 전략, 가우스 합 알고리즘 효율성 비교, 알고리즘 5대 평가 기준 탐구</p>
-          <div class="text-xs font-bold text-emerald-600 flex items-center justify-between pt-2 border-t border-slate-100">
-            <span>[심화 탐구 시작]</span>
-            <i class="fa-solid fa-chevron-right text-xs group-hover:translate-x-1 transition"></i>
-          </div>
-        </div>
-
-      </section>
-
+      <p class="home-footnote">2022 개정 교육과정 연계 · 문제 추상화 / 알고리즘 설계 / 순서도</p>
     </main>
 <!-- [TAB 2] 📚 알고리즘 개념 학습 (오버플로우 완벽 해결 & 인용부호 제거) -->
     <main id="view-concept" class="max-w-[1720px] 2xl:max-w-[1840px] mx-auto w-full px-4 sm:px-8 py-4 flex-1 flex flex-col gap-4 hidden">
@@ -431,7 +267,7 @@
       <div id="concept-unit1" class="space-y-5 fade-enter">
         
         <!-- 단원 1 히어로 배너 -->
-        <div class="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white border border-indigo-900/50 shadow-md flex flex-col md:flex-row items-center justify-between gap-6">
+        <div class="lesson-intro bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white border border-indigo-900/50 shadow-md flex flex-col md:flex-row items-center justify-between gap-6">
           <div class="space-y-2 max-w-2xl">
             <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-500/20 text-violet-300 border border-violet-400/30 text-xs font-black">
               💡 1단원: 문제 이해와 추상화
@@ -591,7 +427,7 @@
           <!-- 거대한 문제를 쪼개는 문제 분해 (Decomposition) -->
           <section class="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-3.5 flex flex-col justify-between">
             <div class="space-y-2">
-              <div class="flex items-center justify-between">
+              <div class="flex flex-wrap gap-3 items-center justify-between">
                 <div class="flex items-center gap-2">
                   <span class="w-7 h-7 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-black">4</span>
                   <h3 class="text-base font-black text-slate-900">문제 분해 (Decomposition)</h3>
@@ -633,7 +469,7 @@
       <div id="concept-unit2" class="space-y-5 fade-enter hidden">
         
         <!-- 단원 2 히어로 배너 -->
-        <div class="bg-gradient-to-br from-slate-900 via-amber-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white border border-amber-900/50 shadow-md flex flex-col md:flex-row items-center justify-between gap-6">
+        <div class="lesson-intro bg-gradient-to-br from-slate-900 via-amber-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white border border-amber-900/50 shadow-md flex flex-col md:flex-row items-center justify-between gap-6">
           <div class="space-y-2 max-w-2xl">
             <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 text-xs font-black">
               🤖 2단원: 명령어 설계와 알고리즘
@@ -837,7 +673,7 @@
       <div id="concept-unit3" class="space-y-5 fade-enter hidden">
         
         <!-- 단원 3 히어로 배너 -->
-        <div class="bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white border border-blue-900/50 shadow-md flex flex-col md:flex-row items-center justify-between gap-6">
+        <div class="lesson-intro bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white border border-blue-900/50 shadow-md flex flex-col md:flex-row items-center justify-between gap-6">
           <div class="space-y-2 max-w-2xl">
             <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 border border-blue-400/30 text-xs font-black">
               📐 3단원: 순서도 연구소 (알고리즘 시각화)
@@ -1870,7 +1706,7 @@
                 <div class="flex items-center justify-between border-b border-slate-100 pb-2 shrink-0">
                   <div class="flex items-center gap-2">
                     <span class="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-xs font-bold"><i class="fa-solid fa-pen-to-square"></i></span>
-                    <h3 class="text-sm font-black text-slate-900">📝 자연어 기획서</h3>
+                    <h3 class="text-sm font-black text-slate-900">자연어 기획서</h3>
                   </div>
                   <div class="flex items-center gap-1.5">
                     <span class="text-[11px] font-bold text-slate-400">3대 제어구조</span>
@@ -1901,7 +1737,7 @@
                 <!-- AI 설계 검사 버튼 (결과는 전용 모달 팝업으로 띄워 자연어 영역 공간 100% 보존) -->
                 <div class="pt-2 border-t border-slate-100 shrink-0">
                   <button id="btn-free-ai-diagnose" onclick="diagnoseFreeAlgorithmWithSolarAI()" class="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-black rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-xs active:scale-98">
-                    <i class="fa-solid fa-wand-magic-sparkles text-[11px]"></i> <span>Solar AI 설계 검사</span>
+                    <i class="fa-solid fa-wand-magic-sparkles text-[11px]" aria-hidden="true"></i> <span>AI 설계 점검</span>
                   </button>
                 </div>
               </div>
@@ -2007,6 +1843,7 @@
                 </div>
               </div>
 
+              <p class="canvas-instructions">빈 화면을 끌어 이동 · 파란 점을 끌어 연결 · Delete 키로 삭제</p>
               <!-- 순서도 자유 캔버스 영역 (화면을 꽉 채우는 도트 모눈 그리드 & D&D 드롭존) -->
               <div id="free-flowchart-canvas" class="w-full flex-1 entry-canvas-grid relative overflow-hidden select-none min-h-0" ondragover="handleCanvasDragOver(event)" ondrop="handleCanvasDrop(event)">
                 <!-- 캔버스 단일 가상 작업대 (Stage Layer, 100% 절대 좌표계) -->
@@ -2014,12 +1851,6 @@
                   <svg id="free-flowchart-svg" class="absolute inset-0 w-full h-full pointer-events-auto overflow-visible"></svg>
                 </div>
                 
-                <!-- 상단 좌측 조작 가이드 안내 -->
-                <div class="absolute top-3 left-3 bg-white/90 backdrop-blur-xs border border-slate-200 px-3 py-1.5 rounded-xl text-[11px] text-slate-600 font-medium pointer-events-none shadow-2xs flex items-center gap-2 z-10">
-                  <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <span>빈 화면 드래그로 캔버스 이동 · 파란 점 드래그해 연결 · Delete 키로 삭제</span>
-                </div>
-
                 <!-- 캔버스 대형 휴지통 드롭존 (엔트리 스타일) -->
                 <div id="entry-trash-zone" class="entry-large-trash-dropzone" onclick="handleTrashClick()" ondragover="handleTrashDragOver(event)" ondragleave="handleTrashDragLeave(event)" ondrop="handleTrashDrop(event)" title="블록을 끌어다 놓거나 클릭하여 삭제하세요">
                   <i class="fa-solid fa-trash-can text-2xl text-red-500 mb-0.5 pointer-events-none"></i>
@@ -2060,7 +1891,7 @@
                 <div class="h-12 flex items-center justify-between px-3 border-b border-slate-200 bg-white shrink-0">
                   <div class="flex items-center gap-1.5 shrink-0">
                     <span class="w-6 h-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold"><i class="fa-solid fa-bug"></i></span>
-                    <h3 class="text-xs font-black text-slate-900 whitespace-nowrap">디버그 스튜디오</h3>
+                    <h3 class="text-xs font-black text-slate-900 whitespace-nowrap">실행 과정 살펴보기</h3>
                   </div>
                   <button onclick="toggleDebuggerPanel()" class="w-7 h-7 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-xs transition cursor-pointer" title="디버거 패널 접기">
                     <i class="fa-solid fa-angles-right text-[10px]"></i>
@@ -2143,7 +1974,7 @@
         <!-- 본인 정보 입력 폼 -->
         <div id="eval-lobby-form-area" class="w-full max-w-md p-6 bg-white border border-slate-200 rounded-3xl space-y-4 shadow-xl">
           <div>
-            <label class="text-xs font-black text-slate-700 mb-1.5 block">소속 학급 선택</label>
+            <label for="eval-st-class" class="text-xs font-black text-slate-700 mb-1.5 block">소속 학급 선택</label>
             <select id="eval-st-class" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:border-rose-500 cursor-pointer">
               <option value="2-1">2학년 1반</option>
               <option value="2-2">2학년 2반</option>
@@ -2160,11 +1991,11 @@
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="text-xs font-black text-slate-700 mb-1.5 block">번호 (1~27번)</label>
+              <label for="eval-st-num" class="text-xs font-black text-slate-700 mb-1.5 block">번호 (1~27번)</label>
               <input type="number" id="eval-st-num" min="1" max="27" value="1" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:border-rose-500 font-mono">
             </div>
             <div>
-              <label class="text-xs font-black text-slate-700 mb-1.5 block">이름</label>
+              <label for="eval-st-name" class="text-xs font-black text-slate-700 mb-1.5 block">이름</label>
               <input type="text" id="eval-st-name" placeholder="홍길동" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:border-rose-500">
             </div>
           </div>
@@ -2202,7 +2033,7 @@
       <div id="eval-screen-exam" class="space-y-4 hidden">
 <p id="eval-navigation-notice" hidden>평가 중에는 다른 학습 화면으로 이동할 수 없어요. 제출이 저장되면 다시 이동할 수 있어요.</p>
         <!-- 상단 고정 헤더 바 -->
-        <div class="p-4 bg-slate-900 text-white rounded-3xl flex items-center justify-between gap-4 shadow-xl sticky top-0 z-30 border border-slate-800">
+        <div class="exam-status-bar p-4 bg-slate-900 text-white rounded-3xl flex items-center justify-between gap-4 shadow-xl sticky top-0 z-30 border border-slate-800">
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center text-xl font-black">
               📝
@@ -2225,7 +2056,7 @@
         </div>
 
         <!-- 3단 탭 네비게이션 알약 바 -->
-        <div class="flex items-center gap-2 border-b border-slate-200 pb-3">
+        <div class="exam-part-tabs flex items-center gap-2 border-b border-slate-200 pb-3">
           <button type="button" id="eval-tab-btn-part1" onclick="window.studentEvalApp.switchPart('part1')" class="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black bg-indigo-600 text-white shadow-xs transition cursor-pointer flex items-center gap-1.5">
             <span>Part 1. 객관식 10문항 (30점)</span>
           </button>
@@ -2348,10 +2179,9 @@
           </div>
           <div>
             <div class="flex items-center gap-2">
-              <h2 class="text-lg sm:text-2xl font-black text-slate-900">선생님 클래스룸 & 실시간 관제탑</h2>
-              <span class="text-xs font-bold px-2.5 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md">교사용 모드</span>
+              <h2 class="text-lg sm:text-2xl font-bold text-slate-900">교사용 클래스룸</h2>
             </div>
-            <p class="text-xs sm:text-sm text-slate-400">11개 반(2-1 ~ 2-11) 30분 실시간 동시 시작 및 27명 학생 좌석 현황 관제</p>
+            <p class="text-xs sm:text-sm text-slate-500">학급별 평가를 운영하고 학생의 제출 상태와 답안을 확인합니다.</p>
           </div>
         </div>
         <div class="flex items-center gap-3">
@@ -2365,8 +2195,7 @@
       <!-- 2대 서브 탭 버튼 -->
       <div class="flex items-center gap-2 border-b border-slate-200 pb-3">
         <button type="button" id="classroom-tab-btn-live" onclick="switchClassroomSubTab('live_eval')" class="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black bg-indigo-600 text-white shadow-xs transition cursor-pointer flex items-center gap-2">
-          <i class="fa-solid fa-tower-broadcast text-amber-300 animate-pulse"></i>
-          <span>⏱️ 30분 실시간 수행평가 관제실</span>
+          <span>실시간 수행평가</span>
         </button>
         <button type="button" id="classroom-tab-btn-assign" onclick="switchClassroomSubTab('assignments')" class="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer flex items-center gap-2">
           <i class="fa-solid fa-list-check"></i>
@@ -2390,7 +2219,7 @@
       <!-- 1. 30분 실시간 수행평가 관제실 섹션 -->
       <div id="classroom-section-live" class="space-y-4">
         <!-- 관제탑 제어 툴바 -->
-        <div class="p-5 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-3xl flex flex-wrap items-center justify-between gap-4 shadow-xl border border-slate-800">
+        <div class="teacher-control-bar p-5 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-3xl flex flex-wrap items-center justify-between gap-4 shadow-xl border border-slate-800">
           <div>
             <div id="classroom-live-class-title" class="text-lg font-black text-amber-300 flex items-center gap-2">
               2학년 1반 (세션 ID: 2-1)
@@ -2660,8 +2489,8 @@
         <div class="flex items-center gap-2.5">
           <div class="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-xl font-black">🤖</div>
           <div>
-            <h3 class="text-base font-black text-slate-900">Solar AI 알고리즘 설계 검사 리포트</h3>
-            <p class="text-xs text-slate-400">자연어 기획서와 순서도 캔버스를 2단계로 정밀 대조 검사합니다.</p>
+            <h3 class="text-base font-bold text-slate-900">AI 설계 점검</h3>
+            <p class="text-xs text-slate-500">기획서와 순서도를 살펴보고 보완할 점을 제안합니다.</p>
           </div>
         </div>
         <button onclick="closeAiAuditModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-xs transition">
