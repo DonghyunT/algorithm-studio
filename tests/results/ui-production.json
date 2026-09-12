@@ -1,0 +1,67 @@
+{
+  "at": "2026-09-12T13:55:46.535Z",
+  "url": "https://algorithm-studio-ten.vercel.app/",
+  "product": "af3b2f5",
+  "iconFix": "93e8f27",
+  "merge": "3b0f6a6",
+  "assets": [
+    {
+      "file": "index.html",
+      "sha256": "6e4da46776117586fc9102fd1d8e0911936b3e9ca0928d45e6aef4a45326bf40"
+    },
+    {
+      "file": "css/studio-ui.css",
+      "sha256": "5ed0eb0ab9ba9124af5e10b5557bf24bcd034d46db8bd7344a1aae0f53f2298b"
+    },
+    {
+      "file": "css/common.css",
+      "sha256": "73cf3454edced7c0f855ba5299b6a5e62fd4ff11ba5d5cecdb55dad79d630f6c"
+    },
+    {
+      "file": "css/classroom-layout.css",
+      "sha256": "e522af36d10ee45df25022f688cafa89ef1bd7cf6f18858bfb03f02d66358080"
+    },
+    {
+      "file": "css/flowchart.css",
+      "sha256": "bbe823a9d02addfdd0f7a627338bfdd89bd4288ae548a6adbbfb2dbf963e984a"
+    },
+    {
+      "file": "js/core/navigation.js",
+      "sha256": "a5363dace24bfd7a6d10907e8e5d2e9238ca6b7fa0c3817f8eeae51b3870ce91"
+    },
+    {
+      "file": "js/core/classroom.js",
+      "sha256": "ff60b1849f37f03592f1be360c8d99d74187483f688e4a71ca0fcc37b6a0ccfc"
+    }
+  ],
+  "checks": [
+    {
+      "width": 1440,
+      "home": true,
+      "concept": true,
+      "menuKeyboard": true,
+      "teacherButtonReachable": true,
+      "assessmentLobby": true
+    },
+    {
+      "width": 1024,
+      "home": true,
+      "concept": true,
+      "menuKeyboard": true,
+      "teacherButtonReachable": true,
+      "assessmentLobby": true
+    },
+    {
+      "width": 390,
+      "home": true,
+      "concept": true,
+      "menuKeyboard": true,
+      "teacherButtonReachable": true,
+      "assessmentLobby": true
+    }
+  ],
+  "pageErrors": [],
+  "consoleErrors": [],
+  "passed": true,
+  "scope": "Read-only UI and deployed asset verification. No teacher sign-in, student join, AI call or database write."
+}
