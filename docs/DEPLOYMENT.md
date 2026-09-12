@@ -33,3 +33,11 @@
 * Vercel 미리보기: https://algorithm-studio-nu4bl2v31-donghyun2.vercel.app/ — Ready, `dpl_ArkD7pHKrSxykmCdir3kxxA5KTip`.
 * 미리보기는 Vercel 로그인 보호가 적용되어 있습니다. 실제 브라우저 접근 시 Vercel 로그인 화면을 확인했으며, 이 미리보기에서 Google 교사 인증·운영 DB 저장·AI 응답을 확인했다고 간주하지 않습니다.
 * 운영 반영 승인: 자동 승인 검토가 별도 병합 승인을 요구한 뒤, 사용자가 “병합하고 기존 주소에 배포해주세요”라고 명시적으로 승인했습니다. 아래 운영 배포 결과가 기록되기 전까지 미리보기 검증과 운영 검증을 구분합니다.
+
+### 운영 UI 배포 확인
+
+* `42512574e0e4ee2472177bcd8b36770f30f7d513`에서 UI 브랜치를 main에 병합했습니다.
+* Vercel Production `dpl_Ay8QMzDoNBrHXqBDaZ2GRatgd1UE` (`algorithm-studio-fmm3o4ygh-donghyun2.vercel.app`) Ready, `algorithm-studio-ten.vercel.app` 연결 확인.
+* main GitHub 검사: https://github.com/DonghyunT/algorithm-studio/actions/runs/34697588279 — success.
+* 운영 주소의 HTML·CSS·JS 7개가 로컬 검증본과 일치합니다. 1440/1024/390px에서 홈·개념·전체 메뉴 키보드 조작·교사용 버튼 접근·평가 입장을 확인했습니다. 시연 모드는 꺼져 있으며 이번 운영 검사는 학생 입장·DB 쓰기·AI 호출을 수행하지 않았습니다.
+* 최초 운영 UI 확인에서는 페이지 예외는 없었으나 기존 `favicon.ico` 누락 404가 있었습니다. 같은 배포 작업에서 외부 요청이 필요 없는 SVG 탭 아이콘을 추가하여 보완합니다. 최종 재확인 결과는 `tests/results/ui-production.json`에 보관합니다.
