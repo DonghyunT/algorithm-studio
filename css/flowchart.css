@@ -456,7 +456,6 @@
 #eval-part3-stage .shape-terminal-block { border-color:#8b5cf6; background:#f5f3ff; border-radius:35px; }
 #eval-part3-stage .shape-io-block { border-color:#10b981; background:#ecfdf5; }
 #eval-part3-stage .execution-issue { outline:4px solid #e11d48; outline-offset:5px; }
-#eval-part3-container .entry-studio-container { grid-template-columns:250px 120px minmax(380px,1fr); height:720px !important; min-height:600px; overflow:auto; }
 body .hidden { display:none !important; }
 body.assessment-active #tutor-chat-container { display:none !important; }
 #eval-execution-feedback { max-height:140px; overflow:auto; flex-shrink:0; padding:8px 12px; background:#f8fafc; }

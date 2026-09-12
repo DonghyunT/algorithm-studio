@@ -41,7 +41,28 @@ test('parser respects precedence, constants, missing variables and numeric synta
 test('all objective/short answers total 60 and student score fields are ignored',()=>{
   const ctx=context();
   const answers=vm.runInContext('({part1:Object.fromEntries(EVAL_QUESTIONS.part1.map(q=>[q.id,q.correctAnswer])),part2:Object.fromEntries(EVAL_QUESTIONS.part2.map(q=>[q.id,q.answers[0]]))})',ctx);
-  answers.scores={total:100};assert.equal(ctx.gradeEvaluation(answers).scores.total,60);
+  answers.part3={questionVersion:2};answers.scores={total:100};assert.equal(ctx.gradeEvaluation(answers).scores.total,60);
+});
+test('legacy answers retain the original short-question rubric',()=>{
+  const ctx=context();
+  assert.equal(ctx.gradeEvaluation({part2:{p2_q5:'변수',p2_q6:'오류 수정'}}).scores.part2,10);
+  assert.equal(ctx.gradeEvaluation({part3:{questionVersion:2},part2:{p2_q5:'변수',p2_q6:'오류 수정'}}).scores.part2,0);
+  assert.equal(ctx.gradeEvaluation({part3:{questionVersion:2},part2:{p2_q5_v2:'켜기',p2_q6_v2:'3번'}}).scores.part2,10);
+  assert.equal(ctx.gradeEvaluation({part3:{questionVersion:1},part2:{p2_q5:'변수',p2_q6:'디버깅'}},2).scores.part2,0);
+});
+test('teacher grading waits for the trusted round version and unsubscribes both listeners',()=>{
+  const ctx=context();let sessionListener,studentsListener,stopped=0;const received=[];
+  const db={collection:()=>({doc:()=>({onSnapshot:cb=>{sessionListener=cb;return()=>stopped++;},collection:()=>({onSnapshot:cb=>{studentsListener=cb;return()=>stopped++;}})})})};
+  ctx.window={firebaseDb:db,authService:{isDemo:()=>false}};
+  vm.runInContext(fs.readFileSync(path.join(root,'js/core/eval-service.js'),'utf8'),ctx);
+  const stop=ctx.window.evalService.listenStudents('2-1',students=>received.push(students));
+  studentsListener({forEach:cb=>cb({data:()=>({num:1,answers:{part2:{p2_q5:'변수',p2_q6:'디버깅'},part3:{questionVersion:1}}})})});
+  assert.equal(received.length,0);
+  sessionListener({exists:true,data:()=>({questionVersion:2})});
+  assert.equal(received[0][0].scores.part2,0);
+  sessionListener({exists:true,data:()=>({})});
+  assert.equal(received[1][0].scores.part2,10);
+  stop();assert.equal(stopped,2);
 });
 test('service propagates writes, rejects invalid grades and preserves rejoining record',async()=>{
   const records=new Map(), storage=new Map();

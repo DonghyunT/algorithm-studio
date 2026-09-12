@@ -81,7 +81,7 @@
       "pass": true
     },
     {
-      "name": "assessment palette stays inside panel and scrolled blocks drag without jumping",
+      "name": "assessment shared palette and scrolled canvas retain drag coordinates",
       "pass": true
     },
     {

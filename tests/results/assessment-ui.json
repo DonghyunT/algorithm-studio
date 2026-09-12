@@ -1,0 +1,42 @@
+{
+  "results": [
+    {
+      "name": "new questions have neutral titles and changed short-answer tasks",
+      "pass": true
+    },
+    {
+      "name": "unanswered parts can be skipped at the bottom but manual submission requires a Part 3 visit",
+      "pass": true
+    },
+    {
+      "name": "assessment reuses the studio, has blank structured guidance and blocks practice help",
+      "pass": true
+    },
+    {
+      "name": "structured answers, editor and visit permission survive reload and appear for teacher",
+      "pass": true
+    },
+    {
+      "name": "execution facts stay in the shared panel without answer generation and stop on edits",
+      "pass": true
+    },
+    {
+      "name": "assessment editor actions remain reachable at classroom and narrow widths",
+      "pass": true
+    },
+    {
+      "name": "failed submission preserves shared draft; retry succeeds and practice data is restored",
+      "pass": true
+    },
+    {
+      "name": "teacher reset clears Part 3 visit and cards while keeping the question version",
+      "pass": true
+    },
+    {
+      "name": "time expiry submits even without visiting Part 3",
+      "pass": true
+    }
+  ],
+  "errors": [],
+  "consoleErrors": []
+}

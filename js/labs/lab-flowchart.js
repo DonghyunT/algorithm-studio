@@ -1649,7 +1649,7 @@ function renderNlCards() {
 }
 
 function addNlCard(type) {
-  const newId = `nl-${Date.now()}`;
+  const newId = `nl-${crypto.randomUUID()}`;
   if (type === 'seq') {
     nlCards.push({ id: newId, type: 'seq', text: '' });
   } else if (type === 'sel') {
@@ -2202,7 +2202,7 @@ function renderFreeCanvas() {
   const stage = document.getElementById('free-flowchart-stage') || canvas;
   if (!canvas || !stage) return;
 
-  if (freeBlocks.length === 0) {
+  if (freeBlocks.length === 0 && !window.assessmentWorkspace?.active) {
     const stageWidth = stage.clientWidth || 600;
     const centerX = Math.max(30, Math.floor((stageWidth - 190) / 2));
     // 기본 시작/종료 블록 초기 배치 (캔버스 중앙 정렬)
@@ -2362,7 +2362,7 @@ function createFreeBlockDOM(b) {
              contenteditable="true" 
              onblur="handleBlockTextChange('${b.id}', this.innerText)"
              onkeydown="if(event.key==='Enter'){event.preventDefault(); this.blur();}">
-          ${b.text}
+          ${escapeHtml(b.text)}
         </div>
       </div>
     `;
@@ -2409,7 +2409,7 @@ function createFreeBlockDOM(b) {
            contenteditable="true" 
            onblur="handleBlockTextChange('${b.id}', this.innerText)"
            onkeydown="if(event.key==='Enter'){event.preventDefault(); this.blur();}">
-        ${b.text}
+        ${escapeHtml(b.text)}
       </div>
     `;
 
@@ -2595,7 +2595,7 @@ function addCanvasBlockAtPosition(shapeType, x, y) {
     }
   }
 
-  const id = `blk-${Date.now()}`;
+  const id = `blk-${crypto.randomUUID()}`;
   const hasStartTerminal = freeBlocks.some(b => b.shape === 'terminal' && (b.text || '').includes('시작'));
   const defaultLabels = {
     terminal: !hasStartTerminal ? "시작" : "종료",
@@ -5612,7 +5612,7 @@ function toggleNlPanel(forcedState = null) {
   }
 
   try {
-    sessionStorage.setItem('flowchart_panel_collapsed', isNlPanelCollapsed ? '1' : '0');
+    if(!window.assessmentWorkspace?.active)sessionStorage.setItem('flowchart_panel_collapsed', isNlPanelCollapsed ? '1' : '0');
   } catch (e) {}
 
   const studioL3 = document.querySelector('.entry-studio-container');

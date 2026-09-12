@@ -299,7 +299,11 @@ function openLiveStudentModal(studentNum) {
     p3El.style.whiteSpace='pre-wrap';
     const plan=graph.plan||{};
     const planText='현재 상태: '+(plan.current||'미작성')+'\n목표 상태: '+(plan.goal||'미작성')+'\n자연어 알고리즘\n'+
-      (Array.isArray(plan.steps)?plan.steps:[]).map((step,index)=>(index+1)+'. '+(step?.text||'미작성')).join('\n');
+      (Array.isArray(plan.steps)?plan.steps:[]).map((step,index)=>{
+        if(step.type==='sel')return `${index+1}. [선택] 조건: ${step.condition||'미작성'}\n   맞으면: ${step.yesAction||'미작성'}\n   아니면: ${step.noAction||'미작성'}`;
+        if(step.type==='loop')return `${index+1}. [반복] 지속 조건: ${step.condition||'미작성'}\n   반복할 행동: ${step.loopAction||'미작성'}`;
+        return `${index+1}. [순차] ${step.text||'미작성'}`;
+      }).join('\n');
     p3El.textContent=planText+'\n\n순서도\n자동 계산 참고값: '+(s.scores?.part3||0)+' / 40점 (최종 교사 검토 필요)\n'+
       (Array.isArray(graph.blocks)?graph.blocks:[]).filter(Boolean).map(b=>b.id+' ['+b.shape+'] '+b.text).join('\n')+'\n연결\n'+
       (Array.isArray(graph.connections)?graph.connections:[]).filter(Boolean).map(c=>c.from+' ('+c.fromPort+') → '+c.to).join('\n');

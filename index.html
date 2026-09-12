@@ -2045,7 +2045,7 @@
               <span class="text-xs text-slate-400 font-bold">남은 시간:</span>
               <span id="eval-exam-timer" class="text-base sm:text-lg font-black font-mono text-amber-300">30:00</span>
             </div>
-            <button type="button" onclick="window.studentEvalApp.submitExam(false)" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs sm:text-sm font-black transition shadow-md shadow-emerald-600/30 cursor-pointer flex items-center gap-1.5">
+            <button type="button" data-eval-submit disabled onclick="window.studentEvalApp.submitExam(false)" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs sm:text-sm font-black transition shadow-md shadow-emerald-600/30 cursor-pointer flex items-center gap-1.5">
               <span>최종 제출</span> <i class="fa-solid fa-paper-plane text-xs"></i>
             </button>
           </div>
@@ -2076,7 +2076,7 @@
         <!-- Part 2 문항 컨테이너 (6단답형) -->
         <div id="eval-part2-container" class="space-y-4 hidden">
           <div class="p-4 bg-amber-50/70 border border-amber-100 rounded-2xl text-xs font-bold text-amber-900 flex items-center justify-between">
-            <span>✏️ 알고리즘 핵심 개념과 제어 구조에 대한 단답형 문제입니다. 알맞은 단어나 용어를 적어주세요. (각 5점, 총 30점)</span>
+            <span>✏️ 알고리즘 핵심 개념과 제어 구조에 대한 단답형 문제입니다. 알맞은 용어나 실행 결과를 적어주세요. (각 5점, 총 30점)</span>
             <span class="font-mono">6문항 전체</span>
           </div>
           <div id="eval-part2-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
@@ -2087,52 +2087,17 @@
           <div class="eval-task-chooser">
             <span>설계할 문제</span><div id="eval-part3-theme-selector" aria-label="수행평가 문제 선택"></div>
           </div>
-          <div class="eval-workspace">
-            <aside class="eval-planning-panel">
-              <div class="eval-panel-heading"><span class="eval-section-number">1</span><h3>문제와 나의 처방전</h3></div>
-              <div class="eval-planning-content">
-                <details class="eval-task-brief" open>
-                  <summary>문제 안내 <span>접기·펼치기</span></summary>
-                  <p id="eval-task-situation"></p>
-                  <dl><dt>주어지는 정보</dt><dd id="eval-task-input"></dd><dt>요구되는 결과</dt><dd id="eval-task-requirement"></dd></dl>
-                </details>
-                <div class="eval-plan-fields">
-                  <label for="eval-plan-current">현재 상태</label>
-                  <textarea id="eval-plan-current" rows="2" maxlength="500" placeholder="지금 어떤 상황인가요?" oninput="studentEvalApp.setAssessmentPlanField('current',this.value)"></textarea>
-                  <label for="eval-plan-goal">목표 상태</label>
-                  <textarea id="eval-plan-goal" rows="2" maxlength="500" placeholder="어떤 상태가 되면 해결된 걸까요?" oninput="studentEvalApp.setAssessmentPlanField('goal',this.value)"></textarea>
-                </div>
-                <div class="eval-plan-heading"><h4>내가 만든 자연어 알고리즘</h4><button type="button" onclick="studentEvalApp.addAssessmentStep()">+ 단계 추가</button></div>
-                <p class="eval-support-text">짧은 구절로 적어도 괜찮아요. 필요한 만큼 단계를 추가하고 순서를 바꿔 보세요.</p>
-                <p id="eval-plan-empty" class="eval-plan-empty">아직 작성한 단계가 없어요.</p>
-                <ol id="eval-plan-steps"></ol>
-              </div>
-            </aside>
-            <section class="eval-drawing-panel" aria-label="순서도 작업대">
-              <div class="eval-panel-heading eval-canvas-heading">
-                <div class="eval-heading-title"><span class="eval-section-number">2</span><h3>내 계획을 순서도로</h3></div>
-                <div class="eval-canvas-actions">
-                  <button type="button" onclick="studentEvalApp.autoAlignPart3Canvas()">정렬</button>
-                  <button type="button" onclick="studentEvalApp.clearPart3Canvas()">순서도 비우기</button>
-                  <button type="button" class="eval-primary-action" onclick="studentEvalApp.verifyPart3Flowchart()">실행 결과 확인</button>
-                </div>
-              </div>
-              <div class="eval-symbol-toolbar" aria-label="추가할 순서도 기호">
-                <span>기호 추가</span>
-                <button type="button" data-shape="terminal" onclick="studentEvalApp.addPart3Block('terminal')">⬭ 단말 <small>시작·끝</small></button>
-                <button type="button" data-shape="io" onclick="studentEvalApp.addPart3Block('io')">▱ 자료 <small>입력·출력</small></button>
-                <button type="button" data-shape="decision" onclick="studentEvalApp.addPart3Block('decision')">◇ 판단 <small>조건</small></button>
-                <button type="button" data-shape="process" onclick="studentEvalApp.addPart3Block('process')">▭ 처리 <small>동작</small></button>
-              </div>
-              <p class="eval-canvas-help">기호를 추가해 내용을 적고, 연결점을 드래그해 이어 주세요.</p>
-              <div id="eval-part3-canvas" class="entry-canvas-grid">
-                <div id="eval-part3-stage"><svg id="eval-part3-svg" class="absolute inset-0 w-full h-full overflow-visible"></svg></div>
-              </div>
-              <section class="eval-results-panel" aria-label="실행 결과">
-                <div class="eval-result-heading"><h4>실행 결과</h4><span id="eval-part3-score-badge">아직 실행하지 않았어요</span></div>
-                <div id="eval-execution-feedback" role="status" aria-live="polite"></div>
-              </section>
-            </section>
+          <details class="eval-task-brief" open>
+            <summary>문제 안내 · 접기/펼치기</summary><p id="eval-task-situation"></p>
+            <dl><dt>주어지는 정보</dt><dd id="eval-task-input"></dd><dt>요구되는 결과</dt><dd id="eval-task-requirement"></dd></dl>
+          </details>
+          <div id="eval-shared-workspace"></div>
+          <div id="eval-plan-guide" class="eval-plan-fields" hidden>
+            <details open><summary>나의 처방전 · 작성 안내</summary>
+              <label for="eval-plan-current">현재 상태</label><textarea id="eval-plan-current" rows="2" maxlength="500" placeholder="지금 어떤 상황인가요?" oninput="studentEvalApp.setAssessmentPlanField('current',this.value)"></textarea>
+              <label for="eval-plan-goal">목표 상태</label><textarea id="eval-plan-goal" rows="2" maxlength="500" placeholder="무엇이 달라지면 해결된 걸까요?" oninput="studentEvalApp.setAssessmentPlanField('goal',this.value)"></textarea>
+              <p class="eval-support-text">필요한 순차·선택·반복 카드를 골라 짧게 적어 보세요. 세 종류를 모두 쓸 필요는 없어요.</p>
+            </details>
           </div>
         </div>
       </div>
@@ -2432,6 +2397,7 @@
   <script src="js/labs/lab-flowchart.js"></script>
   <script src="js/labs/lab-sandwich.js"></script>
   <script src="js/labs/lab-quiz.js"></script>
+  <script src="js/core/assessment-workspace.js"></script>
   <script src="js/labs/lab-eval.js"></script>
 
   <!-- ========================================== -->

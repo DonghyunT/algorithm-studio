@@ -205,3 +205,34 @@ body.studio-mode #entry-trash-zone { bottom:84px; }
   #eval-result-breakdown > div { grid-template-columns:1fr; }
   #eval-result-breakdown > div > div { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px; }
 }
+
+.eval-part-footer { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:14px; margin-top:24px; padding:20px 0; border-top:1px solid var(--ui-line); }
+.eval-part-footer > div { flex:1; font-size:13px; color:var(--ui-muted); text-align:center; }
+.eval-part-footer small { display:block; font-size:12px; margin-top:4px; }
+.eval-part-footer button { padding:11px 18px; border:1px solid #becbdd; border-radius:8px; color:#3159b8; background:white; font-weight:700; font-size:14px; }
+[data-eval-submit]:disabled { opacity:.5; cursor:not-allowed; }
+[id^="eval-part"][id$="-container"] { scroll-margin-top:130px; }
+#eval-shared-workspace { margin-top:12px; }
+.assessment-workspace-mode #fc-level3-view { display:flex; flex-direction:column; height:max(680px,calc(100dvh - 240px)); }
+.assessment-workspace-mode #fc-level3-view .entry-studio-container { height:100%; min-height:0; }
+.assessment-workspace-mode #fc-level3-view .entry-studio-container > section { min-height:0; }
+.assessment-workspace-mode #fc-level3-view :is(#btn-free-ai-diagnose,#btn-toolbar-thinker-submit,[onclick="openPrescriptionModal()"],#btn-floating-speed-chip),
+.assessment-workspace-mode #fc-level3-view .nl-panel-full-view > div:last-child { display:none !important; }
+.assessment-workspace-mode #fc-level3-view #eval-plan-guide { margin:0; padding:8px; background:#f8fafc; border:1px solid #dfe4eb; border-radius:8px; max-height:220px; overflow:auto; flex-shrink:0; }
+#eval-plan-guide[hidden] { display:none; }
+#eval-plan-guide summary { font-size:12px; font-weight:700; cursor:pointer; }
+#eval-plan-guide label { display:block; margin-top:8px; }
+#eval-plan-guide textarea { min-height:48px; font-size:12px; }
+.shared-card-order { display:flex; justify-content:flex-end; gap:8px; }
+.shared-card-order button { font-size:11px; padding:3px 7px; background:#f1f5f9; border-radius:5px; color:#54637a; }
+.shared-card-order button:disabled { opacity:.35; }
+.assessment-readonly .palette-entry-block { pointer-events:none; opacity:.5; }
+.assessment-workspace-mode .execution-issue { outline:3px solid #e88b36; outline-offset:3px; }
+.assessment-workspace-mode #entry-trash-zone { bottom:84px; }
+@media(max-width:900px) {
+ .assessment-workspace-mode #fc-level3-view { height:auto; }
+ .assessment-workspace-mode #fc-level3-view .entry-studio-container { display:flex; flex-direction:column; height:auto; }
+ .assessment-workspace-mode #fc-level3-view .entry-studio-container > section { min-height:220px; }
+ .assessment-workspace-mode #fc-level3-view .entry-studio-container > section:nth-child(3) { height:650px; min-height:650px; order:-1; }
+ .assessment-workspace-mode #fc-level3-view .entry-studio-container > section:first-child { height:650px; }
+}
