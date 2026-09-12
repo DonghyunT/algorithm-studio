@@ -38,6 +38,7 @@ function saveClassroomData(data) {
 
 // 2. 교사용 클래스룸 모드 열기 및 PIN 인증 (풀페이지 전체 뷰)
 function openClassroomTab() {
+  if(isAssessmentLocked())return;
   if (!isTeacherAuthenticated) {
     promptTeacherPin();
   } else {
@@ -46,14 +47,18 @@ function openClassroomTab() {
 }
 
 async function promptTeacherPin() {
+  if(isAssessmentLocked())return;
   try {
     await window.authService.teacher();
+    if(isAssessmentLocked())return;
     isTeacherAuthenticated = true;
     showClassroomView();
   } catch (error) { alert(error.message); }
 }
 
 function showClassroomView() {
+  if(isAssessmentLocked())return;
+  document.body.classList.remove('reading-mode');
   if (typeof disableStudioMode === "function") disableStudioMode();
   // 모든 메인 뷰 숨기고 view-classroom 단독 노출
   ['view-roadmap', 'view-concept', 'view-quiz', 'view-lab', 'view-eval'].forEach(id => {
@@ -285,7 +290,10 @@ function openLiveStudentModal(studentNum) {
   if (p3El) {
     const graph=s.answers?.part3||{};
     p3El.style.whiteSpace='pre-wrap';
-    p3El.textContent='자동 계산 참고값: '+(s.scores?.part3||0)+' / 40점 (최종 교사 검토 필요)\n'+
+    const plan=graph.plan||{};
+    const planText='현재 상태: '+(plan.current||'미작성')+'\n목표 상태: '+(plan.goal||'미작성')+'\n자연어 알고리즘\n'+
+      (Array.isArray(plan.steps)?plan.steps:[]).map((step,index)=>(index+1)+'. '+(step?.text||'미작성')).join('\n');
+    p3El.textContent=planText+'\n\n순서도\n자동 계산 참고값: '+(s.scores?.part3||0)+' / 40점 (최종 교사 검토 필요)\n'+
       (Array.isArray(graph.blocks)?graph.blocks:[]).filter(Boolean).map(b=>b.id+' ['+b.shape+'] '+b.text).join('\n')+'\n연결\n'+
       (Array.isArray(graph.connections)?graph.connections:[]).filter(Boolean).map(c=>c.from+' ('+c.fromPort+') → '+c.to).join('\n');
   }

@@ -1,6 +1,10 @@
 {
   "results": [
     {
+      "name": "reading pages have centered margins on wide screens",
+      "pass": true
+    },
+    {
       "name": "navigation has one visible main view",
       "pass": true
     },
@@ -37,6 +41,14 @@
       "pass": true
     },
     {
+      "name": "active exam locks header, direct navigation and teacher page",
+      "pass": true
+    },
+    {
+      "name": "assessment plans are student-written, reorderable and persisted with answers",
+      "pass": true
+    },
+    {
       "name": "refresh restores answers and same-theme graph",
       "pass": true
     },
@@ -46,6 +58,10 @@
     },
     {
       "name": "assessment malformed flow highlights blocked position only",
+      "pass": true
+    },
+    {
+      "name": "assessment palette stays inside panel and scrolled blocks drag without jumping",
       "pass": true
     },
     {
