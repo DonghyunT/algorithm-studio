@@ -1,0 +1,59 @@
+{
+  "project": "donghyun-algo",
+  "at": "2026-09-12T12:49:08.390Z",
+  "results": [
+    {
+      "name": "unauthenticated class read denied",
+      "pass": true
+    },
+    {
+      "name": "anonymous class read allowed",
+      "pass": true
+    },
+    {
+      "name": "student creates own seat",
+      "pass": true
+    },
+    {
+      "name": "student B cannot read A answer",
+      "pass": true
+    },
+    {
+      "name": "student cannot list classmates",
+      "pass": true
+    },
+    {
+      "name": "student cannot grant teacher role",
+      "pass": true
+    },
+    {
+      "name": "student cannot start assessment",
+      "pass": true
+    },
+    {
+      "name": "owner saves active answer",
+      "pass": true
+    },
+    {
+      "name": "student score forgery denied",
+      "pass": true
+    },
+    {
+      "name": "late answer edit denied",
+      "pass": true
+    },
+    {
+      "name": "unchanged saved answer can submit after deadline",
+      "pass": true
+    },
+    {
+      "name": "submitted answer immutable",
+      "pass": true
+    },
+    {
+      "name": "student cannot read archives",
+      "pass": true
+    }
+  ],
+  "fixturesRemoved": true
+}

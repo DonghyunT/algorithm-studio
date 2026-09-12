@@ -11,6 +11,7 @@ class EvalService {
         return;
       }
       if (message.session) this.write('EVAL_SESSION_' + message.classId, { ...this.read('EVAL_SESSION_' + message.classId, {}), ...message.session });
+      if(message.replaceStudents)this.write('EVAL_STUDENTS_'+message.classId,[]);
       for (const student of message.students || []) this.mergeLocalStudent(message.classId, student);
       this.emit(message.classId);
     });
@@ -48,24 +49,57 @@ class EvalService {
   }
   listenSession(classId, callback, onError = error => alert(error.message)) {
     const db = this.getDb();
-    if (db) return db.collection('eval_sessions').doc(classId).onSnapshot(doc => callback(doc.exists ? doc.data() : this.defaultSession(classId)), onError);
+    if (db) return db.collection('classrooms').doc(classId).onSnapshot(doc => callback(doc.exists ? doc.data() : this.defaultSession(classId)), onError);
     return this.demoListen(classId, () => callback(this.read('EVAL_SESSION_' + classId, this.defaultSession(classId))));
   }
   async startSession(classId, durationMinutes = 30) {
     await window.authService.teacher();
     if (!Number.isFinite(durationMinutes) || durationMinutes < 1 || durationMinutes > 180) throw new Error('평가 시간을 확인해 주세요.');
     const now = Date.now();
-    const payload = { ...this.defaultSession(classId), status: 'in_progress', durationMinutes, startTime: new Date(now).toISOString(), deadlineMs: now + durationMinutes * 60000, endedAt: null, attemptId: crypto.randomUUID() };
+    const payload = { ...this.defaultSession(classId), schemaVersion:2, status: 'in_progress', durationMinutes, startTime: new Date(now).toISOString(), deadlineMs: now + durationMinutes * 60000, endedAt: null };
     const db = this.getDb();
-    if (db) await db.collection('eval_sessions').doc(classId).set(payload, { merge: true });
-    else { this.write('EVAL_SESSION_' + classId, payload); this.notify(classId, { session: payload }); }
+    if (db) {
+      const ref=db.collection('classrooms').doc(classId);
+      await db.runTransaction(async tx=>{
+        const old=await tx.get(ref);
+        if(!old.exists || old.data().status!=='waiting')throw Error('새 평가 준비를 먼저 눌러 주세요. 진행 중인 평가를 다시 시작할 수 없습니다.');
+        payload.attemptId=old.data().attemptId;tx.update(ref,payload);
+      });
+    } else {
+      const old=this.read('EVAL_SESSION_'+classId,this.defaultSession(classId));
+      if(old.status!=='waiting')throw Error('새 평가 준비를 먼저 눌러 주세요.');
+      payload.attemptId=old.attemptId||crypto.randomUUID();this.write('EVAL_SESSION_' + classId, payload); this.notify(classId, { session: payload });
+    }
     return payload;
+  }
+  async prepareSession(classId) {
+    await window.authService.teacher();this.identity(classId,1);
+    const db=this.getDb(), archivedAt=new Date().toISOString(), archiveId=crypto.randomUUID();
+    const fresh={...this.defaultSession(classId),schemaVersion:2,attemptId:crypto.randomUUID(),preparedAt:archivedAt};
+    if(db){
+      const ref=db.collection('classrooms').doc(classId);
+      await db.runTransaction(async tx=>{
+        const session=await tx.get(ref);
+        if(session.exists && session.data().status==='in_progress')throw Error('진행 중인 평가를 먼저 마감해 주세요.');
+        const seats=await Promise.all(Array.from({length:27},(_,i)=>tx.get(ref.collection('students').doc(this.identity(classId,i+1)))));
+        const archive=ref.collection('archives').doc(archiveId);
+        if(session.exists || seats.some(s=>s.exists))tx.set(archive,{kind:'new-session',archivedAt,session:session.exists?session.data():{}});
+        seats.filter(s=>s.exists).forEach(s=>{tx.set(archive.collection('students').doc(s.id),s.data());tx.delete(s.ref);});
+        tx.set(ref,fresh);
+      });
+    }else{
+      const old=this.read('EVAL_SESSION_'+classId,{});
+      if(old.status==='in_progress')throw Error('진행 중인 평가를 먼저 마감해 주세요.');
+      this.write('EVAL_ARCHIVE_'+archiveId,{session:old,students:this.read('EVAL_STUDENTS_'+classId,[])});
+      this.write('EVAL_STUDENTS_'+classId,[]);this.write('EVAL_SESSION_'+classId,fresh);this.notify(classId,{session:fresh,replaceStudents:true,students:[]});
+    }
+    return fresh;
   }
   async endSession(classId) {
     await window.authService.teacher();
     const payload = { status: 'ended', endedAt: new Date().toISOString() };
     const db = this.getDb();
-    if (db) await db.collection('eval_sessions').doc(classId).update(payload);
+    if (db) await db.collection('classrooms').doc(classId).update(payload);
     else {
       this.write('EVAL_SESSION_' + classId, { ...this.read('EVAL_SESSION_' + classId, {}), ...payload });
       this.notify(classId, { session: payload });
@@ -78,13 +112,16 @@ class EvalService {
     const student = { num: Number(studentNum), numStr: docId, name: studentName.trim(), ownerUid: user.uid, status: 'waiting', joinedAt: new Date().toISOString(), submittedAt: null, progress: {part1:0,part2:0,part3:0}, answers: {part1:{},part2:{},part3:null}, feedback: {} };
     const db = this.getDb();
     if (db) {
-      const ref = db.collection('eval_sessions').doc(classId).collection('students').doc(docId);
+      const ref = db.collection('classrooms').doc(classId).collection('students').doc(docId);
       return db.runTransaction(async transaction => {
         const existing = await transaction.get(ref);
         if (existing.exists) {
           if (existing.data().ownerUid !== user.uid) throw new Error('이 번호는 다른 응시 기록에 연결되어 있습니다. 선생님께 확인해 주세요.');
           return existing.data();
         }
+        const session=await transaction.get(db.collection('classrooms').doc(classId));
+        if(!session.exists || !['waiting','in_progress'].includes(session.data().status))throw Error('선생님께서 새 평가를 준비한 후 입장해 주세요.');
+        student.attemptId=session.data().attemptId;
         transaction.set(ref, student);
         return student;
       });
@@ -98,7 +135,7 @@ class EvalService {
     const payload = { status: 'in_progress', progress, updatedAt: new Date().toISOString() };
     if (answers) payload.answers = JSON.parse(JSON.stringify(answers));
     const db = this.getDb();
-    if (db) await db.collection('eval_sessions').doc(classId).collection('students').doc(docId).update(payload);
+    if (db) await db.collection('classrooms').doc(classId).collection('students').doc(docId).update(payload);
     else {
       const student = { num: Number(studentNum), numStr: docId, ...payload };
       this.mergeLocalStudent(classId, student); this.notify(classId, { students: [student] });
@@ -110,7 +147,7 @@ class EvalService {
     const finalData = { status: 'submitted', submittedAt: new Date().toISOString(), answers: JSON.parse(JSON.stringify(fullSubmission.answers)) };
     const db = this.getDb();
     if (db) {
-      const ref=db.collection('eval_sessions').doc(classId).collection('students').doc(docId);
+      const ref=db.collection('classrooms').doc(classId).collection('students').doc(docId);
       return db.runTransaction(async transaction=>{
         const saved=await transaction.get(ref);
         if (!saved.exists) throw new Error('응시 기록이 없습니다. 선생님께 확인해 주세요.');
@@ -135,7 +172,7 @@ class EvalService {
       return {...student, scores:{...calculated.scores, teacherOverride:student.scores?.teacherOverride ?? null}, feedback:calculated.feedback || {}};
     }));
     const db = this.getDb();
-    if (db) return db.collection('eval_sessions').doc(classId).collection('students').onSnapshot(snapshot => {
+    if (db) return db.collection('classrooms').doc(classId).collection('students').onSnapshot(snapshot => {
       const students=[]; snapshot.forEach(doc=>students.push(doc.data())); grade(students);
     }, onError);
     return this.demoListen(classId, () => grade(this.read('EVAL_STUDENTS_' + classId, [])));
@@ -145,7 +182,7 @@ class EvalService {
     const score=Number(newScore);
     if (!Number.isFinite(score) || score<0 || score>100 || String(newScore).trim()==='') throw new Error('점수는 0~100 사이 숫자로 입력해 주세요.');
     const docId=this.identity(classId,studentNum), db=this.getDb();
-    if(db) await db.collection('eval_sessions').doc(classId).collection('students').doc(docId).update({'scores.teacherOverride':score});
+    if(db) await db.collection('classrooms').doc(classId).collection('students').doc(docId).update({'scores.teacherOverride':score});
     else {
       const student=this.read('EVAL_STUDENTS_'+classId,[]).find(item=>item.numStr===docId);
       if(!student) throw new Error('학생 기록이 없습니다.');
@@ -157,13 +194,23 @@ class EvalService {
     await window.authService.teacher();
     const docId=this.identity(classId,studentNum), db=this.getDb();
     const payload={status:'in_progress', submittedAt:null, answers:{part1:{},part2:{},part3:null}, scores:{teacherOverride:null}, progress:{part1:0,part2:0,part3:0}, resetAt:new Date().toISOString()};
-    if(db) await db.collection('eval_sessions').doc(classId).collection('students').doc(docId).update(payload);
+    if(db) {
+      const sessionRef=db.collection('classrooms').doc(classId),ref=sessionRef.collection('students').doc(docId);
+      const archive=sessionRef.collection('archives').doc(crypto.randomUUID());
+      await db.runTransaction(async tx=>{
+        const session=await tx.get(sessionRef),student=await tx.get(ref);
+        if(!student.exists)throw Error('응시 기록이 없습니다.');
+        if(session.data()?.status!=='in_progress'||Date.now()>=session.data().deadlineMs)throw Error('평가 시간이 끝났습니다. 새 평가 준비를 사용해 주세요.');
+        tx.set(archive,{kind:'student-reset',archivedAt:payload.resetAt,session:session.data()});
+        tx.set(archive.collection('students').doc(docId),student.data());tx.update(ref,payload);
+      });
+    }
     else { const student={num:Number(studentNum),numStr:docId,...payload};this.mergeLocalStudent(classId,student);this.notify(classId,{students:[student]}); }
     return true;
   }
   listenStudent(classId, studentNum, callback, onError = error => alert(error.message)) {
     const docId=this.identity(classId,studentNum),db=this.getDb();
-    if(db) return db.collection('eval_sessions').doc(classId).collection('students').doc(docId).onSnapshot(doc=>{if(doc.exists)callback(doc.data());},onError);
+    if(db) return db.collection('classrooms').doc(classId).collection('students').doc(docId).onSnapshot(doc=>{if(doc.exists)callback(doc.data());},onError);
     return this.demoListen(classId,()=>{const student=this.read('EVAL_STUDENTS_'+classId,[]).find(item=>item.numStr===docId);if(student)callback(student);});
   }
   exportNeisCSV(classId, studentList=[]) {

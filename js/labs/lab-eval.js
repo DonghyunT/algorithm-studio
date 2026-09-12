@@ -56,12 +56,13 @@ class StudentEvalApp {
     try {sessionStorage.setItem('ALGO_ACTIVE_EXAM',JSON.stringify({classId:this.currentClass,num:this.studentNum,name:this.studentName}));}catch{}
   }
 
-  draftKey() { return "ALGO_EXAM_DRAFT_"+(this.ownerUid||'')+"_"+this.currentClass+"_"+this.studentNum; }
+  draftKey() { return "ALGO_EXAM_DRAFT_"+(this.ownerUid||'')+"_"+this.currentClass+"_"+this.studentNum+"_"+(this.attemptId||'demo'); }
   saveDraft() {
     if (!this.joined || window.isSessionClosing) return;
     try { sessionStorage.setItem(this.draftKey(), JSON.stringify({answers:this.answers,deadlineMs:this.deadlineMs,studentName:this.studentName,lastResetAt:this.lastResetAt,isSubmitted:this.isSubmitted})); } catch(error) { console.warn("임시 저장 실패",error); }
   }
   restoreDraft(student) {
+    this.attemptId=student?.attemptId||null;
     let draft=null; try { draft=JSON.parse(sessionStorage.getItem(this.draftKey())); } catch {}
     if (student?.status==="submitted") { this.answers=student.answers; this.isSubmitted=true; }
     else if(draft && draft.studentName===this.studentName && draft.lastResetAt===(student?.resetAt||null)) { this.answers=draft.answers; this.deadlineMs=draft.deadlineMs; }
@@ -140,9 +141,14 @@ class StudentEvalApp {
     // 1) 전체 학급 세션 리스너 구독 (선생님이 [30분 동시 시작] 누를 시 시험장 진입)
     if (window.evalService && !this.sessionUnsub) {
       this.sessionUnsub = window.evalService.listenSession(this.currentClass, (sessionData) => {
+        const previous=this.latestSession;
         this.latestSession=sessionData;
         window.pendingAssessmentResume=false;
-        if(sessionData?.status==='waiting') {sessionStorage.removeItem('ALGO_ACTIVE_EXAM');updateAssessmentNavigation();}
+        if(sessionData?.status==='waiting') {
+          sessionStorage.removeItem('ALGO_ACTIVE_EXAM');
+          if(previous?.attemptId && previous.attemptId!==sessionData.attemptId){sessionStorage.removeItem(this.draftKey());this.joined=false;location.reload();return;}
+          this.sessionStatus='waiting';clearInterval(this.timerInterval);this.timerInterval=null;updateAssessmentNavigation();
+        }
         if(sessionData?.status==="ended" && !this.isSubmitted) {
           this.sessionStatus="ended"; clearInterval(this.timerInterval); this.timerInterval=null;
           switchUnit('eval'); this.renderPartQuestions(); this.showScreen('exam');
