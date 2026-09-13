@@ -117,7 +117,7 @@ body > div:first-child, main { min-width:0; }
 .teacher-login-dialog button { min-height:44px; padding:10px 14px; border:1px solid #cbd5e1; border-radius:8px; font-weight:700; cursor:pointer; }
 .teacher-login-dialog button:disabled { opacity:.55; cursor:wait; }
 .teacher-login-options { display:flex; flex-wrap:wrap; gap:10px; margin-top:20px; }
-.teacher-login-options button { flex:1 1 145px; }
+.teacher-login-options button { flex:1 1 145px; word-break:keep-all; overflow-wrap:normal; }
 .teacher-login-dialog form { margin-top:20px; }
 .teacher-login-dialog label { display:block; font-size:14px; font-weight:700; margin-bottom:8px; }
 .teacher-login-dialog input { width:100%; border:1px solid #94a3b8; border-radius:7px; padding:10px; }
