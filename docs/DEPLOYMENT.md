@@ -1,5 +1,11 @@
 # 운영 배포 기록
 
+## 2026-09-14 로그인 문구·비밀번호 변경
+
+사용자 요청으로 ‘비밀번호 로그인’ / ‘교사 비밀번호’ 문구와 단어 단위 줄바꿈을 적용했습니다. 운영 강사 비밀번호를 지정한 값으로 변경하고 Git·배포 제외 `.env.instructor.local`을 동기화했습니다. 비밀번호 값은 기록하지 않으며 담당 반 권한·학생 자료는 유지했습니다.
+
+제품 `d451627`, 운영 병합 `2ba97664fbfda13db5c42c8a62bd74263b95a6ad`. Vercel Production `algorithm-studio-dxew0psvw-donghyun2.vercel.app`, deployment `6423612288` success. 문법 검사와 로컬 UI 5흐름, 운영 UI 5흐름 통과: 320/390/420px에서 ‘로그인’ 분리 없음, 중립적 문구, 변경 비밀번호 로그인, 담당 반·복원·로그아웃 확인. 페이지·콘솔 오류 없음. [운영 결과](../tests/results/instructor-production/results.json). 후속 기록 커밋은 제품 코드가 동일합니다.
+
 ## 2026-09-14 강사 담당 반 권한·AI 점검 개선 운영 배포
 
 **최종 보완 배포:** 공유 PC 인증 취소·권한 오류 시 학생 자료 제거를 제품 `5affdfd`, 운영 병합 `b530f1d21703fe3a7fdec01041170578a4c66efc`로 반영했습니다. Vercel Production `algorithm-studio-19tkv82od-donghyun2.vercel.app`, deployment `6423501427` success. [GitHub 검사](https://github.com/DonghyunT/algorithm-studio/actions/runs/34767303530) success. 단위/API 37개와 관련 교사 UI 18흐름, 기본 UI 24·학생 평가 10개를 재검증했습니다. 실제 운영 강사 UI 4흐름도 다시 통과했고 페이지·콘솔 오류가 없으며 최종 인증·교사 JS가 로컬 코드와 일치했습니다. Firebase 역할·보안 규칙은 최초 배포 이후 바꾸지 않았습니다. 후속 문서 커밋은 제품 코드가 동일합니다.
