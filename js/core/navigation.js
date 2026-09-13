@@ -71,7 +71,7 @@ async function switchUnit(unitId, targetStep = null) {
   const request = ++switchUnit.request;
   if(unitId === 'eval' && !isAssessmentLocked()) {
     if(typeof isTeacherAuthenticated !== 'undefined' && isTeacherAuthenticated) unitId='classroom';
-    else if(!window.authService?.isDemo()) {
+    else if(!window.authService?.isDemo() || window.localPreview) {
       try {
         const user = await window.authService.existingTeacher();
         if(request !== switchUnit.request)return;

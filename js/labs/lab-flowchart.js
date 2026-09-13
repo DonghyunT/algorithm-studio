@@ -4333,171 +4333,9 @@ async function runInteractiveSimulation(simInputs = {}) {
   }
 }
 
-// --------------------------------------------------
-// 🔍 정량적 알고리즘 대조 엔진 (자연어 기획서 vs 캔버스)
-// --------------------------------------------------
+// 구조 검사는 증명 가능한 연결 결함만 찾습니다. 자연어와의 의미 일치는 AI가 원문과 실제 그래프를 함께 읽어 판단합니다.
 function analyzeAlgorithmConsistency() {
-  const seqCards = nlCards.filter(c => c.type === 'seq');
-  const selCards = nlCards.filter(c => c.type === 'sel');
-  const loopCards = nlCards.filter(c => c.type === 'loop');
-
-  const startBlock = freeBlocks.find(b => b.shape === 'terminal' && (b.text || '').includes('시작'));
-  const endBlock = freeBlocks.find(b => b.shape === 'terminal' && (b.text || '').includes('종료'));
-  const processBlocks = freeBlocks.filter(b => b.shape === 'process');
-  const decisionBlocks = freeBlocks.filter(b => b.shape === 'decision');
-  const ioBlocks = freeBlocks.filter(b => b.shape === 'io');
-
-  // 루프백 연결선 (아래에서 위로 되돌아가는 연결선)
-  const loopbackConns = freeConnections.filter(c => {
-    const fromB = freeBlocks.find(x => x.id === c.from);
-    const toB = freeBlocks.find(x => x.id === c.to);
-    return fromB && toB && toB.y <= fromB.y + 15;
-  });
-
-  const issues = [];
-  const compliments = [];
-
-  if (!nlCards.length) issues.push('자연어 기획이 아직 비어 있습니다.');
-  if (!processBlocks.length && !ioBlocks.length) issues.push('실행할 동작이나 입출력 기호가 없습니다.');
-
-  // 1. 시작/종료 단말 검사
-  if (!startBlock) issues.push("시작 기호(보라색 단말)가 캔버스에 없습니다. 알고리즘의 출발점을 만들어 주세요.");
-  if (!endBlock) issues.push("종료 기호(보라색 단말)가 캔버스에 없습니다. 알고리즘의 마무리 끝점을 지정해 주세요.");
-
-  // 2. 선택(조건 분기) 구조 대조
-  if (selCards.length > 0 && decisionBlocks.length === 0) {
-    issues.push(`자연어 기획서에 '선택(만약 ~라면)' 단계가 ${selCards.length}개 있으나, 캔버스에 마름모(판단) 블록이 0개입니다.`);
-  } else if (selCards.length > 0 && decisionBlocks.length < selCards.length) {
-    issues.push(`자연어 기획서의 선택 단계(${selCards.length}개)에 비해 캔버스의 판단 블록(${decisionBlocks.length}개)이 부족합니다.`);
-  }
-
-  // 3. 반복(루프백) 구조 대조
-  if (loopCards.length > 0 && loopbackConns.length === 0 && decisionBlocks.length === 0) {
-    issues.push(`자연어 기획서에 '반복' 단계가 있으나, 캔버스에 조건을 검사하는 판단 기호나 상위로 되돌아가는 반복선이 없습니다.`);
-  }
-
-  // 4. 처리 블록 수량 대조 (순차 행동 수에 비해 처리 블록이 지나치게 부족한지 체크)
-  if (seqCards.length >= 2 && processBlocks.length < Math.floor(seqCards.length * 0.6)) {
-    issues.push(`자연어 기획서의 행동 단계(${seqCards.length}개)에 비해 캔버스의 파란색 처리 블록(${processBlocks.length}개)이 부족합니다. 중간 명령을 더 채워 넣어 보세요.`);
-  }
-
-  // 5. 💡 판단(Decision) 기호의 양방향 분기 완결성 검사 (참/거짓 2갈래 필수)
-  decisionBlocks.forEach(dec => {
-    const outgoing = freeConnections.filter(c => c.from === dec.id);
-    if (outgoing.length < 2) {
-      issues.push(`⚠️ [판단 분기 누락] '${dec.text || '조건 판단'}' 기호에서 '예' 또는 '아니오' 분기 중 하나가 빠져 있습니다. 조건에 따른 두 갈래 길을 모두 연결해 주세요.`);
-    }
-  });
-
-  // 6. 💡 비단말 블록의 나가는 연결선 검사 (종료 외 블록 중간 멈춤 방지)
-  freeBlocks.forEach(b => {
-    if (b !== endBlock) {
-      const outgoing = freeConnections.filter(c => c.from === b.id);
-      if (outgoing.length === 0) {
-        if (b === startBlock) {
-          issues.push("시작 기호에서 출발하는 화살표가 없습니다. 첫 번째 단계를 연결해 주세요.");
-        } else {
-          issues.push(`⚠️ [미완성 경로 발견] '${b.text || b.shape}' 기호 다음에 나가는 화살표가 없어 알고리즘이 중간에 멈춥니다. 종료 기호까지 연결해 주세요.`);
-        }
-      }
-    }
-  });
-
-  // 7. 💡 시작 ➔ 종료 전 경로 도달성(Reachability) 및 막다른 길(Dead End) 정밀 탐색
-  if (startBlock && endBlock) {
-    // 7.1 시작 블록에서 출발하여 도달 가능한 모든 블록 집합 (Forward Reachability)
-    const visitedFromStart = new Set([startBlock.id]);
-    const queue = [startBlock.id];
-    while (queue.length > 0) {
-      const currId = queue.shift();
-      const outgoing = freeConnections.filter(c => c.from === currId);
-      for (const conn of outgoing) {
-        if (!visitedFromStart.has(conn.to)) {
-          visitedFromStart.add(conn.to);
-          queue.push(conn.to);
-        }
-      }
-    }
-
-    // 7.2 종료 블록에 도달할 수 있는 모든 블록 집합 (Backward Reachability)
-    const canReachEnd = new Set([endBlock.id]);
-    let changed = true;
-    while (changed) {
-      changed = false;
-      for (const conn of freeConnections) {
-        if (canReachEnd.has(conn.to) && !canReachEnd.has(conn.from)) {
-          canReachEnd.add(conn.from);
-          changed = true;
-        }
-      }
-    }
-
-    // 7.3 막다른 길(Dead End) 검출: 시작에서 도달할 수 있으나 종료로 갈 수 없는 분기/블록
-    const deadEndBlocks = freeBlocks.filter(b => b !== endBlock && visitedFromStart.has(b.id) && !canReachEnd.has(b.id));
-    if (deadEndBlocks.length > 0) {
-      const names = deadEndBlocks.map(b => `'${b.text || b.shape}'`).slice(0, 2).join(', ');
-      const suffix = deadEndBlocks.length > 2 ? ` 외 ${deadEndBlocks.length - 2}개` : '';
-      issues.push(`⚠️ [종료 미도달 분기 발견] ${names}${suffix}에서 출발한 흐름이 '종료' 기호에 닿지 못하고 끊겨 있습니다. 모든 갈래길이 최종적으로 '종료'로 이어지도록 만들어 보세요.`);
-    }
-
-    // 7.4 시작 기호와 전혀 연결되지 않은 부유 블록 검출
-    const orphanBlocks = freeBlocks.filter(b => b !== startBlock && !visitedFromStart.has(b.id));
-    if (orphanBlocks.length > 0) {
-      issues.push(`캔버스에 '시작' 기호의 실행 흐름과 연결되지 않은 기호가 ${orphanBlocks.length}개 있습니다. 불필요한 블록은 휴지통으로 지워주세요.`);
-    }
-  }
-
-  // 8. 💡 미수정 기본(더미) 블록 텍스트 방치 검출 (학생이 내용을 채우지 않은 경우)
-  const DUMMY_TEXTS = [
-    "알고리즘 명령 실행",
-    "연산 처리 실행",
-    "데이터 입출력",
-    "조건 검사 ◇",
-    "블록 내용"
-  ];
-  const uneditedBlocks = freeBlocks.filter(b => 
-    b.shape !== 'terminal' && DUMMY_TEXTS.some(dt => (b.text || '').trim() === dt)
-  );
-  if (uneditedBlocks.length > 0) {
-    const uneditedNames = uneditedBlocks.map(b => `'${b.text}'`).slice(0, 2).join(', ');
-    const suffix = uneditedBlocks.length > 2 ? ` 외 ${uneditedBlocks.length - 2}개` : '';
-    issues.push(`⚠️ [기본 블록 내용 미작성] 캔버스에 내용을 수정하지 않은 기본 기호(${uneditedNames}${suffix})가 있습니다. 기호를 더블클릭하여 자연어 기획서에 맞게 실제 명령을 적어주세요.`);
-  }
-
-  // 9. 💡 기획서에 단계가 있으나 캔버스에 명령 블록이 전혀 없는 경우
-  const commandBlocks = freeBlocks.filter(b => b.shape !== 'terminal');
-  if (nlCards.length > 0 && commandBlocks.length === 0) {
-    issues.push("자연어 기획서에 단계가 작성되어 있으나, 캔버스에 '시작'과 '종료' 외에 실제 명령 기호(자료·처리·판단)가 하나도 없습니다. 기호 보관함에서 기호를 추가해 보세요.");
-  }
-
-  // 칭찬 요소
-  if (startBlock && endBlock && issues.length === 0) {
-    compliments.push("시작과 종료 단말 기호가 바르게 배치되어 있으며, 모든 경로가 종료까지 완벽하게 이어집니다.");
-  }
-  if (decisionBlocks.length > 0 && selCards.length > 0 && !issues.some(i => i.includes('판단'))) {
-    compliments.push("자연어 기획서의 조건 분기를 주황색 마름모(판단) 기호와 양방향 갈래길로 잘 대응시켰습니다.");
-  }
-  if (loopbackConns.length > 0) {
-    compliments.push("상위 블록으로 되돌아가는 완벽한 반복(루프백) 화살표를 갖추고 있습니다.");
-  }
-
-  return {
-    isConsistent: issues.length === 0,
-    issues,
-    compliments,
-    stats: {
-      nlTotal: nlCards.length,
-      seqCards: seqCards.length,
-      selCards: selCards.length,
-      loopCards: loopCards.length,
-      blocksTotal: freeBlocks.length,
-      process: processBlocks.length,
-      decision: decisionBlocks.length,
-      io: ioBlocks.length,
-      connections: freeConnections.length,
-      loopbacks: loopbackConns.length
-    }
-  };
+  return analyzePracticeFlowchart(nlCards, freeBlocks, freeConnections);
 }
 
 /**
@@ -4550,81 +4388,14 @@ async function diagnoseFreeAlgorithmWithSolarAI() {
   const reviewRevision = flowchartReviewRevision;
   const reviewRequestId = ++flowchartReviewRequestSequence;
   latestFlowchartReviewRequest = reviewRequestId;
-  // 1. JS 룰 엔진을 통한 정량적 사전 대조 수행
+  // 구조 검사 결과와 학생 원문을 분리된 system/user 메시지로 전달합니다.
   const consistency = analyzeAlgorithmConsistency();
-
-  const nlSummary = nlCards.map((c, i) => {
-    if (c.type === 'seq') return `${i+1}단계(순차): ${c.text || '내용 없음'}`;
-    if (c.type === 'sel') return `${i+1}단계(선택): 만약 [${c.condition || '조건'}] -> 참: ${c.yesAction || '실행'} / 거짓: ${c.noAction || '실행'}`;
-    if (c.type === 'loop') return `${i+1}단계(반복): [${c.condition || '조건'}] 동안 -> (${c.loopAction || '행동'}) 반복`;
-  }).join('\n');
-
-  const orderedBlocksForAI = getFlowchartOrderedBlocks();
-  const blockSummary = orderedBlocksForAI.map(b => `- [${b.shape}] "${b.text}"`).join('\n');
-
-  // 자연어 친화적 연결선 맵 (포트 방향 및 루프백 판별 포함)
-  const connSummary = freeConnections.map(c => {
-    const fromB = freeBlocks.find(x => x.id === c.from);
-    const toB = freeBlocks.find(x => x.id === c.to);
-    if (!fromB || !toB) return `(${c.from} -> ${c.to})`;
-    const fromText = fromB.text ? `"${fromB.text}"` : fromB.shape;
-    const toText = toB.text ? `"${toB.text}"` : toB.shape;
-
-    let portLabel = "진행선";
-    if (c.fromPort === 'yes') portLabel = "[예] 참 분기선";
-    else if (c.fromPort === 'no') portLabel = "[아니오] 거짓 분기선";
-    else if (c.fromPort === 'right') portLabel = "[우측 포트]";
-    else if (c.fromPort === 'left') portLabel = "[좌측 포트]";
-    else if (c.fromPort === 'bottom' || c.fromPort === 'out') portLabel = "[하단 포트]";
-
-    const isBack = toB.y <= fromB.y + 15;
-    const backLabel = isBack ? " ➔ 상위 판단/조건으로 되돌아가는 루프백(반복 구조 연결)" : "";
-    return `- [${fromB.shape}: ${fromText}]의 ${portLabel} ➔ [${toB.shape}: ${toText}]${backLabel}`;
-  }).join('\n');
-
-  const issuesText = consistency.issues.length > 0 
-    ? consistency.issues.map((iss, idx) => `  ${idx+1}) ${iss}`).join('\n')
-    : "  - 특이한 결손이나 누락 없이 자연어와 순서도 블록이 균형 있게 구성됨.";
-
-  const complimentsText = consistency.compliments.length > 0
-    ? consistency.compliments.map(cmp => `  - ${cmp}`).join('\n')
-    : "  - 알고리즘 완성을 위해 노력 중.";
-
-  const prompt = `당신은 대한민국 중학교 2학년 정보 교과 '알고리즘과 순서도' 단원의 친절하고 명확한 AI 지도교사입니다.
-학생이 작성한 [자연어 기획서]와 [순서도 캔버스 블록 및 화살표]의 논리적 일치성을 검토해 주세요.
-
-[자연어 알고리즘 단계]:
-${nlSummary || "작성된 단계 없음"}
-
-[순서도 캔버스 블록 목록]:
-${blockSummary || "배치된 블록 없음"}
-
-[화살표 연결 흐름]:
-${connSummary || "연결선 없음"}
-
-[시스템 사전 정량 분석 결과]:
-* 일치 상태: ${consistency.isConsistent ? '논리적 일치' : '⚠️ 보완 및 블록 추가 필요'}
-* 발견된 결손/누락 문제:
-${issuesText}
-* 칭찬할 만한 점:
-${complimentsText}
-
-[평가 및 피드백 지침 - 매우 중요!]:
-1. 반드시 응답의 맨 첫 줄에 최종 판정 태그를 단독으로 작성하세요:
-   - 자연어 기획서의 단계별 행동/조건이 순서도 블록 내용 및 화살표 흐름과 실질적으로 일치할 때: [판정: 통과]
-   - 기획서의 특정 단계가 순서도에 누락되어 있거나, 순서도 블록 내용이 기본 텍스트('알고리즘 명령 실행' 등)로 방치되어 있거나, 화살표 흐름에 결손이 있을 때: [판정: 보완 필요]
-2. 만약 사전 정량 분석에서 '보완 필요' 판정이 났거나, 발견된 결손/누락 문제가 있거나, 캔버스 블록에 실제 기획서 내용이 채워지지 않았다면 절대로 [판정: 통과]를 주지 말고 반드시 [판정: 보완 필요]를 부여하세요!
-3. 두 번째 줄부터 학생을 위한 지도 피드백을 작성하세요:
-   - [보완 필요]인 경우: 잘된 점은 짧게 1문장만 가볍게 칭찬하고, 어떤 단계의 내용이 순서도 블록에 빠져 있는지, 어떤 기호(처리, 판단 등)를 수정하거나 추가해야 하는지 중2 학생 눈높이에 맞게 다정하고 구체적으로 지도하세요.
-   - [통과]인 경우: 자연어 기획서와 순서도 캔버스가 어떻게 잘 일치했는지 칭찬하고 완성 축하 메시지를 남기세요.
-4. 순서도에서 처리(Process) 블록의 아래쪽뿐만 아니라 우측이나 좌측 포트에서 판단(Decision) 블록으로 되돌아가는 화살표는 완벽한 반복(Loopback) 구조로 간주합니다.
-5. 피드백 본문은 총 3문장 이내(220자 내외)로 간결하게 작성하세요.`;
+  const reviewMessages = buildFlowchartReviewMessages(nlCards, freeBlocks, freeConnections, consistency);
 
   let aiFeedbackText = "";
   try {
     aiFeedbackText = await callSolarAI({
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.4
+      messages: reviewMessages
     });
   } catch (err) {
     if (reviewRequestId !== latestFlowchartReviewRequest) return;
@@ -4644,40 +4415,40 @@ ${complimentsText}
     return;
   }
 
-  // 💡 Solar AI 판정 태그 파싱 및 정밀 보정
-  let aiJudgmentPassed = false; // 명시적인 AI 응답만 인정
-  if (aiFeedbackText.includes("[판정: 통과]")) {
-    aiJudgmentPassed = true;
-  } else if (aiFeedbackText.includes("[판정: 보완 필요]") || aiFeedbackText.includes("보완 필요")) {
-    aiJudgmentPassed = false;
-  } else {
-    // 키워드 기반 스마트 보정 (LLM이 태그를 누락했을 때의 안전망)
-    const needFixKeywords = ["빠져 있으니", "빠져 있어", "채워 넣으", "추가해 보세요", "보완할 점", "수정해"];
-    if (needFixKeywords.some(kw => aiFeedbackText.includes(kw))) {
-      aiJudgmentPassed = false;
-    }
-  }
-
-  // 💡 양방향 합의(Consensus) 합격제: JS 정량 검사 통과 AND Solar AI 판정 통과
-  const isGood = consistency.isConsistent && aiJudgmentPassed;
+  // 첫 줄의 정확한 판정 태그만 인정합니다. 불확실하거나 형식이 다른 응답은 통과시키지 않습니다.
+  const parsedReview = parseFlowchartReviewVerdict(aiFeedbackText);
+  const aiJudgmentPassed = parsedReview.passed;
+  const isMalformedReview = parsedReview.verdict === 'malformed';
+  const isGood = consistency.structurallyValid && aiJudgmentPassed;
   window.isFlowchartAiPassed = isGood;
   flowchartPassedReviewSnapshot = isGood ? reviewSnapshot : null;
   if (typeof updateThinkerToolbarButton === 'function') updateThinkerToolbarButton();
 
-  // 학생에게 보여줄 피드백 텍스트에서는 [판정: ...] 태그를 깔끔하게 분리/제거
-  const cleanFeedbackText = aiFeedbackText.replace(/\[판정:\s*(통과|보완 필요)\]\s*/g, '').trim();
+  const cleanFeedbackText = isMalformedReview
+    ? 'AI 응답의 판정 형식을 확인하지 못했어요. 작품은 그대로 유지되니 잠시 후 다시 검사해 주세요.'
+    : (parsedReview.feedback || '검사 의견을 확인한 뒤 필요한 부분을 점검해 주세요.');
 
   // 헤더 배너
-  const headerHtml = isGood ? `
+  const headerHtml = isMalformedReview ? `
+    <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between shadow-xs">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-2xl bg-slate-500 text-white flex items-center justify-center text-xl font-black">↻</div>
+        <div>
+          <div class="text-sm font-black text-slate-900">AI 판정을 확인하지 못했어요</div>
+          <div class="text-xs text-slate-600 font-medium mt-0.5">작품은 그대로 유지됩니다. 잠시 후 다시 검사해 주세요.</div>
+        </div>
+      </div>
+      <span class="hidden sm:inline-flex px-3 py-1.5 bg-slate-600 text-white font-black rounded-xl text-xs">재검사 필요</span>
+    </div>
+  ` : isGood ? `
     <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between shadow-xs">
       <div class="flex items-center gap-3">
         <div class="w-11 h-11 rounded-2xl bg-emerald-500 text-white flex items-center justify-center text-xl font-black shadow-md shadow-emerald-500/20">💮</div>
         <div>
           <div class="text-sm font-black text-emerald-950 flex items-center gap-1.5">
             <span>Solar AI 설계 검사 통과!</span>
-            <span class="px-2 py-0.5 bg-emerald-200/80 text-emerald-800 text-[10px] rounded-md font-bold">2022 개정 정보 표준</span>
           </div>
-          <div class="text-xs text-emerald-700 font-medium mt-0.5">AI가 보완할 사항을 찾지 못했어요. 직접 실행한 결과도 확인해 주세요.</div>
+          <div class="text-xs text-emerald-700 font-medium mt-0.5">현재 설계에서 AI가 의미상 보완할 점을 찾지 못했어요. 직접 실행한 결과도 확인해 주세요.</div>
         </div>
       </div>
       <span class="hidden sm:inline-flex px-3 py-1.5 bg-emerald-600 text-white font-black rounded-xl text-xs shadow-sm">
@@ -4693,7 +4464,7 @@ ${complimentsText}
             <span>알고리즘 보완 권장</span>
             <span class="px-2 py-0.5 bg-amber-200/80 text-amber-800 text-[10px] rounded-md font-bold">기호 및 내용 보완 필요</span>
           </div>
-          <div class="text-xs text-amber-700 font-medium mt-0.5">자연어 기획서의 단계와 순서도 캔버스 내용이 완전히 일치하지 않습니다.</div>
+          <div class="text-xs text-amber-700 font-medium mt-0.5">연결 구조 또는 자연어 의미에서 확인할 부분이 있습니다.</div>
         </div>
       </div>
       <span class="hidden sm:inline-flex px-3 py-1.5 bg-amber-500 text-white font-black rounded-xl text-xs shadow-sm">
@@ -4707,8 +4478,8 @@ ${complimentsText}
   const quantGridHtml = `
     <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2.5">
       <div class="flex items-center justify-between text-xs font-black text-slate-700">
-        <span class="flex items-center gap-1.5"><i class="fa-solid fa-chart-pie text-indigo-500"></i> 📊 기획서 vs 순서도 기호 대조표</span>
-        <span class="text-[11px] text-slate-400 font-normal">총 ${stats.nlTotal}단계 ➔ ${stats.blocksTotal}개 블록</span>
+        <span class="flex items-center gap-1.5"><i class="fa-solid fa-diagram-project text-indigo-500"></i> 기획서와 순서도 구성 현황</span>
+        <span class="text-[11px] text-slate-400 font-normal">자연어 ${stats.nlTotal}단계 · 순서도 ${stats.blocksTotal}개 기호</span>
       </div>
       <div class="grid grid-cols-2 gap-2 text-xs">
         <div class="p-2.5 bg-white rounded-xl border border-slate-200 space-y-1">
@@ -4730,7 +4501,7 @@ ${complimentsText}
           <div class="text-[11px] text-slate-500 space-y-0.5">
             <div>• 처리: <strong class="text-slate-700">${stats.process}개</strong> / 입출력: <strong class="text-slate-700">${stats.io}개</strong></div>
             <div>• 판단: <strong class="text-slate-700">${stats.decision}개</strong></div>
-            <div>• 연결선: <strong class="text-slate-700">${stats.connections}개</strong> (루프백 ${stats.loopbacks}개)</div>
+            <div>• 연결선: <strong class="text-slate-700">${stats.connections}개</strong> (순환 구조 ${stats.cycles}개)</div>
           </div>
         </div>
       </div>
@@ -4740,29 +4511,34 @@ ${complimentsText}
             <i class="fa-solid fa-triangle-exclamation"></i> <span>발견된 결손 및 보완 과제:</span>
           </div>
           <ul class="text-[11px] text-rose-600 space-y-1 list-none font-medium">
-            ${consistency.issues.map((iss, idx) => {
-              const m = iss.match(/'([^']+)'/);
-              const targetText = m ? m[1] : '';
+            ${consistency.issues.map((issue, idx) => {
+              const targetBlock = issue.blockId ? freeBlocks.find(block => block.id === issue.blockId) : null;
+              const targetText = targetBlock ? targetBlock.text : '';
               const clickAction = targetText ? `onclick="focusCanvasBlockByText('${escapeHtml(targetText)}'); closeAiAuditModal();"` : '';
               const cursorClass = targetText ? 'cursor-pointer hover:bg-rose-100/80 p-1 rounded-lg transition flex items-start justify-between' : 'p-1';
               return `
                 <li ${clickAction} class="${cursorClass}">
-                  <span>${idx + 1}. ${escapeHtml(iss)}</span>
+                  <span>${idx + 1}. ${escapeHtml(issue.message)}</span>
                   ${targetText ? '<span class="text-[10px] bg-rose-200/80 text-rose-800 px-1.5 py-0.5 rounded font-bold shrink-0 ml-1.5">기호 찾기 🔍</span>' : ''}
                 </li>
               `;
             }).join('')}
           </ul>
         </div>
-      ` : (aiJudgmentPassed ? `
+      ` : (isMalformedReview ? `
+        <div class="p-2.5 bg-slate-100 border border-slate-200 rounded-xl text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+          <i class="fa-solid fa-rotate-right text-slate-500"></i>
+          <span>연결 구조 검사는 통과했지만 AI 의미 판정을 다시 받아야 합니다.</span>
+        </div>
+      ` : aiJudgmentPassed ? `
         <div class="p-2 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] font-bold text-emerald-800 flex items-center gap-1.5">
           <i class="fa-solid fa-circle-check text-emerald-600"></i>
-          <span>자연어와 순서도 기호가 빠짐없이 완벽하게 대응되었습니다.</span>
+          <span>연결 구조 검사와 AI 의미 검토를 통과했습니다.</span>
         </div>
       ` : `
         <div class="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[11px] font-bold text-amber-800 flex items-center gap-1.5">
           <i class="fa-solid fa-lightbulb text-amber-600"></i>
-          <span>기호 개수는 구성되었으나 자연어 단계의 세부 내용 반영이 필요합니다.</span>
+          <span>연결 구조는 이어져 있습니다. AI가 제안한 의미 보완점을 확인해 주세요.</span>
         </div>
       `)}
     </div>
@@ -4770,7 +4546,7 @@ ${complimentsText}
 
   // AI 총평 카드
   const adviceBorder = isGood ? "border-emerald-200 bg-emerald-50/70" : "border-indigo-200 bg-indigo-50/70";
-  const adviceTitle = isGood ? "Solar AI의 설계 검사 종합 의견" : "Solar AI의 맞춤형 보완 가이드";
+  const adviceTitle = isMalformedReview ? "AI 응답 다시 확인" : isGood ? "Solar AI의 설계 검사 종합 의견" : "Solar AI의 맞춤형 보완 가이드";
   const adviceColor = isGood ? "text-emerald-950" : "text-indigo-950";
   const adviceIcon = isGood ? "fa-medal text-emerald-600" : "fa-lightbulb text-indigo-600";
 
@@ -4801,6 +4577,13 @@ ${complimentsText}
         <button onclick="closeAiAuditModal(); openThinkerSubmissionModal();" class="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black rounded-xl text-xs shadow-md shadow-emerald-500/20 flex items-center gap-1.5 transition active:scale-95">
           <i class="fa-solid fa-clipboard-check"></i>
           <span>현재 작품 띵커보드에 제출하기</span>
+        </button>
+      `;
+    } else if (isMalformedReview) {
+      actions.innerHTML = `
+        <button onclick="closeAiAuditModal()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition">캔버스 확인</button>
+        <button onclick="diagnoseFreeAlgorithmWithSolarAI()" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xs shadow-sm flex items-center gap-1.5 transition active:scale-95">
+          <i class="fa-solid fa-rotate-right"></i><span>다시 검사하기</span>
         </button>
       `;
     } else {
@@ -5050,14 +4833,14 @@ function updateThinkerCardPreview() {
         </div>
       </div>
 
-      <!-- 5. 합격 스탬프 (조건부: AI 설계 검사 통과 시에만 공식 합격 인증 마크 부여) -->
+      <!-- 5. 현재 작품의 AI 조언 확인 상태 -->
       ${hasCurrentFlowchartReviewPass() ? `
         <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between text-xs shadow-xs">
           <div class="flex items-center gap-2 text-emerald-950 font-bold">
             <span class="text-base">💮</span>
             <div>
               <span class="font-black text-emerald-900">Solar AI 설계 검사 통과</span>
-              <span class="text-[11px] text-emerald-700 block sm:inline sm:ml-1">자연어 기획서와 순서도가 완벽히 일치합니다.</span>
+              <span class="text-[11px] text-emerald-700 block sm:inline sm:ml-1">현재 작품에서 AI가 의미상 보완할 점을 찾지 못했습니다.</span>
             </div>
           </div>
           <span class="px-3 py-1 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-black rounded-xl text-xs shadow-xs shrink-0">
@@ -5620,7 +5403,7 @@ function generatePortfolioCanvas(studentNum, studentName) {
 
       ctx.fillStyle = "#064e3b";
       ctx.font = "bold 13px 'Pretendard', sans-serif";
-      ctx.fillText("🤖 Solar AI 검사: 일상 문제를 컴퓨터적 제어 구조(순차·선택·반복)로 완벽히 설계함.", 50, curY + 40);
+      ctx.fillText("🤖 Solar AI 검사: 현재 작품에서 의미상 보완할 점을 찾지 못함.", 50, curY + 40);
 
       ctx.fillStyle = "#059669";
       ctx.font = "900 15px 'Pretendard', sans-serif";

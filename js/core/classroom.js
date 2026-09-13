@@ -107,7 +107,7 @@ async function loginTeacher(method) {
     document.getElementById('teacher-login-feedback').textContent=window.authService.teacherError(error);
   } finally {
     input.value='';teacherLoginPending=false;
-    dialog.querySelectorAll('button').forEach(button=>button.disabled=false);
+    dialog.querySelectorAll('button').forEach(button=>button.disabled=button.dataset.previewDisabled==='true');
   }
 }
 

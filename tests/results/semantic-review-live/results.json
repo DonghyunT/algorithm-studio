@@ -1,0 +1,20 @@
+{
+  "at": "2026-09-13T15:20:41.585Z",
+  "live": true,
+  "results": [
+    {
+      "name": "input/output sequence passes without requiring a processing block",
+      "pass": true
+    },
+    {
+      "name": "reversed output-before-input is rejected despite equal symbol counts",
+      "pass": true
+    },
+    {
+      "name": "local password rejects wrong input, survives reload and teacher navigation, then signs out",
+      "pass": true
+    }
+  ],
+  "errors": [],
+  "consoleErrors": []
+}

@@ -27,6 +27,8 @@ window.authService = {
     return auth.currentUser || (await auth.signInAnonymously()).user;
   },
   async existingTeacher() {
+    this.checkLocalPreview();
+    if(this.isDemo()&&window.localPreview)return window.localPreview.existingTeacher();
     if (this.isDemo()) return typeof isTeacherAuthenticated !== 'undefined' && isTeacherAuthenticated ? {uid:'demo-teacher'} : null;
     const auth = await this.ready(), user = auth.currentUser;
     if (!user) return null;
@@ -34,6 +36,8 @@ window.authService = {
     return auth.currentUser?.uid === user.uid && role.exists && role.data().enabled === true ? user : null;
   },
   async teacher({method, password} = {}) {
+    this.checkLocalPreview();
+    if(this.isDemo()&&window.localPreview)return window.localPreview.teacher({method,password});
     if (this.isDemo()) return { uid: 'demo-teacher' };
     const auth = await this.ready();
     let user = auth.currentUser;
@@ -53,7 +57,14 @@ window.authService = {
     }
     return user;
   },
+  checkLocalPreview() {
+    if(this.isDemo()&&window.LOCAL_PREVIEW_CONFIG&&!window.localPreview){
+      const error=new Error('로컬 로그인 기능을 불러오지 못했습니다. 화면을 새로고침한 뒤 다시 로그인해 주세요.');
+      error.code='local-preview';throw error;
+    }
+  },
   teacherError(error) {
+    if(error?.code==='local-preview')return error.message;
     const messages = {
       'auth/popup-blocked':'로그인 창이 차단되었습니다. 팝업을 허용하거나 임시 로그인을 선택해 주세요.',
       'auth/popup-closed-by-user':'Google 로그인을 완료하지 않았습니다. 다시 선택하거나 임시 로그인을 이용해 주세요.',
@@ -75,6 +86,7 @@ window.authService = {
     return user.getIdToken ? user.getIdToken() : '';
   },
   async signOut() {
+    if(this.isDemo()&&window.localPreview)await window.localPreview.signOut();
     const auth = await this.ready();
     if (auth) await auth.signOut();
     this.pending = null;

@@ -1905,14 +1905,14 @@
                 </div>
 
                 <!-- 상단부: 실시간 변수 추적기 (Variable Watcher) -->
-                <div class="p-2.5 border-b border-slate-200 flex-initial max-h-[38%] min-h-[110px] overflow-hidden flex flex-col bg-white">
+                <div id="variable-watcher-panel" class="p-2.5 border-b border-slate-200 overflow-hidden flex flex-col bg-white">
                   <div class="flex items-center justify-between pb-1.5 mb-1 border-b border-slate-100 shrink-0">
                     <span class="text-[11px] font-black text-slate-700 flex items-center gap-1">
-                      <i class="fa-solid fa-chart-line text-indigo-500 text-[10px]"></i> 변수 추적 (Watcher)
+                      <i class="fa-solid fa-chart-line text-indigo-500 text-[10px]"></i> 변수 살펴보기
                     </span>
                     <span id="var-count-badge" class="text-[10px] text-slate-400 font-mono">0개</span>
                   </div>
-                  <div class="overflow-y-auto flex-1 min-h-0">
+                  <div id="variable-watcher-scroll" class="overflow-y-auto min-h-0" tabindex="0" role="region" aria-label="변수 목록, 항목이 많으면 위아래로 스크롤하세요">
                     <table class="w-full text-[11px] border-collapse table-fixed break-all">
                       <thead>
                         <tr class="text-slate-400 font-bold border-b border-slate-100 text-[10px]">
@@ -1931,7 +1931,7 @@
                 </div>
 
                 <!-- 하단부: 다크 입출력 터미널 콘솔 -->
-                <div class="flex-1 min-h-[130px] overflow-hidden flex flex-col bg-slate-950 p-2.5 text-slate-200">
+                <div id="execution-console-panel" class="overflow-hidden flex flex-col bg-slate-950 p-2.5 text-slate-200">
                   <div class="flex items-center justify-between pb-1.5 mb-1 border-b border-slate-800 shrink-0">
                     <span class="text-[11px] font-black text-emerald-400 flex items-center gap-1 font-mono">
                       <i class="fa-solid fa-terminal text-[10px]"></i> 출력 콘솔 (Console)
@@ -2414,7 +2414,9 @@
   <script src="js/data/eval-questions.js"></script>
   <script src="js/core/flow-expressions.js"></script>
   <script src="js/core/flow-validation.js"></script>
+  <script src="js/core/flowchart-review.js"></script>
   <script src="js/core/auth-service.js"></script>
+  <script src="js/core/local-preview.js"></script>
   <script src="js/core/ai-service.js"></script>
   <script src="js/core/audio.js"></script>
   <script src="js/core/navigation.js"></script>
