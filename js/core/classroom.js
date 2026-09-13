@@ -364,21 +364,70 @@ function openLiveStudentModal(studentNum) {
   const p3El = document.getElementById('classroom-live-modal-p3');
   const scoreInp = document.getElementById('classroom-live-override-score');
 
-  if (p1El) p1El.textContent = JSON.stringify(s.answers?.part1 || {}, null, 2);
-  if (p2El) p2El.textContent = JSON.stringify(s.answers?.part2 || {}, null, 2);
+  if (p1El) {
+    const studentP1 = s.answers?.part1 || {};
+    let p1Html = '';
+    (window.EVAL_QUESTIONS?.part1 || []).forEach(q => {
+      const studentAnsIdx = studentP1[q.id];
+      const isCorrect = studentAnsIdx === q.correctAnswer;
+      const ansText = studentAnsIdx !== undefined && q.options ? q.options[studentAnsIdx] : "미응답";
+      const badge = isCorrect 
+        ? '<span class="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold ml-2">정답</span>' 
+        : `<span class="text-[10px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded font-bold ml-2">오답 (정답: ${q.options ? q.options[q.correctAnswer] : ''})</span>`;
+      p1Html += `<div class="mb-1.5"><div class="font-bold text-slate-800">${q.title}</div><div class="text-slate-600 pl-3 border-l-2 border-slate-200 ml-1 mt-0.5 text-[11px]">👉 ${ansText} ${badge}</div></div>`;
+    });
+    p1El.innerHTML = p1Html || "답안 데이터가 없습니다.";
+  }
+
+  if (p2El) {
+    const studentP2 = s.answers?.part2 || {};
+    let p2Html = '';
+    (window.EVAL_QUESTIONS?.part2 || []).forEach(q => {
+      const studentAnsText = studentP2[q.id] || "미응답";
+      const cleanedAns = studentAnsText.trim().replace(/\s+/g, '');
+      const isCorrect = q.answers && q.answers.some(ans => ans.trim().replace(/\s+/g, '') === cleanedAns);
+      const badge = isCorrect 
+        ? '<span class="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold ml-2">정답</span>' 
+        : `<span class="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold ml-2">확인필요 (정답 예시: ${q.answers ? q.answers[0] : ''})</span>`;
+      p2Html += `<div class="mb-1.5"><div class="font-bold text-slate-800">${q.title}</div><div class="text-slate-600 pl-3 border-l-2 border-slate-200 ml-1 mt-0.5 text-[11px]">👉 ${studentAnsText} ${badge}</div></div>`;
+    });
+    p2El.innerHTML = p2Html || "답안 데이터가 없습니다.";
+  }
+
   if (p3El) {
-    const graph=s.answers?.part3||{};
-    p3El.style.whiteSpace='pre-wrap';
-    const plan=graph.plan||{};
-    const planText='현재 상태: '+(plan.current||'미작성')+'\n목표 상태: '+(plan.goal||'미작성')+'\n조건: '+(plan.conditions||'미작성')+'\n자연어 알고리즘\n'+
-      (Array.isArray(plan.steps)?plan.steps:[]).map((step,index)=>{
-        if(step.type==='sel')return `${index+1}. [선택] 조건: ${step.condition||'미작성'}\n   맞으면: ${step.yesAction||'미작성'}\n   아니면: ${step.noAction||'미작성'}`;
-        if(step.type==='loop')return `${index+1}. [반복] 지속 조건: ${step.condition||'미작성'}\n   반복할 행동: ${step.loopAction||'미작성'}`;
-        return `${index+1}. [순차] ${step.text||'미작성'}`;
-      }).join('\n');
-    p3El.textContent=planText+'\n\n순서도\n'+(s.questionVersion===3?'교사 검토 후 40점 범위에서 확정':'자동 계산 참고값: '+(s.scores?.part3||0)+' / 40점 (최종 교사 검토 필요)')+'\n'+
-      (Array.isArray(graph.blocks)?graph.blocks:[]).filter(Boolean).map(b=>b.id+' ['+b.shape+'] '+b.text).join('\n')+'\n연결\n'+
-      (Array.isArray(graph.connections)?graph.connections:[]).filter(Boolean).map(c=>c.from+' ('+c.fromPort+') → '+c.to).join('\n');
+    const graph = s.answers?.part3 || {};
+    const plan = graph.plan || {};
+    
+    let stepsHtml = (Array.isArray(plan.steps) ? plan.steps : []).map((step, index) => {
+      if (step.type === 'sel') return `<div class="ml-2 mb-1"><span class="font-bold text-indigo-600">[선택]</span> 조건: ${step.condition || '미작성'}<br><span class="text-[10px] text-slate-500 ml-4">↳ 예: ${step.yesAction || '미작성'} | 아니오: ${step.noAction || '미작성'}</span></div>`;
+      if (step.type === 'loop') return `<div class="ml-2 mb-1"><span class="font-bold text-emerald-600">[반복]</span> 지속 조건: ${step.condition || '미작성'}<br><span class="text-[10px] text-slate-500 ml-4">↳ 반복할 행동: ${step.loopAction || '미작성'}</span></div>`;
+      return `<div class="ml-2 mb-1"><span class="font-bold text-slate-600">[순차]</span> ${step.text || '미작성'}</div>`;
+    }).join('');
+
+    let blocksHtml = (Array.isArray(graph.blocks) ? graph.blocks : []).filter(Boolean).map(b => `<span class="inline-block bg-slate-100 border border-slate-300 px-1.5 py-0.5 rounded text-[10px] mr-1 mb-1 font-mono">[${b.shape}] ${b.text}</span>`).join('');
+    let connsHtml = (Array.isArray(graph.connections) ? graph.connections : []).filter(Boolean).map(c => `<div class="text-[10px] text-slate-500 ml-2 font-mono">↳ ${c.from} (${c.fromPort}) → ${c.to}</div>`).join('');
+
+    let p3Html = \`
+      <div class="mb-4">
+        <div class="font-bold text-slate-800 mb-2 border-b border-emerald-100 pb-1 text-[12px]">자연어 기획서</div>
+        <div class="text-[11px] text-slate-700 ml-1 space-y-0.5 mb-2 bg-emerald-50/50 p-2 rounded">
+          <div><span class="font-semibold text-slate-500 w-12 inline-block">현재:</span> \${plan.current || '미작성'}</div>
+          <div><span class="font-semibold text-slate-500 w-12 inline-block">목표:</span> \${plan.goal || '미작성'}</div>
+          <div><span class="font-semibold text-slate-500 w-12 inline-block">조건:</span> \${plan.conditions || '미작성'}</div>
+        </div>
+        <div class="text-[11px] text-slate-700 mt-2">\${stepsHtml || '<div class="text-slate-400 italic">작성된 단계 없음</div>'}</div>
+      </div>
+      <div>
+        <div class="font-bold text-slate-800 mb-2 border-b border-emerald-100 pb-1 flex justify-between items-center text-[12px]">
+          <span>순서도 캔버스 구성</span>
+          <span class="text-[10px] font-normal bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full shadow-sm">\${s.questionVersion === 3 ? '교사 수동 40점 배점' : \`자동 계산: \${(s.scores?.part3 || 0)}/40점\`}</span>
+        </div>
+        <div class="mb-2 text-[11px]">\${blocksHtml || '<div class="text-slate-400 italic">배치된 블록 없음</div>'}</div>
+        <div class="mb-2">\${connsHtml || '<div class="text-slate-400 italic text-[11px]">연결선 없음</div>'}</div>
+      </div>
+    \`;
+    p3El.innerHTML = p3Html;
+    p3El.style.whiteSpace = 'normal';
   }
 
   const currentScore = (s.scores?.teacherOverride !== null && s.scores?.teacherOverride !== undefined)

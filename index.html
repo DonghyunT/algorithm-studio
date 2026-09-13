@@ -2568,7 +2568,7 @@
   <!-- 교사용 실시간 학생 개별 답안 검토 및 점수 수동 조정 모달 -->
   <!-- ========================================== -->
   <div id="classroom-live-detail-modal" class="fixed inset-0 z-[70] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-lg w-full p-5 sm:p-6 space-y-4 overflow-y-auto max-h-[90vh] fade-enter">
+    <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-4xl w-full p-5 sm:p-6 space-y-4 overflow-y-auto max-h-[90vh] fade-enter">
       <div class="flex items-center justify-between border-b border-slate-100 pb-3">
         <div class="flex items-center gap-2">
           <span class="text-lg">📋</span>
@@ -2580,13 +2580,13 @@
       </div>
 
       <div class="space-y-3 text-xs">
-        <div class="p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl space-y-1">
+        <div class="p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl space-y-2">
           <div class="font-black text-indigo-900">Part 1. 객관식 답안</div>
-          <pre id="classroom-live-modal-p1" class="font-mono bg-white p-2 rounded-lg text-slate-700"></pre>
+          <div id="classroom-live-modal-p1" class="bg-white p-3 rounded-lg text-slate-700 space-y-1.5"></div>
         </div>
-        <div class="p-3 bg-amber-50/70 border border-amber-100 rounded-xl space-y-1">
+        <div class="p-3 bg-amber-50/70 border border-amber-100 rounded-xl space-y-2">
           <div class="font-black text-amber-900">Part 2. 주관식 단답형 답안</div>
-          <pre id="classroom-live-modal-p2" class="whitespace-pre-wrap font-sans bg-white p-2 rounded-lg text-slate-700"></pre>
+          <div id="classroom-live-modal-p2" class="bg-white p-3 rounded-lg text-slate-700 space-y-1.5"></div>
         </div>
         <div class="p-3 bg-emerald-50/70 border border-emerald-100 rounded-xl space-y-1">
           <div class="font-black text-emerald-900">Part 3. 순서도 백지 조립 검증</div>
