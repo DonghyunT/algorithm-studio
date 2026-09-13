@@ -1,6 +1,6 @@
 const fs=require('node:fs'), path=require('node:path'), http=require('node:http'), assert=require('node:assert/strict');
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE || 'C:/Users/안동현/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
-const root=path.resolve(__dirname,'..'), output=path.join(__dirname,'results');
+const root=path.resolve(__dirname,'..'), output=process.env.BROWSER_TEST_OUTPUT || path.join(__dirname,'results');
 fs.mkdirSync(output,{recursive:true});
 (async()=>{
   const server=http.createServer((req,res)=>{
@@ -63,9 +63,9 @@ fs.mkdirSync(output,{recursive:true});
       assert.equal(await page.locator('#view-concept').isVisible(),true);
       assert.equal(await page.locator('#btn-mega-menu-toggle').getAttribute('aria-expanded'),'false');
     });
-    await check('optional result action and larger text keep header usable',async()=>{
+    await check('sandwich result action and larger text keep navigation usable',async()=>{
       try {
-      await page.evaluate(()=>document.getElementById('btn-reopen-summary').classList.remove('hidden'));
+      await page.evaluate(()=>{switchUnit('unit2','lab');document.getElementById('btn-reopen-summary').classList.remove('hidden');});
       for(const width of [1440,1351,1024,390]) {
         await page.setViewportSize({width,height:900});
         for(const id of ['nav-btn-classroom','btn-mega-menu-toggle','btn-reopen-summary','nav-btn-eval'])await page.locator('#'+id).click({trial:true});
@@ -93,7 +93,7 @@ fs.mkdirSync(output,{recursive:true});
       for(const width of [1440,1024,768,390]) {
         await page.setViewportSize({width,height:900});
         for(const [unit,step] of [['unit1','concept'],['unit2','quiz'],['eval',null],['classroom',null]]) {
-          await page.evaluate(({unit,step})=>{isTeacherAuthenticated=true;switchUnit(unit,step);},{unit,step});
+          await page.evaluate(({unit,step})=>{isTeacherAuthenticated=unit==='eval'?false:true;switchUnit(unit,step);},{unit,step});
           await page.waitForTimeout(350);
           const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);
           assert.ok(overflow<=1,unit+' at '+width+' overflows '+overflow+'px');
@@ -125,24 +125,84 @@ fs.mkdirSync(output,{recursive:true});
       });
       assert.deepEqual(result.names,['나이','합계','기온','점수']);assert.equal(result.output,'나이');assert.ok(!result.path.includes(' L '));
     });
-    await check('practice submission allowed and review invalidates after edit',async()=>{
-      const state=await page.evaluate(()=>{
-        window.isFlowchartAiPassed=true;addNlCard('seq');updateNlCardText(nlCards[0].id,'새로운 동작');updateThinkerToolbarButton();
-        return {passed:window.isFlowchartAiPassed,disabled:document.getElementById('btn-toolbar-thinker-submit').disabled};
-      });assert.equal(state.passed,false);assert.equal(state.disabled,false);
+    await check('practice submission requires a current AI pass and invalidates after edit',async()=>{
+      const state=await page.evaluate(async()=>{
+        switchUnit('unit3','lab');switchFlowchartStep(5);
+        window.setNlCards([{id:'review-step',type:'seq',text:'물을 마신다'}]);
+        window.setFreeBlocks([
+          {id:'review-start',shape:'terminal',text:'시작',x:100,y:20},
+          {id:'review-process',shape:'process',text:'물을 마신다',x:100,y:140},
+          {id:'review-end',shape:'terminal',text:'종료',x:100,y:260}
+        ]);
+        window.setFreeConnections([
+          {from:'review-start',fromPort:'out',to:'review-process',toPort:'in'},
+          {from:'review-process',fromPort:'out',to:'review-end',toPort:'in'}
+        ]);
+        renderFreeCanvas();
+        const savedAI=callSolarAI;
+        window.callSolarAI=async()=> '[판정: 통과]\n자연어 단계와 순서도 흐름이 잘 맞아요.';
+        await diagnoseFreeAlgorithmWithSolarAI();
+        const toolbar=document.getElementById('btn-toolbar-thinker-submit');
+        const passed={flag:window.isFlowchartAiPassed,current:window.hasCurrentFlowchartReviewPass(),disabled:toolbar.disabled};
+        closeAiAuditModal();openThinkerSubmissionModal();
+        const openedAfterPass=!document.getElementById('thinker-submission-modal').classList.contains('hidden');
+        closeThinkerSubmissionModal();
+        updateNlCardText('review-step','물을 두 잔 마신다');
+        const invalidated={flag:window.isFlowchartAiPassed,current:window.hasCurrentFlowchartReviewPass(),disabled:toolbar.disabled};
+        window.isFlowchartAiPassed=true;
+        openThinkerSubmissionModal();
+        const directEntryBlocked=document.getElementById('thinker-submission-modal').classList.contains('hidden');
+        window.callSolarAI=savedAI;
+        return {passed,openedAfterPass,invalidated,directEntryBlocked};
+      });
+      assert.deepEqual(state.passed,{flag:true,current:true,disabled:false});
+      assert.equal(state.openedAfterPass,true);
+      assert.deepEqual(state.invalidated,{flag:false,current:false,disabled:true});
+      assert.equal(state.directEntryBlocked,true);
     });
     await check('student name markup is inert in teacher grid',async()=>{
       await page.evaluate(()=>renderLiveGrid([{num:1,name:'<img src=x onerror="window.xss=1">',status:'waiting'}]));
       assert.equal(await page.evaluate(()=>window.xss),undefined);
       assert.equal(await page.locator('#classroom-live-grid img').count(),0);
     });
-    await check('AI outage leaves review unpassed and current submission available',async()=>{
+    await check('AI outage leaves review unpassed and submission blocked',async()=>{
       const result=await page.evaluate(async()=>{
         window.savedAI=callSolarAI;window.callSolarAI=async()=>{throw Error('test outage');};
         window.isFlowchartAiPassed=true;await diagnoseFreeAlgorithmWithSolarAI();window.callSolarAI=window.savedAI;
-        return {passed:window.isFlowchartAiPassed,text:document.getElementById('flowchart-ai-audit-content').textContent,submit:document.getElementById('flowchart-ai-audit-actions').textContent};
+        openThinkerSubmissionModal();
+        return {passed:window.isFlowchartAiPassed,disabled:document.getElementById('btn-toolbar-thinker-submit').disabled,text:document.getElementById('flowchart-ai-audit-content').textContent,actions:document.getElementById('flowchart-ai-audit-actions').textContent,modalHidden:document.getElementById('thinker-submission-modal').classList.contains('hidden')};
       });
-      assert.equal(result.passed,false);assert.ok(result.text.includes('연결'));assert.ok(result.submit.includes('현재 상태로 제출'));
+      assert.equal(result.passed,false);assert.equal(result.disabled,true);assert.ok(result.text.includes('연결'));assert.ok(result.actions.includes('다시 검사하기'));assert.ok(!result.actions.includes('현재 상태로 제출'));assert.equal(result.modalHidden,true);
+      await page.evaluate(()=>closeAiAuditModal());
+    });
+    await check('stale AI response cannot restore submission after an edit',async()=>{
+      await page.evaluate(()=>{
+        window.setNlCards([{id:'stale-step',type:'seq',text:'물을 마신다'}]);
+        window.setFreeBlocks([
+          {id:'stale-start',shape:'terminal',text:'시작',x:100,y:20},
+          {id:'stale-process',shape:'process',text:'물을 마신다',x:100,y:140},
+          {id:'stale-end',shape:'terminal',text:'종료',x:100,y:260}
+        ]);
+        window.setFreeConnections([
+          {from:'stale-start',fromPort:'out',to:'stale-process',toPort:'in'},
+          {from:'stale-process',fromPort:'out',to:'stale-end',toPort:'in'}
+        ]);
+        renderFreeCanvas();
+        window.savedAI=callSolarAI;
+        window.callSolarAI=()=>new Promise(resolve=>{window.resolveStaleReview=resolve;});
+        window.pendingStaleReview=diagnoseFreeAlgorithmWithSolarAI();
+      });
+      await page.evaluate(()=>{
+        updateNlCardText('stale-step','물을 두 잔 마신다');
+        window.resolveStaleReview('[판정: 통과]\n자연어 단계와 순서도 흐름이 잘 맞아요.');
+      });
+      const result=await page.evaluate(async()=>{
+        await window.pendingStaleReview;
+        window.callSolarAI=window.savedAI;
+        return {passed:window.isFlowchartAiPassed,current:window.hasCurrentFlowchartReviewPass(),disabled:document.getElementById('btn-toolbar-thinker-submit').disabled,text:document.getElementById('flowchart-ai-audit-content').textContent};
+      });
+      assert.deepEqual({passed:result.passed,current:result.current,disabled:result.disabled},{passed:false,current:false,disabled:true});
+      assert.ok(result.text.includes('검사 중 내용이 변경'));
       await page.evaluate(()=>closeAiAuditModal());
     });
     await check('practice missing false branch stops and constant comparison runs',async()=>{
@@ -231,6 +291,7 @@ fs.mkdirSync(output,{recursive:true});
     await check('assessment shared palette and scrolled canvas retain drag coordinates',async()=>{
       for(const width of [1440,1024,768]){
         await page.setViewportSize({width,height:900});
+        await page.waitForTimeout(350);
         const toolbar=await page.locator('.entry-palette-column').boundingBox();
         for(const button of await page.locator('.palette-entry-block').all()){
           const box=await button.boundingBox();assert.ok(box.x>=toolbar.x&&box.x+box.width<=toolbar.x+toolbar.width+1);

@@ -56,7 +56,7 @@ class EvalService {
     if (expected && ((session?.attemptId ?? null) !== expected.attemptId || (session?.status ?? 'waiting') !== expected.status)) throw Error('다른 화면에서 평가 상태가 변경되었습니다. 현재 상태를 확인한 뒤 다시 눌러 주세요.');
   }
   async startSession(classId, durationMinutes = 30, expected) {
-    await window.authService.teacher();
+    await window.authService.teacher({classId});
     if (!Number.isFinite(durationMinutes) || durationMinutes < 1 || durationMinutes > 180) throw new Error('평가 시간을 확인해 주세요.');
     const now = Date.now();
     const payload = { ...this.defaultSession(classId), schemaVersion:2, status: 'in_progress', durationMinutes, startTime: new Date(now).toISOString(), deadlineMs: now + durationMinutes * 60000, endedAt: null };
@@ -80,7 +80,7 @@ class EvalService {
     return payload;
   }
   async prepareSession(classId, expected) {
-    await window.authService.teacher();this.identity(classId,1);
+    await window.authService.teacher({classId});this.identity(classId,1);
     const db=this.getDb(), archivedAt=new Date().toISOString(), archiveId=crypto.randomUUID();
     const fresh={...this.defaultSession(classId),schemaVersion:2,attemptId:crypto.randomUUID(),preparedAt:archivedAt};
     if(db){
@@ -105,7 +105,7 @@ class EvalService {
     return fresh;
   }
   async endSession(classId, expected) {
-    await window.authService.teacher();
+    await window.authService.teacher({classId});
     const payload = { status: 'ended', endedAt: new Date().toISOString() };
     const db = this.getDb();
     if (db) {
@@ -215,7 +215,7 @@ class EvalService {
     return this.demoListen(classId, () => grade(this.read('EVAL_STUDENTS_' + classId, []),this.read('EVAL_SESSION_'+classId,this.defaultSession(classId)).questionVersion||1));
   }
   async overrideStudentScore(classId, studentNum, newScore) {
-    await window.authService.teacher();
+    await window.authService.teacher({classId});
     const score=Number(newScore);
     if (!Number.isFinite(score) || score<0 || score>100 || String(newScore).trim()==='') throw new Error('점수는 0~100 사이 숫자로 입력해 주세요.');
     const docId=this.identity(classId,studentNum), db=this.getDb();
@@ -228,7 +228,7 @@ class EvalService {
     return true;
   }
   async resetStudentExam(classId, studentNum) {
-    await window.authService.teacher();
+    await window.authService.teacher({classId});
     const docId=this.identity(classId,studentNum), db=this.getDb();
     const payload={status:'in_progress', submittedAt:null, answers:{part1:{},part2:{},part3:null}, scores:{teacherOverride:null},review:null, progress:{part1:0,part2:0,part3:0}, resetAt:new Date().toISOString()};
     if(db) {
@@ -252,7 +252,7 @@ class EvalService {
     return this.demoListen(classId,()=>{const student=this.read('EVAL_STUDENTS_'+classId,[]).find(item=>item.numStr===docId);if(student)callback(student);});
   }
   async savePart3Review(classId,studentNum,sourceKey,details,kind='proposal'){
-    const user=await window.authService.teacher(),docId=this.identity(classId,studentNum),db=this.getDb();
+    const user=await window.authService.teacher({classId}),docId=this.identity(classId,studentNum),db=this.getDb();
     if(!['proposal','confirmed'].includes(kind))throw Error('검토 종류를 확인해 주세요.');
     const criteria=validateAssessmentCriteria(details.criteria);
     const update=(student,session)=>{

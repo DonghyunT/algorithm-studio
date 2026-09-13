@@ -1843,7 +1843,7 @@
                   <!-- 띵커보드 원클릭 제출 버튼 -->
                   <button id="btn-toolbar-thinker-submit" onclick="openThinkerSubmissionModal()" class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black rounded-xl text-xs transition flex items-center gap-1.5 border border-slate-300 shadow-2xs cursor-pointer" disabled>
                     <i class="fa-solid fa-lock text-[10px] text-amber-500"></i>
-                    <span>현재 상태로 제출</span>
+                    <span>AI 검사 후 제출</span>
                   </button>
                 </div>
               </div>
@@ -1905,14 +1905,14 @@
                 </div>
 
                 <!-- 상단부: 실시간 변수 추적기 (Variable Watcher) -->
-                <div class="p-2.5 border-b border-slate-200 flex-initial max-h-[38%] min-h-[110px] overflow-hidden flex flex-col bg-white">
+                <div id="variable-watcher-panel" class="p-2.5 border-b border-slate-200 overflow-hidden flex flex-col bg-white">
                   <div class="flex items-center justify-between pb-1.5 mb-1 border-b border-slate-100 shrink-0">
                     <span class="text-[11px] font-black text-slate-700 flex items-center gap-1">
-                      <i class="fa-solid fa-chart-line text-indigo-500 text-[10px]"></i> 변수 추적 (Watcher)
+                      <i class="fa-solid fa-chart-line text-indigo-500 text-[10px]"></i> 변수 살펴보기
                     </span>
                     <span id="var-count-badge" class="text-[10px] text-slate-400 font-mono">0개</span>
                   </div>
-                  <div class="overflow-y-auto flex-1 min-h-0">
+                  <div id="variable-watcher-scroll" class="overflow-y-auto min-h-0" tabindex="0" role="region" aria-label="변수 목록, 항목이 많으면 위아래로 스크롤하세요">
                     <table class="w-full text-[11px] border-collapse table-fixed break-all">
                       <thead>
                         <tr class="text-slate-400 font-bold border-b border-slate-100 text-[10px]">
@@ -1931,7 +1931,7 @@
                 </div>
 
                 <!-- 하단부: 다크 입출력 터미널 콘솔 -->
-                <div class="flex-1 min-h-[130px] overflow-hidden flex flex-col bg-slate-950 p-2.5 text-slate-200">
+                <div id="execution-console-panel" class="overflow-hidden flex flex-col bg-slate-950 p-2.5 text-slate-200">
                   <div class="flex items-center justify-between pb-1.5 mb-1 border-b border-slate-800 shrink-0">
                     <span class="text-[11px] font-black text-emerald-400 flex items-center gap-1 font-mono">
                       <i class="fa-solid fa-terminal text-[10px]"></i> 출력 콘솔 (Console)
@@ -2330,12 +2330,30 @@
     </div>
 
     <!-- 챗봇 피커부 탭 토글 버튼 (우측 벽면 반숨김 ➔ 호버/클릭 시 쇽 튀어나옴) -->
-    <button onclick="toggleTutorChat()" id="tutor-fab-btn" class="chatbot-peek-tab pointer-events-auto" title="AI 학습 도우미 열기">
-      <i class="fa-solid fa-comment-dots text-lg"></i>
+    <button type="button" onclick="toggleTutorChat()" id="tutor-fab-btn" class="chatbot-peek-tab pointer-events-auto" title="AI 학습 도우미 열기" aria-label="AI 튜터 열기" aria-expanded="false" aria-controls="tutor-chat-window">
+      <i class="fa-solid fa-robot text-lg" aria-hidden="true"></i>
       <span class="text-xs font-black tracking-tight select-none">AI 튜터</span>
     </button>
 
   </div>
+
+  <dialog id="teacher-login-dialog" class="teacher-login-dialog" aria-labelledby="teacher-login-title" onclose="cancelTeacherLogin()">
+    <div class="teacher-login-heading">
+      <h2 id="teacher-login-title">교사 로그인</h2>
+      <button type="button" data-login-cancel aria-label="로그인 창 닫기" onclick="document.getElementById('teacher-login-dialog').close()">닫기</button>
+    </div>
+    <p>사용할 로그인 방식을 선택해 주세요.</p>
+    <div class="teacher-login-options">
+      <button type="button" id="teacher-login-google" onclick="loginTeacher('google')">Google 로그인</button>
+      <button type="button" id="teacher-login-temporary" onclick="showTemporaryTeacherLogin()">교사 비밀번호 로그인</button>
+    </div>
+    <form id="teacher-temporary-form" hidden onsubmit="event.preventDefault();loginTeacher('temporary')">
+      <label for="teacher-login-password">강사님 교사 비밀번호 · 10·11반</label>
+      <input id="teacher-login-password" type="password" autocomplete="off" required maxlength="128" aria-describedby="teacher-login-feedback">
+      <button type="submit">비밀번호로 로그인</button>
+    </form>
+    <p id="teacher-login-feedback" role="status" aria-live="polite"></p>
+  </dialog>
 
   <!-- [대형 모달] 패들렛 제출용 알고리즘 결과 팝업 -->
   <div id="summary-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-50 flex items-center justify-center p-4 md:p-8 hidden opacity-0 transition-opacity duration-300">
@@ -2396,7 +2414,9 @@
   <script src="js/data/eval-questions.js"></script>
   <script src="js/core/flow-expressions.js"></script>
   <script src="js/core/flow-validation.js"></script>
+  <script src="js/core/flowchart-review.js"></script>
   <script src="js/core/auth-service.js"></script>
+  <script src="js/core/local-preview.js"></script>
   <script src="js/core/ai-service.js"></script>
   <script src="js/core/audio.js"></script>
   <script src="js/core/navigation.js"></script>

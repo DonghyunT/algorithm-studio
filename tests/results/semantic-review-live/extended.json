@@ -1,0 +1,29 @@
+{
+  "at": "2026-09-13T15:23:22.751Z",
+  "results": [
+    {
+      "name": "two actions in one meaningful process",
+      "expected": "pass",
+      "status": 200,
+      "verdict": "pass",
+      "feedback": "두 자연어 카드가 순서대로 불을 켜고 음악을 재생하는 순차 흐름이라, 이를 하나로 합친 처리 기호 하나로 실행해도 의미와 순서가 보존됩니다.\n입력·출력·조건·반복이 없고 시작과 종료가 연결로 이어져 실행 경로도 단순합니다.\n카드 수와 기호 수가 달라도 의미가 그대로 이어지므로 현재 구성으로 괜찮습니다.",
+      "pass": true
+    },
+    {
+      "name": "password retry loop with exit",
+      "expected": "pass",
+      "status": 200,
+      "verdict": "pass",
+      "feedback": "입력 기호가 비밀번호 입력을 직접 수행하므로 별도 처리 기호는 필요 없습니다. 조건 ‘1234가 아닌 동안’과 아니오 포트가 입력 기호로 돌아가는 연결이 반복 의미를 잘 나타냅니다. 예 포트가 종료로 이어져 비밀번호가 맞으면 끝나는 흐름도 맞습니다.",
+      "pass": true
+    },
+    {
+      "name": "reversed yes and no actions",
+      "expected": "needs_revision",
+      "status": 200,
+      "verdict": "needs_revision",
+      "feedback": "선택 카드의 예 행동(창문을 연다)과 아니오 행동(창문을 닫는다)이 판단 기호의 yes/no 포트와 반대로 연결되어 있어요. 자연어에서는 28도 초과일 때 창문을 열어야 하므로, yes 포트는 ‘창문을 연다(o)’로, no 포트는 ‘창문을 닫는다(c)’로 이어져야 합니다. 연결만 맞으면 나머지는 순서와 의미가 잘 맞습니다.",
+      "pass": true
+    }
+  ]
+}

@@ -2,9 +2,20 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
-    function teacher() {
+    function teacherRole() {
+      return get(/databases/$(database)/documents/teachers/$(request.auth.uid)).data;
+    }
+    function enabledTeacher() {
       return signedIn() && exists(/databases/$(database)/documents/teachers/$(request.auth.uid))
-        && get(/databases/$(database)/documents/teachers/$(request.auth.uid)).data.enabled == true;
+        && teacherRole().enabled == true;
+    }
+    function teacherForClass(classId) {
+      return enabledTeacher()
+        && (('allClasses' in teacherRole() && teacherRole().allClasses == true)
+          || ('classIds' in teacherRole() && teacherRole().classIds is list && classId in teacherRole().classIds));
+    }
+    function anonymousStudent() {
+      return signedIn() && request.auth.token.firebase.sign_in_provider == 'anonymous';
     }
     // Only the project administrator can provision roles using the console/Admin API.
     match /teachers/{uid} {
@@ -25,22 +36,24 @@ service cloud.firestore {
         let session = get(/databases/$(database)/documents/classrooms/$(classId)).data;
         return session.status == 'in_progress' && request.time.toMillis() < session.deadlineMs;
       }
-      allow get: if signedIn();
-      allow list: if teacher();
-      allow create, update: if teacher() && classId.matches('2-([1-9]|10|11)')
+      // Anonymous students need this one document for the waiting room. Other
+      // authenticated users must have an enabled role for this exact class.
+      allow get: if anonymousStudent() || teacherForClass(classId);
+      allow list: if teacherForClass(classId);
+      allow create, update: if teacherForClass(classId) && classId.matches('2-([1-9]|10|11)')
         && request.resource.data.classId == classId
         && request.resource.data.status in ['waiting', 'in_progress', 'ended'];
       allow delete: if false;
       match /archives/{archiveId} {
-        allow read, create: if teacher();
+        allow read, create: if teacherForClass(classId);
         allow update, delete: if false;
         match /students/{studentNum} {
-          allow read, create: if teacher();
+          allow read, create: if teacherForClass(classId);
           allow update, delete: if false;
         }
       }
       match /students/{studentNum} {
-        function owner() { return signedIn() && resource.data.ownerUid == request.auth.uid; }
+        function owner() { return anonymousStudent() && resource.data.ownerUid == request.auth.uid; }
         function validAnswers() {
           return request.resource.data.answers is map
             && request.resource.data.answers.keys().hasOnly(['part1', 'part2', 'part3'])
@@ -54,9 +67,9 @@ service cloud.firestore {
             && request.resource.data.progress.part3 is int && request.resource.data.progress.part3 >= 0 && request.resource.data.progress.part3 <= 1;
         }
         // A missing document can be read to reserve a seat in a transaction.
-        allow get: if teacher() || (signedIn() && (!exists(/databases/$(database)/documents/classrooms/$(classId)/students/$(studentNum)) || owner()));
-        allow list: if teacher();
-        allow create: if signedIn() && classId.matches('2-([1-9]|10|11)')
+        allow get: if teacherForClass(classId) || (anonymousStudent() && (!exists(/databases/$(database)/documents/classrooms/$(classId)/students/$(studentNum)) || owner()));
+        allow list: if teacherForClass(classId);
+        allow create: if anonymousStudent() && classId.matches('2-([1-9]|10|11)')
           && studentNum.matches('(0[1-9]|1[0-9]|2[0-7])')
           && request.resource.data.keys().hasOnly(['num','numStr','name','ownerUid','status','joinedAt','submittedAt','progress','answers','feedback','attemptId'])
           && get(/databases/$(database)/documents/classrooms/$(classId)).data.status in ['waiting','in_progress']
@@ -67,12 +80,12 @@ service cloud.firestore {
           && request.resource.data.name is string
           && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 40
           && request.resource.data.status == 'waiting' && validAnswers() && validProgress();
-        allow update: if teacher() || (owner() && resource.data.status != 'submitted'
+        allow update: if teacherForClass(classId) || (owner() && resource.data.status != 'submitted'
           && validAnswers() && validProgress()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','answers','progress','updatedAt','submittedAt'])
           && ((active() && request.resource.data.status in ['in_progress','submitted'])
             || (request.resource.data.status == 'submitted' && request.resource.data.answers == resource.data.answers)));
-        allow delete: if teacher() && getAfter(/databases/$(database)/documents/classrooms/$(classId)).data.status == 'waiting';
+        allow delete: if teacherForClass(classId) && getAfter(/databases/$(database)/documents/classrooms/$(classId)).data.status == 'waiting';
       }
     }
   }

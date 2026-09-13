@@ -7,7 +7,7 @@ function harness({teacher=true,status='submitted',quota=true,badScore=false,inva
  const ctx={module:{exports:{}},require:path=>path.includes('policy')?policy:path.includes('quota')?{reserveAiQuota:async()=>quota}:{verifyFirebaseToken:async token=>{if(!token)throw Error();return {sub:'teacher-uid'};}},process:{env:{UPSTAGE_API_KEY:'test-only'}},AbortSignal,Date,JSON,fetch:async(url,options)=>{
    calls.push({url,options});
    if(url.includes('upstage.ai'))return {ok:true,json:async()=>({choices:[{message:{content:invalidJson?'bad':JSON.stringify(JSON.parse(options.body).max_tokens===400?{conditions:['사용 시간에 제한이 있다.']}:{criteria,uncertainties:['교사 확인 필요']})}}]})};
-   const data=url.includes('/teachers/')?{enabled:teacher}:url.includes('/students/')?{status,attemptId:'round-3',name:'개인 이름',ownerUid:'personal-uid',answers:{part3:answer}}:{questionVersion:3,attemptId:'round-3'};
+   const data=url.includes('/teachers/')?{enabled:teacher,allClasses:true}:url.includes('/students/')?{status,attemptId:'round-3',name:'개인 이름',ownerUid:'personal-uid',answers:{part3:answer}}:{questionVersion:3,attemptId:'round-3'};
    return {ok:true,json:async()=>({fields:field(data).mapValue.fields})};
  }};
  vm.runInNewContext(fs.readFileSync(require.resolve('../api/assessment.js'),'utf8'),ctx);

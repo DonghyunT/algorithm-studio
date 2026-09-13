@@ -1,0 +1,20 @@
+{
+  "at": "2026-09-13T15:19:48.206Z",
+  "live": false,
+  "results": [
+    {
+      "name": "input/output sequence passes without requiring a processing block",
+      "pass": true
+    },
+    {
+      "name": "reversed output-before-input is rejected despite equal symbol counts",
+      "pass": true
+    },
+    {
+      "name": "variable area grows then scrolls while retaining console space across widths",
+      "pass": true
+    }
+  ],
+  "errors": [],
+  "consoleErrors": []
+}

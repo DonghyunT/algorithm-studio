@@ -4,6 +4,7 @@
   },
   "auth": {
     "providers": {
+      "emailPassword": true,
       "anonymous": true,
       "googleSignIn": {
         "oAuthBrandDisplayName": "정보 알고리즘 스튜디오",

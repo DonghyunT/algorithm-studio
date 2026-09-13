@@ -4,7 +4,10 @@ async function callSolarAI({messages}) {
       ['in_progress','ended'].includes(window.studentEvalApp.sessionStatus)) {
     throw new Error('수행평가 중에는 실행 결과 확인을 이용해 주세요.');
   }
-  if (window.authService.isDemo()) throw new Error('로컬 시연에서는 AI를 호출하지 않습니다.');
+  if (window.authService.isDemo()) {
+    if(window.localPreview)return window.localPreview.chat(messages);
+    throw new Error('로컬 시연에서는 AI를 호출하지 않습니다.');
+  }
   const token=await window.authService.token();
   const response=await fetch('/api/chat',{
     method:'POST',signal:AbortSignal.timeout(30000),

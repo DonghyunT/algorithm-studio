@@ -1,0 +1,31 @@
+{
+  "at": "2026-09-13T15:47:08.652Z",
+  "results": [
+    {
+      "name": "robot tab peeks, slides with hover and focus, and stays in viewport at varying widths",
+      "pass": true
+    },
+    {
+      "name": "bottom trash stays accessible beside collapsed tutor in practice",
+      "pass": true
+    },
+    {
+      "name": "teacher entry offers a choice; cancellation and incorrect password preserve safe state",
+      "pass": true
+    },
+    {
+      "name": "temporary login and Google choice both reach classroom; teacher eval routes to classroom",
+      "pass": true
+    },
+    {
+      "name": "pending login can be dismissed and late completion does not change the chosen page",
+      "pass": true
+    },
+    {
+      "name": "restored teacher is detected on eval entry and slow role lookup cannot hijack a later navigation",
+      "pass": true
+    }
+  ],
+  "errors": [],
+  "consoleErrors": []
+}

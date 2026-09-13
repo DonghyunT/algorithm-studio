@@ -66,8 +66,25 @@ const UNIT_META = {
 /**
  * 1. 최상단 단원(Unit) 전환 함수
  */
-function switchUnit(unitId, targetStep = null) {
+async function switchUnit(unitId, targetStep = null) {
   if(isAssessmentLocked() && unitId!=='eval')return;
+  const request = ++switchUnit.request;
+  if(unitId === 'eval' && !isAssessmentLocked()) {
+    if(typeof isTeacherAuthenticated !== 'undefined' && isTeacherAuthenticated) unitId='classroom';
+    else if(!window.authService?.isDemo() || window.localPreview) {
+      try {
+        const user = await window.authService.existingTeacher();
+        if(request !== switchUnit.request)return;
+        if(user && !isAssessmentLocked()) { isTeacherAuthenticated=true; unitId='classroom'; }
+      } catch { /* A failed role lookup grants no teacher access. */ }
+      if(request !== switchUnit.request)return;
+    }
+  }
+  if(unitId === 'classroom') {
+    closeMegaMenu();
+    if(typeof openClassroomTab === 'function')await openClassroomTab(request);
+    return;
+  }
   if(unitId !== 'classroom' && typeof stopLiveEvalDashboard === 'function') stopLiveEvalDashboard();
   closeMegaMenu();
   document.body.classList.toggle('reading-mode',unitId==='roadmap'||(UNIT_META[unitId]&&targetStep!=='lab'));
@@ -145,6 +162,7 @@ function switchUnit(unitId, targetStep = null) {
 
   switchUnitStep(unitId, step);
 }
+switchUnit.request = 0;
 
 /**
  * 2. 단원 내부 3단계 (개념 ➔ 퀴즈 ➔ 실습) 전환 함수
