@@ -425,6 +425,7 @@
           playSound('success');
           
           document.getElementById('btn-reopen-summary').classList.remove('hidden');
+          document.getElementById('btn-reopen-summary').classList.add('flex');
 
           scheduleSandwich(() => {
             openSummaryModal(result);
