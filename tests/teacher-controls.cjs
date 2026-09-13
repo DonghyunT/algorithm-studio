@@ -20,7 +20,7 @@ const root=path.resolve(__dirname,'..'),output=path.join(__dirname,'results');
   page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')consoleErrors.push(m.text());});
   page.on('dialog',d=>confirmEnd?d.accept():d.dismiss());
   const url=`http://127.0.0.1:${server.address().port}/index.html?demo=1`;
-  await page.goto(url,{waitUntil:'networkidle'});await page.locator('#nav-btn-classroom').click();
+  await page.goto(url,{waitUntil:'networkidle'});await page.locator('#nav-btn-classroom').click();await page.locator('#teacher-login-google').click();
   const action=page.locator('#teacher-session-action'),status=page.locator('#teacher-session-status');
   async function check(name,task){try{await task();results.push({name,pass:true});}catch(error){results.push({name,pass:false,error:error.message});}}
   await check('one action moves from unprepared to ready without starting the timer',async()=>{

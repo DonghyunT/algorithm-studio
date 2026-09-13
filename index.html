@@ -1843,7 +1843,7 @@
                   <!-- 띵커보드 원클릭 제출 버튼 -->
                   <button id="btn-toolbar-thinker-submit" onclick="openThinkerSubmissionModal()" class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black rounded-xl text-xs transition flex items-center gap-1.5 border border-slate-300 shadow-2xs cursor-pointer" disabled>
                     <i class="fa-solid fa-lock text-[10px] text-amber-500"></i>
-                    <span>현재 상태로 제출</span>
+                    <span>AI 검사 후 제출</span>
                   </button>
                 </div>
               </div>
@@ -2330,12 +2330,30 @@
     </div>
 
     <!-- 챗봇 피커부 탭 토글 버튼 (우측 벽면 반숨김 ➔ 호버/클릭 시 쇽 튀어나옴) -->
-    <button onclick="toggleTutorChat()" id="tutor-fab-btn" class="chatbot-peek-tab pointer-events-auto" title="AI 학습 도우미 열기">
-      <i class="fa-solid fa-comment-dots text-lg"></i>
+    <button type="button" onclick="toggleTutorChat()" id="tutor-fab-btn" class="chatbot-peek-tab pointer-events-auto" title="AI 학습 도우미 열기" aria-label="AI 튜터 열기" aria-expanded="false" aria-controls="tutor-chat-window">
+      <i class="fa-solid fa-robot text-lg" aria-hidden="true"></i>
       <span class="text-xs font-black tracking-tight select-none">AI 튜터</span>
     </button>
 
   </div>
+
+  <dialog id="teacher-login-dialog" class="teacher-login-dialog" aria-labelledby="teacher-login-title" onclose="cancelTeacherLogin()">
+    <div class="teacher-login-heading">
+      <h2 id="teacher-login-title">교사 로그인</h2>
+      <button type="button" data-login-cancel aria-label="로그인 창 닫기" onclick="document.getElementById('teacher-login-dialog').close()">닫기</button>
+    </div>
+    <p>사용할 로그인 방식을 선택해 주세요.</p>
+    <div class="teacher-login-options">
+      <button type="button" id="teacher-login-google" onclick="loginTeacher('google')">Google 로그인</button>
+      <button type="button" id="teacher-login-temporary" onclick="showTemporaryTeacherLogin()">임시 로그인</button>
+    </div>
+    <form id="teacher-temporary-form" hidden onsubmit="event.preventDefault();loginTeacher('temporary')">
+      <label for="teacher-login-password">임시 교사 비밀번호</label>
+      <input id="teacher-login-password" type="password" autocomplete="off" required maxlength="128" aria-describedby="teacher-login-feedback">
+      <button type="submit">임시 계정으로 로그인</button>
+    </form>
+    <p id="teacher-login-feedback" role="status" aria-live="polite"></p>
+  </dialog>
 
   <!-- [대형 모달] 패들렛 제출용 알고리즘 결과 팝업 -->
   <div id="summary-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-50 flex items-center justify-center p-4 md:p-8 hidden opacity-0 transition-opacity duration-300">

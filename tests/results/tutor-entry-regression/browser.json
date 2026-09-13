@@ -1,0 +1,102 @@
+{
+  "results": [
+    {
+      "name": "header actions remain visible and separate across window widths",
+      "pass": true
+    },
+    {
+      "name": "menu opens explicitly, supports keyboard and closes on navigation",
+      "pass": true
+    },
+    {
+      "name": "sandwich result action and larger text keep navigation usable",
+      "pass": true
+    },
+    {
+      "name": "home shortcuts open every advertised learning activity",
+      "pass": true
+    },
+    {
+      "name": "reading, lobby and teacher pages fit narrow windows",
+      "pass": true
+    },
+    {
+      "name": "reading pages have centered margins on wide screens",
+      "pass": true
+    },
+    {
+      "name": "navigation has one visible main view",
+      "pass": true
+    },
+    {
+      "name": "practice parser and no fabricated branch",
+      "pass": true
+    },
+    {
+      "name": "practice submission requires a current AI pass and invalidates after edit",
+      "pass": true
+    },
+    {
+      "name": "student name markup is inert in teacher grid",
+      "pass": true
+    },
+    {
+      "name": "AI outage leaves review unpassed and submission blocked",
+      "pass": true
+    },
+    {
+      "name": "stale AI response cannot restore submission after an edit",
+      "pass": true
+    },
+    {
+      "name": "practice missing false branch stops and constant comparison runs",
+      "pass": true
+    },
+    {
+      "name": "sandwich reset cancels queued work and fallback preserves order",
+      "pass": true
+    },
+    {
+      "name": "practice and quiz drafts survive refresh",
+      "pass": true
+    },
+    {
+      "name": "two tabs join and receive start",
+      "pass": true
+    },
+    {
+      "name": "active exam locks header, direct navigation and teacher page",
+      "pass": true
+    },
+    {
+      "name": "assessment plans are student-written, reorderable and persisted with answers",
+      "pass": true
+    },
+    {
+      "name": "refresh restores answers and same-theme graph",
+      "pass": true
+    },
+    {
+      "name": "save failure retains draft and allows retry",
+      "pass": true
+    },
+    {
+      "name": "assessment malformed flow highlights blocked position only",
+      "pass": true
+    },
+    {
+      "name": "assessment shared palette and scrolled canvas retain drag coordinates",
+      "pass": true
+    },
+    {
+      "name": "teacher end submits and submitted rejoin stays submitted",
+      "pass": true
+    },
+    {
+      "name": "studio canvas and toolbar usable across viewports",
+      "pass": true
+    }
+  ],
+  "errors": [],
+  "consoleErrors": []
+}

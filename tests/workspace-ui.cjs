@@ -49,7 +49,9 @@ const root = path.resolve(__dirname, '..'), output = path.join(__dirname, 'resul
           await page.evaluate(open=>{const el=document.querySelector('#fc-level3-view .entry-studio-container');if(el.classList.contains('debugger-collapsed')===open)toggleDebuggerPanel();},open);
           await page.waitForTimeout(100);
           if(width>900) assert.ok((await page.locator('#fc-level3-view .entry-studio-container > section').first().boundingBox()).width>=300);
-          for(const selector of ['#btn-floating-sim-run','#btn-floating-sim-step','#btn-toolbar-thinker-submit','#debugger-studio-panel button:visible']) await page.locator(selector).first().click({trial:true});
+          for(const selector of ['#btn-floating-sim-run','#btn-floating-sim-step','#debugger-studio-panel button:visible']) await page.locator(selector).first().click({trial:true});
+          assert.ok(await page.locator('#btn-toolbar-thinker-submit').isVisible());
+          assert.ok(await page.locator('#btn-toolbar-thinker-submit').isDisabled());
           const overflow=await page.evaluate(()=>[...document.querySelectorAll('#fc-level3-view *')].filter(e=>e.getBoundingClientRect().right>document.documentElement.clientWidth+1).slice(0,8).map(e=>({id:e.id,cls:e.className,right:e.getBoundingClientRect().right})));
           assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),`${width}px page overflow: ${JSON.stringify(overflow)}`);
         }

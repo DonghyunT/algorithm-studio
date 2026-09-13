@@ -44,27 +44,76 @@ function saveClassroomData(data) {
 }
 
 // 2. 교사용 클래스룸 모드 열기 및 PIN 인증 (풀페이지 전체 뷰)
-function openClassroomTab() {
+async function openClassroomTab(request = switchUnit.request) {
   if(isAssessmentLocked())return;
-  if (!isTeacherAuthenticated) {
-    promptTeacherPin();
-  } else {
-    showClassroomView();
+  const destination = currentActiveUnit;
+  try {
+    const user = await window.authService.existingTeacher();
+    if(isAssessmentLocked() || currentActiveUnit !== destination || request !== switchUnit.request)return;
+    isTeacherAuthenticated = !!user;
+    if(user) showClassroomView(); else promptTeacherPin();
+  } catch(error) {
+    if(!isAssessmentLocked() && currentActiveUnit === destination && request === switchUnit.request) {
+      isTeacherAuthenticated=false;
+      promptTeacherPin(window.authService.teacherError(error));
+    }
   }
 }
 
-async function promptTeacherPin() {
+function promptTeacherPin(message = '') {
   if(isAssessmentLocked())return;
+  if(window.studentEvalApp?.joined && !window.studentEvalApp.isSubmitted) {
+    alert('이 창에 입장한 학생의 평가가 남아 있습니다. 교사 로그인은 별도 창에서 진행해 주세요.');
+    return;
+  }
+  const dialog = document.getElementById('teacher-login-dialog');
+  document.getElementById('teacher-login-feedback').textContent = message;
+  document.getElementById('teacher-temporary-form').hidden = true;
+  document.getElementById('teacher-login-password').value = '';
+  if(!dialog.open)dialog.showModal();
+}
+
+function showTemporaryTeacherLogin() {
+  document.getElementById('teacher-temporary-form').hidden = false;
+  document.getElementById('teacher-login-password').focus();
+}
+
+let teacherLoginPending = false;
+let teacherLoginGeneration = 0;
+function cancelTeacherLogin() {
+  teacherLoginGeneration++;
+  switchUnit.request++;
+  document.getElementById('teacher-login-password').value='';
+}
+async function loginTeacher(method) {
+  if(isAssessmentLocked() || teacherLoginPending)return;
+  const dialog=document.getElementById('teacher-login-dialog');
+  const input=document.getElementById('teacher-login-password');
+  if(method==='temporary'&&!input.reportValidity())return;
+  teacherLoginPending=true;
+  const generation=++teacherLoginGeneration;
+  dialog.querySelectorAll('button:not([data-login-cancel])').forEach(button=>button.disabled=true);
+  document.getElementById('teacher-login-feedback').textContent='로그인을 확인하고 있습니다…';
   try {
-    await window.authService.teacher();
-    if(isAssessmentLocked())return;
+    await window.authService.teacher({method,password:input.value});
+    if(isAssessmentLocked() || generation !== teacherLoginGeneration || !dialog.open)return;
     isTeacherAuthenticated = true;
+    dialog.close();
+    currentActiveUnit='classroom';
     showClassroomView();
-  } catch (error) { alert(error.message); }
+  } catch (error) {
+    if(generation !== teacherLoginGeneration || !dialog.open)return;
+    isTeacherAuthenticated=false;
+    document.getElementById('teacher-login-feedback').textContent=window.authService.teacherError(error);
+  } finally {
+    input.value='';teacherLoginPending=false;
+    dialog.querySelectorAll('button').forEach(button=>button.disabled=false);
+  }
 }
 
 function showClassroomView() {
   if(isAssessmentLocked())return;
+  currentActiveUnit='classroom';
   document.body.classList.remove('reading-mode');
   if (typeof disableStudioMode === "function") disableStudioMode();
   // 모든 메인 뷰 숨기고 view-classroom 단독 노출

@@ -107,7 +107,7 @@ const root = path.resolve(__dirname, '..'), output = path.join(__dirname, 'resul
       await teacher.waitForFunction(()=>window.students[0]?.answers?.part3?.plan?.steps?.length===3);
       await teacher.evaluate(()=>{currentLiveStudents=window.students;openLiveStudentModal(1);});
       assert.ok((await teacher.locator('#classroom-live-modal-p3').textContent()).includes('[선택] 조건: 기온이 28℃ 초과인가?'));
-      assert.ok((await teacher.locator('#classroom-live-modal-p3').textContent()).includes('맞으면: 창문 열기'));
+      assert.ok((await teacher.locator('#classroom-live-modal-p3').textContent()).includes('예: 창문 열기'));
       assert.ok((await teacher.locator('#classroom-live-modal-p3').textContent()).includes('[반복]'));
       await page.reload({waitUntil:'networkidle'});await page.waitForFunction(()=>assessmentWorkspace.active);
       assert.equal(await page.locator('[data-eval-submit]').first().isDisabled(),false);

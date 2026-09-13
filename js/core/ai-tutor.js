@@ -11,21 +11,30 @@
       const win = document.getElementById('tutor-chat-window');
       const fab = document.getElementById('tutor-fab-btn');
       isTutorOpen = !isTutorOpen;
+      fab?.setAttribute('aria-expanded', String(isTutorOpen));
+      fab?.setAttribute('aria-label', isTutorOpen ? 'AI 튜터 닫기' : 'AI 튜터 열기');
+      if(fab)fab.title = isTutorOpen ? 'AI 학습 도우미 닫기' : 'AI 학습 도우미 열기';
       if (isTutorOpen) {
         win.classList.remove('hidden');
         if (fab) {
           fab.classList.add('chat-open');
-          fab.innerHTML = '<i class="fa-solid fa-xmark text-lg"></i> <span class="text-xs font-black tracking-tight select-none">닫기</span>';
+          fab.innerHTML = '<i class="fa-solid fa-xmark text-lg" aria-hidden="true"></i> <span class="text-xs font-black tracking-tight select-none">닫기</span>';
         }
         document.getElementById('tutor-input').focus();
       } else {
         win.classList.add('hidden');
         if (fab) {
           fab.classList.remove('chat-open');
-          fab.innerHTML = '<i class="fa-solid fa-comment-dots text-lg"></i> <span class="text-xs font-black tracking-tight select-none">AI 튜터</span>';
+          fab.innerHTML = '<i class="fa-solid fa-robot text-lg" aria-hidden="true"></i> <span class="text-xs font-black tracking-tight select-none">AI 튜터</span>';
         }
       }
     }
+    document.addEventListener('keydown', event => {
+      if(event.key === 'Escape' && isTutorOpen) {
+        toggleTutorChat();
+        document.getElementById('tutor-fab-btn')?.focus();
+      }
+    });
 
     function quickTutorAsk(query) {
       document.getElementById('tutor-input').value = query;

@@ -100,9 +100,28 @@ body > div:first-child, main { min-width:0; }
 #view-classroom .rounded-3xl { border-radius:var(--ui-radius); }
 #view-classroom .shadow-xl, #view-classroom .shadow-lg { box-shadow:none; }
 #classroom-table-container { overflow-x:auto; }
-#tutor-chat-container { right:16px; bottom:18px; max-width:calc(100vw - 32px); }
-#tutor-fab-btn { transform:none; border-radius:9px; padding:10px 14px; background:var(--ui-accent); box-shadow:0 2px 8px #20293820; }
-#tutor-chat-window { max-width:100%; margin-right:0; max-height:calc(100dvh - 110px); border-radius:var(--ui-radius); }
+#tutor-chat-container { right:0; bottom:18px; max-width:100vw; overflow:hidden; padding-left:8px; }
+#tutor-fab-btn { width:124px; min-height:48px; flex-shrink:0; gap:0; transform:translateX(76px); border:0; border-radius:12px 0 0 12px; padding:0; background:var(--ui-accent); box-shadow:0 2px 8px #20293820; transition:transform .25s ease-out; }
+#tutor-fab-btn > i { width:48px; flex:0 0 48px; text-align:center; }
+#tutor-fab-btn > span { white-space:nowrap; padding-right:14px; }
+#tutor-fab-btn:hover, #tutor-fab-btn:focus-visible, #tutor-fab-btn.chat-open { transform:translateX(0); }
+#tutor-fab-btn:focus-visible { outline:3px solid #fbbf24; outline-offset:-4px; }
+#tutor-chat-window { max-width:calc(100vw - 24px); margin-right:12px; max-height:calc(100dvh - 110px); border-radius:var(--ui-radius); }
+@media (prefers-reduced-motion:reduce) { #tutor-fab-btn { transition:none; } }
+.teacher-login-dialog { width:min(420px,calc(100vw - 32px)); max-height:calc(100dvh - 32px); overflow:auto; padding:24px; border:1px solid var(--ui-line); border-radius:12px; color:#233247; background:white; }
+.teacher-login-dialog::backdrop { background:#17223388; }
+.teacher-login-heading { display:flex; justify-content:space-between; align-items:center; gap:16px; }
+.teacher-login-heading h2 { font-size:20px; font-weight:700; }
+.teacher-login-dialog p { margin:12px 0; font-size:14px; line-height:1.6; }
+.teacher-login-dialog button { min-height:44px; padding:10px 14px; border:1px solid #cbd5e1; border-radius:8px; font-weight:700; cursor:pointer; }
+.teacher-login-dialog button:disabled { opacity:.55; cursor:wait; }
+.teacher-login-options { display:flex; flex-wrap:wrap; gap:10px; margin-top:20px; }
+.teacher-login-options button { flex:1 1 145px; }
+.teacher-login-dialog form { margin-top:20px; }
+.teacher-login-dialog label { display:block; font-size:14px; font-weight:700; margin-bottom:8px; }
+.teacher-login-dialog input { width:100%; border:1px solid #94a3b8; border-radius:7px; padding:10px; }
+.teacher-login-dialog form button { margin-top:12px; width:100%; background:var(--ui-accent); color:white; }
+#teacher-login-feedback { color:#9f3123; overflow-wrap:anywhere; }
 #view-classroom > div { min-width:0; flex-wrap:wrap; }
 #view-classroom .teacher-control-bar { gap:18px; }
 .teacher-session-heading { display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin-top:12px; }
@@ -212,7 +231,9 @@ body.studio-mode #view-lab { height:calc(100dvh - var(--app-header-height)) !imp
 .execution-summary-error { color:#a33232; background:#fff2f2; }
 .palette-drag-preview { position:fixed; left:-1000px; top:0; pointer-events:none; }
 #sim-drag-floating-bar { width:max-content; max-width:calc(100% - 16px); flex-wrap:wrap; justify-content:center; border-radius:18px; }
-body.studio-mode #entry-trash-zone { bottom:84px; }
+body.studio-mode #entry-trash-zone { bottom:14px; }
+@media(max-width:900px) { body.studio-mode:not(.assessment-active) #entry-trash-zone { right:70px; } }
+@media(max-width:600px) { #sim-drag-floating-bar { bottom:94px; } }
 @media (max-width:900px) {
   #fc-level3-view .entry-studio-container.debugger-collapsed #debugger-studio-panel { min-height:48px; height:48px; }
   .execution-panel-rail { flex-direction:row; justify-content:center; padding:12px; }
@@ -274,7 +295,7 @@ body.studio-mode #entry-trash-zone { bottom:84px; }
 }
 .assessment-readonly .palette-entry-block { pointer-events:none; opacity:.5; }
 .assessment-workspace-mode .execution-issue { outline:3px solid #e88b36; outline-offset:3px; }
-.assessment-workspace-mode #entry-trash-zone { bottom:84px; }
+.assessment-workspace-mode #entry-trash-zone { bottom:14px; }
 @media(max-width:900px) {
  .assessment-workspace-mode #fc-level3-view { height:auto; }
  .assessment-workspace-mode #fc-level3-view .entry-studio-container { display:flex; flex-direction:column; height:auto; }

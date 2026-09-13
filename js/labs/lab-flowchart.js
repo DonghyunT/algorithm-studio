@@ -1261,18 +1261,30 @@ let nextBlockId = 1;
 
 // 외부 모듈 및 테스트 환경 연동용 접근자
 window.getFreeBlocks = () => freeBlocks;
-window.setFreeBlocks = (blocks) => { freeBlocks = blocks; };
+window.setFreeBlocks = (blocks) => { freeBlocks = blocks; invalidateFlowchartReview(); };
 window.getFreeConnections = () => freeConnections;
-window.setFreeConnections = (conns) => { freeConnections = conns; };
+window.setFreeConnections = (conns) => { freeConnections = conns; invalidateFlowchartReview(); };
 window.getNlCards = () => nlCards;
-window.setNlCards = (cards) => { nlCards = cards; };
+window.setNlCards = (cards) => { nlCards = cards; invalidateFlowchartReview(); };
 
 // AI 설계 검사 통과 및 시뮬레이션 완주 상태 플래그
 window.isFlowchartAiPassed = false;
 window.isFlowchartSimValidated = false;
+let flowchartPassedReviewSnapshot = null;
+let flowchartReviewRevision = 0;
+let flowchartReviewRequestSequence = 0;
+let latestFlowchartReviewRequest = 0;
 
 // 상단 툴바 띵커보드 제출 버튼 상태 (AI 검사 통과 시 활성화)
 function invalidateFlowchartReview() {
+  // 수행평가는 같은 편집기를 빌려 쓰지만, 일반 실습의 AI 통과 기록과 제출 흐름은 건드리지 않습니다.
+  if (window.assessmentWorkspace?.active) {
+    window.isFlowchartSimValidated = false;
+    updateThinkerToolbarButton();
+    return;
+  }
+  flowchartReviewRevision += 1;
+  flowchartPassedReviewSnapshot = null;
   window.isFlowchartAiPassed = false;
   window.isFlowchartSimValidated = false;
   updateThinkerToolbarButton();
@@ -1282,19 +1294,27 @@ function flowchartReviewSnapshot() {
   return JSON.stringify({ cards: nlCards, blocks: freeBlocks, connections: freeConnections });
 }
 
+function hasCurrentFlowchartReviewPass() {
+  return !window.assessmentWorkspace?.active
+    && window.isFlowchartAiPassed === true
+    && flowchartPassedReviewSnapshot !== null
+    && flowchartPassedReviewSnapshot === flowchartReviewSnapshot();
+}
+window.hasCurrentFlowchartReviewPass = hasCurrentFlowchartReviewPass;
+
 function updateThinkerToolbarButton() {
   const btn = document.getElementById('btn-toolbar-thinker-submit');
   if (!btn) return;
-  if (window.isFlowchartAiPassed) {
+  if (hasCurrentFlowchartReviewPass()) {
     btn.disabled = false;
     btn.className = "px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm shadow-emerald-500/25 active:scale-95 cursor-pointer animate-pulse";
     btn.innerHTML = `<i class="fa-solid fa-paper-plane text-[10px]"></i> <span>띵커보드 제출</span>`;
     btn.title = "AI 검사를 통과했습니다! 띵커보드에 포트폴리오를 제출하세요.";
   } else {
-    btn.disabled = false;
-    btn.className = "px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black rounded-xl text-xs transition flex items-center gap-1.5 border border-slate-300 shadow-2xs cursor-pointer";
-    btn.innerHTML = `<i class="fa-solid fa-paper-plane text-[10px]"></i> <span>현재 상태로 제출</span>`;
-    btn.title = "검사와 보완을 권장하며, 지금 상태로도 제출할 수 있습니다";
+    btn.disabled = true;
+    btn.className = "px-3.5 py-1.5 bg-slate-100 text-slate-400 font-black rounded-xl text-xs transition flex items-center gap-1.5 border border-slate-200 shadow-2xs cursor-not-allowed opacity-70";
+    btn.innerHTML = `<i class="fa-solid fa-paper-plane text-[10px]"></i> <span>AI 검사 후 제출</span>`;
+    btn.title = "AI 설계 검사를 통과하면 띵커보드에 제출할 수 있습니다.";
   }
 }
 window.updateThinkerToolbarButton = updateThinkerToolbarButton;
@@ -1657,7 +1677,7 @@ function addNlCard(type) {
   } else if (type === 'loop') {
     nlCards.push({ id: newId, type: 'loop', condition: '', loopAction: '' });
   }
-  window.isFlowchartAiPassed = false;
+  invalidateFlowchartReview();
   renderNlCards();
   if (typeof playSfx === 'function') playSfx('snap');
 
@@ -1670,7 +1690,7 @@ function addNlCard(type) {
 
 function removeNlCard(cardId) {
   nlCards = nlCards.filter(c => c.id !== cardId);
-  window.isFlowchartAiPassed = false;
+  invalidateFlowchartReview();
   renderNlCards();
   if (typeof playSfx === 'function') playSfx('step');
 }
@@ -2098,6 +2118,7 @@ function selectPrescriptionPreset(key) {
 }
 
 function applyPrescriptionDraft() {
+  invalidateFlowchartReview();
   const goal = (document.getElementById('pres-inp-goal')?.value || "목표 상태 달성").trim();
   const vars = (document.getElementById('pres-inp-variables')?.value || "입력 데이터").trim();
   const customCur = (document.getElementById('pres-custom-cur')?.value || "").trim();
@@ -2441,8 +2462,7 @@ function removeCanvasBlock(blockId, e) {
   freeBlocks = freeBlocks.filter(b => b.id !== blockId);
   freeConnections = freeConnections.filter(c => c.from !== blockId && c.to !== blockId);
 
-  window.isFlowchartAiPassed = false;
-  window.isFlowchartSimValidated = false;
+  invalidateFlowchartReview();
 
   renderFreeCanvas();
   if (typeof playSfx === 'function') playSfx('step');
@@ -2614,8 +2634,7 @@ function addCanvasBlockAtPosition(shapeType, x, y) {
   };
 
   freeBlocks.push(newBlock);
-  window.isFlowchartAiPassed = false;
-  window.isFlowchartSimValidated = false;
+  invalidateFlowchartReview();
   const el = createFreeBlockDOM(newBlock);
   stage.appendChild(el);
   selectCanvasBlock(id);
@@ -2670,6 +2689,7 @@ function handleBlockMouseDown(blockId, e) {
   const startBlockX = b.x;
   const startBlockY = b.y;
 
+  let reviewInvalidatedForDrag = false;
   const onMouseMove = (moveEvent) => {
     if (!isDraggingBlock || !draggedBlockObj) return;
 
@@ -2683,6 +2703,11 @@ function handleBlockMouseDown(blockId, e) {
     // 무한에 가까운 작업 공간(-2500px ~ +4500px) 지원으로 캔버스를 어디로 이동해도 자유롭게 배치 가능
     nx = Math.max(-2500, Math.min(4500, nx));
     ny = Math.max(-2500, Math.min(4500, ny));
+
+    if (!reviewInvalidatedForDrag && (nx !== startBlockX || ny !== startBlockY)) {
+      invalidateFlowchartReview();
+      reviewInvalidatedForDrag = true;
+    }
 
     draggedBlockObj.x = nx;
     draggedBlockObj.y = ny;
@@ -3088,8 +3113,7 @@ function handlePortMouseUp(targetBlockId, targetPortType) {
     toPort: targetPortType
   });
 
-  window.isFlowchartAiPassed = false;
-  window.isFlowchartSimValidated = false;
+  invalidateFlowchartReview();
 
   if (typeof playSfx === 'function') playSfx('snap');
   renderFreeConnections();
@@ -3189,8 +3213,7 @@ function renderFreeConnections() {
       e.stopPropagation();
       if (confirm("이 연결 화살표를 삭제하시겠습니까?")) {
         freeConnections.splice(idx, 1);
-        window.isFlowchartAiPassed = false;
-        window.isFlowchartSimValidated = false;
+        invalidateFlowchartReview();
         renderFreeConnections();
         if (typeof playSfx === 'function') playSfx('step');
       }
@@ -3241,8 +3264,7 @@ function clearFreeCanvas() {
   if (confirm("캔버스의 모든 블록과 연결선을 초기화하시겠습니까?")) {
     freeBlocks = [];
     freeConnections = [];
-    window.isFlowchartAiPassed = false;
-    window.isFlowchartSimValidated = false;
+    invalidateFlowchartReview();
     renderFreeCanvas();
     if (typeof playSfx === 'function') playSfx('step');
   }
@@ -3252,6 +3274,8 @@ function autoAlignCanvas() {
   const canvas = document.getElementById('free-flowchart-canvas');
   const stage = document.getElementById('free-flowchart-stage') || canvas;
   if (!canvas || !stage || freeBlocks.length === 0) return;
+
+  invalidateFlowchartReview();
 
   const startX = Math.floor((stage.clientWidth - 190) / 2);
   let curY = 35;
@@ -4521,8 +4545,11 @@ async function diagnoseFreeAlgorithmWithSolarAI() {
     `;
   }
 
-  const reviewSnapshot = flowchartReviewSnapshot();
   invalidateFlowchartReview();
+  const reviewSnapshot = flowchartReviewSnapshot();
+  const reviewRevision = flowchartReviewRevision;
+  const reviewRequestId = ++flowchartReviewRequestSequence;
+  latestFlowchartReviewRequest = reviewRequestId;
   // 1. JS 룰 엔진을 통한 정량적 사전 대조 수행
   const consistency = analyzeAlgorithmConsistency();
 
@@ -4600,12 +4627,19 @@ ${complimentsText}
       temperature: 0.4
     });
   } catch (err) {
-    content.innerHTML = '<p class="p-4 text-slate-700" role="status">AI 연결을 확인할 수 없어요. 직접 실행해 보거나 잠시 후 다시 검사해 주세요. 지금 상태로 제출할 수도 있어요.</p>';
-    if (actions) actions.innerHTML = '<button onclick="closeAiAuditModal()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl">돌아가서 점검하기</button><button onclick="closeAiAuditModal(); openThinkerSubmissionModal()" class="px-4 py-2 bg-slate-100 rounded-xl">현재 상태로 제출</button>';
+    if (reviewRequestId !== latestFlowchartReviewRequest) return;
+    if (reviewRevision !== flowchartReviewRevision || reviewSnapshot !== flowchartReviewSnapshot()) {
+      content.textContent = '검사 중 내용이 변경됐어요. 수정한 내용을 다시 검사해 주세요.';
+      return;
+    }
+    content.innerHTML = '<p class="p-4 text-slate-700" role="status">AI 연결을 확인할 수 없어요. 인터넷 연결을 확인한 뒤 잠시 후 다시 검사해 주세요. AI 설계 검사를 통과하면 제출할 수 있습니다.</p>';
+    if (actions) actions.innerHTML = '<button onclick="closeAiAuditModal()" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl">돌아가서 점검하기</button><button onclick="diagnoseFreeAlgorithmWithSolarAI()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl">다시 검사하기</button>';
     return;
   }
 
-  if (reviewSnapshot !== flowchartReviewSnapshot()) {
+  if (reviewRequestId !== latestFlowchartReviewRequest) return;
+
+  if (reviewRevision !== flowchartReviewRevision || reviewSnapshot !== flowchartReviewSnapshot()) {
     content.textContent = '검사 중 내용이 변경됐어요. 수정한 내용을 다시 검사해 주세요.';
     return;
   }
@@ -4627,6 +4661,7 @@ ${complimentsText}
   // 💡 양방향 합의(Consensus) 합격제: JS 정량 검사 통과 AND Solar AI 판정 통과
   const isGood = consistency.isConsistent && aiJudgmentPassed;
   window.isFlowchartAiPassed = isGood;
+  flowchartPassedReviewSnapshot = isGood ? reviewSnapshot : null;
   if (typeof updateThinkerToolbarButton === 'function') updateThinkerToolbarButton();
 
   // 학생에게 보여줄 피드백 텍스트에서는 [판정: ...] 태그를 깔끔하게 분리/제거
@@ -4774,7 +4809,6 @@ ${complimentsText}
           <i class="fa-solid fa-screwdriver-wrench"></i>
           <span>캔버스로 돌아가 보완하기</span>
         </button>
-        <button onclick="closeAiAuditModal(); openThinkerSubmissionModal();" class="px-4 py-2 bg-slate-100 rounded-xl">현재 상태로 제출</button>
       `;
     }
   }
@@ -4861,9 +4895,17 @@ function handleStudentInput(el) {
 }
 
 function openThinkerSubmissionModal() {
-  // 보완을 권장하되 검사 결과와 제출 가능 여부는 분리합니다.
   const modal = document.getElementById('thinker-submission-modal');
   if (!modal) return;
+
+  if (!hasCurrentFlowchartReviewPass()) {
+    invalidateFlowchartReview();
+    modal.classList.add('hidden');
+    if (typeof playSfx === 'function') playSfx('warning');
+    alert('AI 설계 검사를 통과한 뒤 제출할 수 있어요.\n순서도를 수정했다면 AI 설계 검사를 다시 받아 주세요.');
+    return;
+  }
+
   modal.classList.remove('hidden');
 
   // 💡 학번 및 이름 입력창 초기화 및 자동 포커스 & 시각적 하이라이트 (홍길동 근절!)
@@ -5009,7 +5051,7 @@ function updateThinkerCardPreview() {
       </div>
 
       <!-- 5. 합격 스탬프 (조건부: AI 설계 검사 통과 시에만 공식 합격 인증 마크 부여) -->
-      ${window.isFlowchartAiPassed ? `
+      ${hasCurrentFlowchartReviewPass() ? `
         <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between text-xs shadow-xs">
           <div class="flex items-center gap-2 text-emerald-950 font-bold">
             <span class="text-base">💮</span>
@@ -5045,7 +5087,7 @@ function updateThinkerCardPreview() {
   // 모달 하단 버튼 제어 (미통과 시 복사/다운로드 비활성화)
   const copyBtn = document.getElementById('btn-thinker-copy');
   const dlBtn = document.getElementById('btn-thinker-download');
-  const isPassed = !!window.isFlowchartAiPassed;
+  const isPassed = hasCurrentFlowchartReviewPass();
   if (copyBtn) {
     copyBtn.disabled = !isPassed;
     copyBtn.classList.toggle('opacity-50', !isPassed);
@@ -5062,6 +5104,12 @@ function updateThinkerCardPreview() {
 // HTML5 Canvas 기반 초정밀 이미지 생성 및 클립보드 복사
 // --------------------------------------------------
 async function copyThinkerImageToClipboard() {
+  if (!hasCurrentFlowchartReviewPass()) {
+    invalidateFlowchartReview();
+    alert('순서도를 수정했거나 AI 설계 검사가 완료되지 않았어요.\nAI 설계 검사를 다시 통과한 뒤 제출해 주세요.');
+    return;
+  }
+
   const numInput = document.getElementById('thinker-student-num');
   const nameInput = document.getElementById('thinker-student-name');
   const studentNum = numInput ? numInput.value.trim() : "";
@@ -5125,6 +5173,12 @@ async function copyThinkerImageToClipboard() {
 }
 
 async function downloadThinkerImage() {
+  if (!hasCurrentFlowchartReviewPass()) {
+    invalidateFlowchartReview();
+    alert('순서도를 수정했거나 AI 설계 검사가 완료되지 않았어요.\nAI 설계 검사를 다시 통과한 뒤 제출해 주세요.');
+    return;
+  }
+
   const numInput = document.getElementById('thinker-student-num');
   const nameInput = document.getElementById('thinker-student-name');
   const studentNum = numInput ? numInput.value.trim() : "";
@@ -5558,7 +5612,7 @@ function generatePortfolioCanvas(studentNum, studentName) {
     // --------------------------------------------------
     // 섹션 4: 총평 및 조건부 합격 스탬프 ('감수' ➔ '검사 / 점검' 반영)
     // --------------------------------------------------
-    const isAiPassed = !!window.isFlowchartAiPassed;
+    const isAiPassed = hasCurrentFlowchartReviewPass();
     if (isAiPassed) {
       ctx.fillStyle = "#ecfdf5";
       ctx.strokeStyle = "#a7f3d0";
