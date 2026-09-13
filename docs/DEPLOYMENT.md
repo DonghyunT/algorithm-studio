@@ -67,3 +67,13 @@
 * 최초 운영 UI 확인에서는 페이지 예외는 없었으나 기존 `favicon.ico` 누락 404가 있었습니다. 외부 요청이 필요 없는 SVG 탭 아이콘으로 보완했습니다(`93e8f27`, main `3b0f6a6d2e016dece0818d67df1f597f31b1f131`). 보완 배포 `algorithm-studio-1ir2d5sk6-donghyun2.vercel.app` Production Ready.
 * 최종 운영 재확인: 2026-09-12 22:55 KST, 7개 파일 일치·세 창 폭의 주요 동작 통과, 페이지 예외·콘솔 오류 0개. [검증 결과](../tests/results/ui-production.json), [운영 홈](../tests/results/ui-production-home.png), [좁은 창](../tests/results/ui-production-390.png).
 * 보완 main 검사: https://github.com/DonghyunT/algorithm-studio/actions/runs/34697770550 — success. 이후 검증 기록만 추가한 커밋은 UI 제품 파일을 변경하지 않습니다.
+## 2026-09-14 강사 담당 반 권한·AI 점검 개선 운영 배포
+
+* 사용자 승인에 따라 기존 선생님 Google 계정은 전체 반, 강사님 비밀번호 계정은 10·11반으로 설정했습니다. Firestore 규칙 컴파일·배포와 이메일/비밀번호 공급자 활성화를 완료했습니다. 계정 상세와 비밀번호 전달 방식은 [강사 계정 기록](INSTRUCTOR_ACCESS_REVIEW.md)에 있습니다. 비밀번호 값은 Git·문서·배포에서 제외합니다.
+* 제품 `a1737d2`, 운영 병합 `b0bd14e6ed143aff745457a11b047b81d36e06cf`. 직전 로컬 제품 `46b644b`와 `3842f58`도 함께 반영했습니다. 튜터 로봇 숨김·펼침, 교사 로그인 선택과 수행평가 진입, 실습 AI 통과 후 제출, 의미 기반 AI 점검, 변수·콘솔 영역 개선을 포함합니다.
+* Vercel Production `algorithm-studio-gji3ourif-donghyun2.vercel.app`, GitHub deployment `6423414156`의 success와 정확한 병합 SHA를 확인했습니다. [GitHub 검사](https://github.com/DonghyunT/algorithm-studio/actions/runs/34766839896) success.
+* 2026-09-14 00:53 KST [기존 운영 주소](https://algorithm-studio-ten.vercel.app/)에서 실제 강사 로그인 성공, 담당 10·11반만 표시, 다른 반 전환 거부, 새로고침 후 수행평가→교사 화면 복원, 로그아웃을 확인했습니다. 1440/1024/768/390px에서 주요 조작·가로 넘침 확인, 페이지 예외·콘솔 오류 0개. [운영 UI 결과](../tests/results/instructor-production/results.json).
+* 실제 Firestore 및 운영 API 권한 검사 13개 통과. 담당 반 접근 허용, 다른 반 학생 목록·기존 답안·학급 정보·보관 문서 생성 거부, 학생 익명 대기실 유지, 다른 반 AI 평가 요청의 유료 호출 전 거부를 확인했습니다. 고유 검증 문서와 익명 계정 정리 완료. 기존 학생 답안·성적·평가 상태는 변경하지 않았습니다. [권한 결과](../tests/results/instructor-live.json).
+* 운영 HTML/CSS/JS 7개가 검증본과 일치했습니다. `.env.instructor.local`, `.env.preview.local`, `tools/preview.cjs`는 운영 주소에서 404이며 로컬 체험 모드는 비활성임을 브라우저에서 확인했습니다. 브라우저용 로컬 어댑터 코드는 배포물에 있으나 로컬 서버가 주는 설정 없이는 동작하지 않습니다.
+* 배포 전 단위/API 36개, 기본 UI 24·작업 공간 5·수행평가 10·교사 제어 8·튜터 로그인 6·담당 반 UI 4흐름 통과. 수행평가 검사에서 스크린샷 1건의 시간 초과가 있었으며 해당 검사를 단독 재실행해 10개 모두 통과했습니다. 앞선 실제 Solar 5개 사례는 [의미 검사 기록](SEMANTIC_REVIEW_LOCAL_PREVIEW.md)에 보존합니다. 이번 배포 검증에서 불필요한 유료 AI 호출은 추가하지 않았습니다.
+* 선생님 계정은 관리자 조회로 기존 Google UID와 전체 반 역할을 확인했습니다. 선생님의 Google 팝업 재로그인 및 실제 학급 동시 수업은 이번 자동 검증 범위 밖입니다. 뒤따르는 기록 커밋은 제품·권한 규칙을 변경하지 않습니다.
