@@ -1223,9 +1223,6 @@
                 </div>
               </div>
               <div class="flex items-center gap-2">
-                <button type="button" id="btn-reopen-summary" onclick="reopenSummaryModal()" class="hidden text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1 rounded-xl text-xs font-bold transition items-center gap-1.5 shadow-sm cursor-pointer" title="샌드위치 결과 다시보기">
-                  <i class="fa-solid fa-clipboard-check" aria-hidden="true"></i><span>결과 다시보기</span>
-                </button>
                 <div id="status-pill" class="px-3 py-1 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">
                   상태: 대기(IDLE)
                 </div>
@@ -1404,12 +1401,17 @@
           <div class="bg-white border border-slate-200 rounded-3xl p-5 shadow-xs flex flex-col justify-between h-[560px] sm:h-[620px] lg:h-[630px]">
             
             <div class="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h2 class="font-black text-slate-800 text-sm sm:text-base flex items-center gap-2">
+              <h2 class="font-black text-slate-800 text-sm sm:text-base flex items-center gap-2 shrink-0">
                 <i class="fa-solid fa-terminal text-blue-500"></i> 명령어 입력 및 디버그
               </h2>
-              <button onclick="resetWorkspace()" class="text-xs text-slate-400 hover:text-rose-500 underline transition">
-                초기화
-              </button>
+              <div class="flex items-center gap-3">
+                <button type="button" id="btn-reopen-summary" onclick="reopenSummaryModal()" class="hidden bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white px-4 py-1.5 rounded-xl text-xs sm:text-sm font-black transition items-center gap-2 shadow-md shadow-emerald-500/30 cursor-pointer" title="샌드위치 결과 다시보기">
+                  <i class="fa-solid fa-clipboard-check" aria-hidden="true"></i><span>결과 다시보기</span>
+                </button>
+                <button onclick="resetWorkspace()" class="text-xs text-slate-400 hover:text-rose-500 underline transition shrink-0">
+                  초기화
+                </button>
+              </div>
             </div>
 
             <!-- 대화 로그 -->
