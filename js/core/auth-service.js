@@ -112,6 +112,11 @@ window.authService = {
   }
 };
 
+window.authService.discardTeacherLogin = async function(user) {
+  const auth=await this.ready();
+  if(this.isDemo() || (user?.uid && auth?.currentUser?.uid===user.uid))await this.signOut();
+};
+
 window.finishSharedSession = async function () {
   if (window.studentEvalApp?.joined && !window.studentEvalApp.isSubmitted) {
     alert('제출하지 않은 평가 답안이 있습니다. 먼저 제출하거나 선생님께 확인해 주세요.'); return;
