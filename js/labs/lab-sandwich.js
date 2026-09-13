@@ -908,12 +908,7 @@
       }
 
       appendChat('bot', actions.join(" ➔ "), 'ai_plan');
-
-      validStudentPromptsLog.push({
-        userText: text,
-        actions: actions
-      });
-
+      const successfulActions = [];
       const startIndex = globalExecutionQueue.length;
       actions.forEach((act, i) => {
         const qIdx = startIndex + i + 1;
@@ -940,6 +935,13 @@
         updateStatusUI();
 
         if (res.success) {
+          if (successfulActions.length === 0) {
+            validStudentPromptsLog.push({
+              userText: text,
+              actions: successfulActions
+            });
+          }
+          successfulActions.push(act);
           updateQueueStatus(currentQIndex, 'success');
           appendChat('bot', res.msg, 'normal');
           avatar.textContent = "😃";
