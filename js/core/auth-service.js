@@ -1,6 +1,7 @@
 /* Shared-PC authentication. Roles are granted by an administrator, never by the browser. */
 window.authService = {
   pending: null,
+  teacherRole: null,
   temporaryTeacherEmail: 'temporary-teacher@donghyun-algo.firebaseapp.com',
   isDemo() {
     return ['localhost', '127.0.0.1'].includes(location.hostname) &&
@@ -28,16 +29,20 @@ window.authService = {
   },
   async existingTeacher() {
     this.checkLocalPreview();
-    if(this.isDemo()&&window.localPreview)return window.localPreview.existingTeacher();
+    if(this.isDemo()&&window.localPreview){const user=await window.localPreview.existingTeacher();this.teacherRole=user?{enabled:true,classIds:['2-10','2-11']}:null;return user;}
     if (this.isDemo()) return typeof isTeacherAuthenticated !== 'undefined' && isTeacherAuthenticated ? {uid:'demo-teacher'} : null;
     const auth = await this.ready(), user = auth.currentUser;
+    this.teacherRole=null;
     if (!user) return null;
     const role = await firebase.firestore().collection('teachers').doc(user.uid).get();
-    return auth.currentUser?.uid === user.uid && role.exists && role.data().enabled === true ? user : null;
+    if(auth.currentUser?.uid !== user.uid || !role.exists)return null;
+    this.teacherRole=role.data();
+    if(!this.allowedClassIds().length){this.teacherRole=null;return null;}
+    return user;
   },
-  async teacher({method, password} = {}) {
+  async teacher({method, password, classId} = {}) {
     this.checkLocalPreview();
-    if(this.isDemo()&&window.localPreview)return window.localPreview.teacher({method,password});
+    if(this.isDemo()&&window.localPreview){const user=await window.localPreview.teacher({method,password});this.teacherRole={enabled:true,classIds:['2-10','2-11']};this.assertTeacherClass(classId);return user;}
     if (this.isDemo()) return { uid: 'demo-teacher' };
     const auth = await this.ready();
     let user = auth.currentUser;
@@ -50,7 +55,9 @@ window.authService = {
     if (!user) throw new Error('우측 상단 교사용 버튼에서 먼저 로그인해 주세요.');
     try {
       const role = await firebase.firestore().collection('teachers').doc(user.uid).get();
-      if (!role.exists || role.data().enabled !== true) throw new Error(`교사 권한이 없습니다. 관리자에게 UID [${user.uid}]를 전달하여 교사 계정 등록 상태를 확인해 주세요.`);
+      this.teacherRole=role.exists?role.data():null;
+      if (!this.allowedClassIds().length) throw new Error(`교사 권한이 없습니다. 관리자에게 UID [${user.uid}]를 전달하여 교사 계정 등록 상태를 확인해 주세요.`);
+      this.assertTeacherClass(classId);
     } catch(error) {
       if(method && auth.currentUser?.uid === user.uid)await this.signOut();
       throw error;
@@ -62,6 +69,16 @@ window.authService = {
       const error=new Error('로컬 로그인 기능을 불러오지 못했습니다. 화면을 새로고침한 뒤 다시 로그인해 주세요.');
       error.code='local-preview';throw error;
     }
+  },
+  allowedClassIds() {
+    const all=Array.from({length:11},(_,i)=>'2-'+(i+1));
+    if(this.isDemo()&&!window.LOCAL_PREVIEW_CONFIG&&!this.teacherRole)return all;
+    const role=this.teacherRole;
+    if(role?.enabled!==true)return [];
+    return role.allClasses===true?all:all.filter(id=>Array.isArray(role.classIds)&&role.classIds.includes(id));
+  },
+  assertTeacherClass(classId) {
+    if(classId&&!this.allowedClassIds().includes(classId))throw new Error('담당 학급의 자료만 관리할 수 있습니다. 학급 선택을 확인해 주세요.');
   },
   teacherError(error) {
     if(error?.code==='local-preview')return error.message;
@@ -90,6 +107,7 @@ window.authService = {
     const auth = await this.ready();
     if (auth) await auth.signOut();
     this.pending = null;
+    this.teacherRole = null;
     if (typeof isTeacherAuthenticated !== 'undefined') isTeacherAuthenticated = false;
   }
 };

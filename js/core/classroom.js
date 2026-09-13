@@ -168,6 +168,7 @@ function switchClassroomSubTab(tabName) {
 }
 
 function switchClassroomClass(className) {
+  if(!getAllowedClassNames().includes(className)){alert('담당 학급만 선택할 수 있습니다.');return;}
   currentSelectedClass = className;
   if (currentClassroomTab === 'live_eval') {
     initLiveEvalDashboard();
@@ -177,14 +178,21 @@ function switchClassroomClass(className) {
 }
 
 // 대시보드 전체 렌더링
+function getAllowedClassNames() {
+  const ids=window.authService.allowedClassIds();
+  return DEFAULT_CLASSES.filter((_,i)=>ids.includes('2-'+(i+1)));
+}
 function renderClassroomDashboard() {
+  const classes=getAllowedClassNames();
+  if(!classes.includes(currentSelectedClass))currentSelectedClass=classes[0]||'';
   const classSelect = document.getElementById('classroom-class-select');
   if (classSelect) {
-    classSelect.innerHTML = DEFAULT_CLASSES.map(c => `
+    classSelect.innerHTML = classes.map(c => `
       <option value="${c}" ${c === currentSelectedClass ? 'selected' : ''}>${c}</option>
     `).join('');
   }
 
+  if(!classes.length){stopLiveEvalDashboard();renderLiveGrid([]);setTeacherSessionFeedback('담당 학급 권한을 확인한 뒤 다시 로그인해 주세요.');return;}
   switchClassroomSubTab(currentClassroomTab);
 }
 

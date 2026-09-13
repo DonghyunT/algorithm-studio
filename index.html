@@ -2345,12 +2345,12 @@
     <p>사용할 로그인 방식을 선택해 주세요.</p>
     <div class="teacher-login-options">
       <button type="button" id="teacher-login-google" onclick="loginTeacher('google')">Google 로그인</button>
-      <button type="button" id="teacher-login-temporary" onclick="showTemporaryTeacherLogin()">임시 로그인</button>
+      <button type="button" id="teacher-login-temporary" onclick="showTemporaryTeacherLogin()">교사 비밀번호 로그인</button>
     </div>
     <form id="teacher-temporary-form" hidden onsubmit="event.preventDefault();loginTeacher('temporary')">
-      <label for="teacher-login-password">임시 교사 비밀번호</label>
+      <label for="teacher-login-password">강사님 교사 비밀번호 · 10·11반</label>
       <input id="teacher-login-password" type="password" autocomplete="off" required maxlength="128" aria-describedby="teacher-login-feedback">
-      <button type="submit">임시 계정으로 로그인</button>
+      <button type="submit">비밀번호로 로그인</button>
     </form>
     <p id="teacher-login-feedback" role="status" aria-live="polite"></p>
   </dialog>
