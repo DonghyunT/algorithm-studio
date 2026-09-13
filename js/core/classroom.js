@@ -407,25 +407,25 @@ function openLiveStudentModal(studentNum) {
     let blocksHtml = (Array.isArray(graph.blocks) ? graph.blocks : []).filter(Boolean).map(b => `<span class="inline-block bg-slate-100 border border-slate-300 px-1.5 py-0.5 rounded text-[10px] mr-1 mb-1 font-mono">[${b.shape}] ${b.text}</span>`).join('');
     let connsHtml = (Array.isArray(graph.connections) ? graph.connections : []).filter(Boolean).map(c => `<div class="text-[10px] text-slate-500 ml-2 font-mono">↳ ${c.from} (${c.fromPort}) → ${c.to}</div>`).join('');
 
-    let p3Html = \`
+    let p3Html = `
       <div class="mb-4">
         <div class="font-bold text-slate-800 mb-2 border-b border-emerald-100 pb-1 text-[12px]">자연어 기획서</div>
         <div class="text-[11px] text-slate-700 ml-1 space-y-0.5 mb-2 bg-emerald-50/50 p-2 rounded">
-          <div><span class="font-semibold text-slate-500 w-12 inline-block">현재:</span> \${plan.current || '미작성'}</div>
-          <div><span class="font-semibold text-slate-500 w-12 inline-block">목표:</span> \${plan.goal || '미작성'}</div>
-          <div><span class="font-semibold text-slate-500 w-12 inline-block">조건:</span> \${plan.conditions || '미작성'}</div>
+          <div><span class="font-semibold text-slate-500 w-12 inline-block">현재:</span> ${plan.current || '미작성'}</div>
+          <div><span class="font-semibold text-slate-500 w-12 inline-block">목표:</span> ${plan.goal || '미작성'}</div>
+          <div><span class="font-semibold text-slate-500 w-12 inline-block">조건:</span> ${plan.conditions || '미작성'}</div>
         </div>
-        <div class="text-[11px] text-slate-700 mt-2">\${stepsHtml || '<div class="text-slate-400 italic">작성된 단계 없음</div>'}</div>
+        <div class="text-[11px] text-slate-700 mt-2">${stepsHtml || '<div class="text-slate-400 italic">작성된 단계 없음</div>'}</div>
       </div>
       <div>
         <div class="font-bold text-slate-800 mb-2 border-b border-emerald-100 pb-1 flex justify-between items-center text-[12px]">
           <span>순서도 캔버스 구성</span>
-          <span class="text-[10px] font-normal bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full shadow-sm">\${s.questionVersion === 3 ? '교사 수동 40점 배점' : \`자동 계산: \${(s.scores?.part3 || 0)}/40점\`}</span>
+          <span class="text-[10px] font-normal bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full shadow-sm">${s.questionVersion === 3 ? '교사 수동 40점 배점' : `자동 계산: ${(s.scores?.part3 || 0)}/40점`}</span>
         </div>
-        <div class="mb-2 text-[11px]">\${blocksHtml || '<div class="text-slate-400 italic">배치된 블록 없음</div>'}</div>
-        <div class="mb-2">\${connsHtml || '<div class="text-slate-400 italic text-[11px]">연결선 없음</div>'}</div>
+        <div class="mb-2 text-[11px]">${blocksHtml || '<div class="text-slate-400 italic">배치된 블록 없음</div>'}</div>
+        <div class="mb-2">${connsHtml || '<div class="text-slate-400 italic text-[11px]">연결선 없음</div>'}</div>
       </div>
-    \`;
+    `;
     p3El.innerHTML = p3Html;
     p3El.style.whiteSpace = 'normal';
   }
