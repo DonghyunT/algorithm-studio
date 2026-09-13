@@ -146,7 +146,11 @@ class EvalService {
         student.answers.part3.questionVersion=session.data().questionVersion||1;
         transaction.set(ref, student);
         return student;
+      }).catch(error => {
+        if (error.code === 'permission-denied') throw new Error('권한 오류: 이전 세션이 꼬였거나(새로고침 요망), 해당 번호를 이미 다른 기기에서 사용 중입니다.');
+        throw error;
       });
+
     }
     const existing = this.read('EVAL_STUDENTS_' + classId, []).find(item => item.numStr === docId);
     if (existing) return existing;

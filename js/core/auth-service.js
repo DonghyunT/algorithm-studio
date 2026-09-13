@@ -31,7 +31,7 @@ window.authService = {
     let user = auth.currentUser;
     if (!user || user.isAnonymous) user = (await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())).user;
     const role = await firebase.firestore().collection('teachers').doc(user.uid).get();
-    if (!role.exists || role.data().enabled !== true) throw new Error('이 Google 계정에는 교사 권한이 없습니다. 관리자에게 계정 등록을 요청해 주세요.');
+    if (!role.exists || role.data().enabled !== true) throw new Error(`교사 권한이 없습니다. Firebase Console의 Firestore 'teachers' 컬렉션에 문서 ID [${user.uid}]로 문서를 생성하고, enabled: true (boolean) 필드를 추가해주세요.`);
     return user;
   },
   async token() {
