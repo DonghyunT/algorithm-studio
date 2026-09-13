@@ -76,8 +76,10 @@ const root=path.resolve(__dirname,'..'),output=path.join(__dirname,'results');
    await action.click();await page.waitForFunction(()=>document.getElementById('teacher-session-status').textContent==='입장 대기');
   });
   await check('subscription failure disables mutations until retry and leaving cleans up the dashboard',async()=>{
-   await page.evaluate(()=>{window.originalListen=evalService.listenSession.bind(evalService);evalService.listenSession=(id,cb,onError)=>{onError(Error('offline'));return()=>{};};initLiveEvalDashboard();});
+   await page.evaluate(()=>{currentLiveStudents=[{num:1,name:'권한 회수 전 이름'}];document.getElementById('classroom-live-modal-title').textContent='권한 회수 전 이름';document.getElementById('classroom-live-detail-modal').classList.remove('hidden');window.originalListen=evalService.listenSession.bind(evalService);evalService.listenSession=(id,cb,onError)=>{onError(Error('permission-denied'));return()=>{};};initLiveEvalDashboard();});
    assert.equal(await status.textContent(),'상태 확인 실패');assert.equal(await action.textContent(),'다시 연결');
+   assert.equal(await page.evaluate(()=>currentLiveStudents.length===0&&currentLiveSession===null&&liveSessionTimer===null),true);
+   assert.equal(await page.locator('#classroom-live-modal-title').textContent(),'');assert.equal(await page.locator('#classroom-live-detail-modal').isVisible(),false);
    await page.evaluate(()=>evalService.listenSession=originalListen);await action.click();await page.waitForFunction(()=>document.getElementById('teacher-session-status').textContent==='입장 대기');
    await page.evaluate(()=>switchUnit('roadmap'));
    assert.equal(await page.evaluate(()=>liveSessionTimer===null&&liveSessionUnsub===null&&liveEvalUnsub===null),true);

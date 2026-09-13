@@ -60,12 +60,13 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
   });
   await check('pending login can be dismissed and late completion does not change the chosen page',async()=>{
    await page.evaluate(()=>switchUnit('roadmap'));await page.locator('#nav-btn-classroom').click();
-   await page.evaluate(()=>{window.savedLogin=authService.teacher;authService.teacher=()=>new Promise(r=>window.resolveLogin=r);});
+   await page.evaluate(()=>{window.savedLogin=authService.teacher;window.savedSignOut=authService.signOut;window.cancelledLoginCleared=false;authService.signOut=async()=>{cancelledLoginCleared=true;await savedSignOut.call(authService);};authService.teacher=()=>new Promise(r=>window.resolveLogin=r);});
    await page.locator('#teacher-login-google').click();await page.keyboard.press('Escape');
    assert.equal(await page.locator('#teacher-login-dialog').evaluate(e=>e.open),false);
    await page.evaluate(()=>{switchUnit('unit1','concept');resolveLogin({uid:'late'});});
    await page.waitForFunction(()=>!teacherLoginPending);assert.ok(await page.locator('#view-concept').isVisible());assert.equal(await page.evaluate(()=>isTeacherAuthenticated),false);
-   await page.evaluate(()=>authService.teacher=savedLogin);
+   assert.equal(await page.evaluate(()=>cancelledLoginCleared),true);
+   await page.evaluate(()=>{authService.teacher=savedLogin;authService.signOut=savedSignOut;});
   });
   await check('restored teacher is detected on eval entry and slow role lookup cannot hijack a later navigation',async()=>{
    await page.evaluate(()=>{window.savedExisting=authService.existingTeacher;window.savedDemo=authService.isDemo;authService.isDemo=()=>false;authService.existingTeacher=async()=>({uid:'restored'});});

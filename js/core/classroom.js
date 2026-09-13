@@ -95,8 +95,8 @@ async function loginTeacher(method) {
   dialog.querySelectorAll('button:not([data-login-cancel])').forEach(button=>button.disabled=true);
   document.getElementById('teacher-login-feedback').textContent='로그인을 확인하고 있습니다…';
   try {
-    await window.authService.teacher({method,password:input.value});
-    if(isAssessmentLocked() || generation !== teacherLoginGeneration || !dialog.open)return;
+    const user=await window.authService.teacher({method,password:input.value});
+    if(isAssessmentLocked() || generation !== teacherLoginGeneration || !dialog.open){await window.authService.discardTeacherLogin(user);return;}
     isTeacherAuthenticated = true;
     dialog.close();
     currentActiveUnit='classroom';
@@ -229,19 +229,31 @@ function initLiveEvalDashboard() {
       renderTeacherSessionControl();
     }, () => {
       if (generation !== liveDashboardGeneration) return;
-      liveSessionError = true;
-      renderTeacherSessionControl();
+      clearUnavailableTeacherData();
     });
+    if(generation!==liveDashboardGeneration){liveSessionUnsub?.();liveSessionUnsub=null;return;}
     liveEvalUnsub = window.evalService.listenStudents(classId, (students) => {
       if (generation !== liveDashboardGeneration) return;
       const label=document.getElementById('classroom-connection-status');
       if(label) label.textContent=window.evalService.isDemo() ? '로컬 시연 · 운영 DB와 분리됨' : '답안 수신됨 · 연결 상태는 갱신 시 확인';
       currentLiveStudents = students || [];
       renderLiveGrid(currentLiveStudents);
-    }, error=>{if(generation!==liveDashboardGeneration)return;const label=document.getElementById('classroom-connection-status');if(label)label.textContent='답안 수신 실패 · 연결과 권한 확인 필요';setTeacherSessionFeedback(error.message);});
+    }, ()=>{if(generation===liveDashboardGeneration)clearUnavailableTeacherData();});
+    if(generation!==liveDashboardGeneration){liveEvalUnsub?.();liveEvalUnsub=null;return;}
     liveSessionTimer = setInterval(renderTeacherSessionControl, 1000);
     } catch(error) { liveSessionError = true; setTeacherSessionFeedback(error.message); renderTeacherSessionControl(); }
   }
+}
+
+function clearUnavailableTeacherData() {
+  stopLiveEvalDashboard();
+  currentLiveStudents=[];currentLiveSession=null;liveSessionError=true;
+  renderLiveGrid([]);closeLiveStudentModal();
+  ['classroom-live-modal-title','classroom-live-modal-p1','classroom-live-modal-p2','classroom-live-modal-p3'].forEach(id=>{const el=document.getElementById(id);if(el)el.replaceChildren();});
+  const score=document.getElementById('classroom-live-override-score');if(score)score.value='';
+  const label=document.getElementById('classroom-connection-status');if(label)label.textContent='자료 표시 중단 · 연결과 담당 학급 권한을 확인해 주세요';
+  setTeacherSessionFeedback('학생 자료를 표시할 수 없어 화면을 비웠습니다. 연결을 확인하고, 담당 반이 바뀌었다면 다시 로그인해 주세요.');
+  renderTeacherSessionControl();
 }
 
 function stopLiveEvalDashboard() {

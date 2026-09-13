@@ -40,3 +40,9 @@ test('restored Google and temporary users are role checked without a new login, 
     await h.service.signOut();assert.equal(await h.service.existingTeacher(),null);
   }
 });
+
+test('discarding a cancelled login revokes its session but preserves a newer account',async()=>{
+ const h=harness({user:{uid:'late'}});await h.service.existingTeacher();
+ await h.service.discardTeacherLogin({uid:'late'});assert.equal(h.auth.currentUser,null);assert.equal(h.service.teacherRole,null);
+ h.auth.currentUser={uid:'newer'};await h.service.discardTeacherLogin({uid:'late'});assert.equal(h.auth.currentUser.uid,'newer');
+});
