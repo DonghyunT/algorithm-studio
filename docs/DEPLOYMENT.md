@@ -1,5 +1,15 @@
 # 운영 배포 기록
 
+## 2026-09-13 교사 평가 버튼 통합·노트북 인수인계
+
+* 사용자가 다른 PC 인수인계 준비·안내를 먼저 마친 뒤 구현·검증·병합·배포하도록 승인했습니다. `docs/HANDOFF.md`와 README·개발 문서를 먼저 main `f174499`에 반영하고 안내했습니다.
+* 제품 `363a49a`, main 병합 `dfdf7e067c9ab6cf61fd8ee610d3f9d27a020515`. 준비·시작·종료 버튼을 상태에 맞는 단일 버튼으로 통합하고 상태·시간·입장·제출 인원을 분리했습니다. [구현·검토 기록](TEACHER_CONTROLS_REVIEW.md).
+* [GitHub main 검사](https://github.com/DonghyunT/algorithm-studio/actions/runs/34726788843)는 success입니다.
+* 문법·참조 43개 스크립트, 기본/API 21개, 교사 UI 8개, 학생 평가 회귀 10개 통과. 페이지 예외·콘솔 오류 없음. 운영 DB 답안·회차·보안 규칙·인증·환경 변수는 변경하지 않았습니다.
+* Vercel GitHub 연동 Production 배포 `algorithm-studio-7jskw5vad-donghyun2.vercel.app` 성공. GitHub deployment `6415770196`의 `success` 상태와 병합 SHA 일치를 확인했습니다. 이 PC의 Vercel CLI 조회는 ByteString 오류로 실패하여 GitHub 상태 API와 운영 파일 비교로 검증했습니다.
+* 2026-09-13 08:59 KST [기존 운영 주소](https://algorithm-studio-ten.vercel.app/) 재확인: HTML·CSS·JS 15개가 제품과 일치, 교사 단일 버튼 마크업 반영, 1440/1024/390px 주요 탐색·평가 입장 동작 통과. API 메서드 405·비인증 401 확인, 페이지·콘솔 오류 0개. [운영 결과](../tests/results/teacher-production.json), [운영 홈](../tests/results/teacher-production-home.png), [좁은 창](../tests/results/teacher-production-390.png).
+* 실제 교사 계정으로 운영 시험을 시작·종료하지 않았습니다. 상태 전환·동시 화면 변경·실패 복구는 로컬 시연과 트랜잭션 모의 검사로 검증했습니다. 이후 기록 커밋은 제품 파일을 변경하지 않습니다.
+
 ## 2026-09-13 작업 공간·수행평가 자유 설계 운영 배포
 
 * 사용자가 빌드 완료 후 간단한 재검증, main 병합 및 운영 배포를 명시적으로 승인했습니다.
