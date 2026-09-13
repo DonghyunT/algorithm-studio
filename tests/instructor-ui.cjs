@@ -9,6 +9,18 @@ const production=process.argv.includes('--production');
  const output=path.join(__dirname,'results',production?'instructor-production':'instructor-ui');fs.mkdirSync(output,{recursive:true});
  try{
   await page.goto(production?'https://algorithm-studio-ten.vercel.app/':'http://127.0.0.1:4173/index.html?demo=1',{waitUntil:'networkidle'});
+  await page.locator('#nav-btn-classroom').click();
+  assert.equal(await page.locator('#teacher-login-temporary').textContent(),'비밀번호 로그인');
+  await page.locator('#teacher-login-temporary').click();
+  assert.equal(await page.locator('label[for="teacher-login-password"]').textContent(),'교사 비밀번호');
+  for(const width of [420,390,320]){
+   await page.setViewportSize({width,height:900});
+   assert.equal(await page.locator('#teacher-login-temporary').evaluate(el=>{const range=document.createRange();range.setStart(el.firstChild,el.textContent.length-3);range.setEnd(el.firstChild,el.textContent.length);return range.getClientRects().length;}),1);
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  }
+  await page.screenshot({path:path.join(output,'login-320.png'),fullPage:true});
+  await page.keyboard.press('Escape');await page.setViewportSize({width:1440,height:900});
+  results.push('neutral login wording and unbroken login word at 420, 390, 320px');
   if(production){
    assert.equal(await page.evaluate(()=>!!window.LOCAL_PREVIEW_CONFIG||!!window.localPreview||authService.isDemo()),false);
    const password=fs.readFileSync(path.join(__dirname,'../.env.instructor.local'),'utf8').match(/^INSTRUCTOR_PASSWORD=(.+)$/m)[1].trim();
