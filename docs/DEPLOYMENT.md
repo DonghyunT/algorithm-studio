@@ -2,6 +2,8 @@
 
 ## 2026-09-14 강사 담당 반 권한·AI 점검 개선 운영 배포
 
+**최종 보완 배포:** 공유 PC 인증 취소·권한 오류 시 학생 자료 제거를 제품 `5affdfd`, 운영 병합 `b530f1d21703fe3a7fdec01041170578a4c66efc`로 반영했습니다. Vercel Production `algorithm-studio-19tkv82od-donghyun2.vercel.app`, deployment `6423501427` success. [GitHub 검사](https://github.com/DonghyunT/algorithm-studio/actions/runs/34767303530) success. 단위/API 37개와 관련 교사 UI 18흐름, 기본 UI 24·학생 평가 10개를 재검증했습니다. 실제 운영 강사 UI 4흐름도 다시 통과했고 페이지·콘솔 오류가 없으며 최종 인증·교사 JS가 로컬 코드와 일치했습니다. Firebase 역할·보안 규칙은 최초 배포 이후 바꾸지 않았습니다. 후속 문서 커밋은 제품 코드가 동일합니다.
+
 * 사용자 승인에 따라 기존 선생님 Google 계정은 전체 반, 강사님 비밀번호 계정은 10·11반으로 설정했습니다. Firestore 규칙 컴파일·배포와 이메일/비밀번호 공급자 활성화를 완료했습니다. 계정 상세와 비밀번호 전달 방식은 [강사 계정 기록](INSTRUCTOR_ACCESS_REVIEW.md)에 있습니다. 비밀번호 값은 Git·문서·배포에서 제외합니다.
 * 제품 `a1737d2`, 운영 병합 `b0bd14e6ed143aff745457a11b047b81d36e06cf`. 직전 로컬 제품 `46b644b`와 `3842f58`도 함께 반영했습니다. 튜터 로봇 숨김·펼침, 교사 로그인 선택과 수행평가 진입, 실습 AI 통과 후 제출, 의미 기반 AI 점검, 변수·콘솔 영역 개선을 포함합니다.
 * Vercel Production `algorithm-studio-gji3ourif-donghyun2.vercel.app`, GitHub deployment `6423414156`의 success와 정확한 병합 SHA를 확인했습니다. [GitHub 검사](https://github.com/DonghyunT/algorithm-studio/actions/runs/34766839896) success.
