@@ -459,14 +459,11 @@
         const row = document.createElement('div');
         row.className = "p-3.5 rounded-2xl bg-slate-800/90 border border-slate-700 flex flex-col gap-1.5 shadow-xs";
         row.innerHTML = `
-          <div class="flex items-center justify-between text-xs text-blue-400 font-bold">
-            <span class="flex items-center gap-1.5">
-              <span class="w-5 h-5 rounded-full bg-blue-500/20 text-blue-300 flex items-center justify-center text-[10px]">#${idx + 1}</span>
-              Step ${idx + 1}
-            </span>
-            <span class="text-slate-400 font-mono text-[11px] bg-slate-900/60 px-2 py-0.5 rounded-md">[분해 액션: ${logItem.actions.join(', ')}]</span>
+          <div class="flex items-center gap-2 text-xs text-blue-400 font-bold mb-1">
+            <span class="w-5 h-5 rounded-full bg-blue-500/20 text-blue-300 flex items-center justify-center text-[10px]">#${idx + 1}</span>
+            <span>Step ${idx + 1}</span>
           </div>
-          <div class="text-slate-100 font-sans text-xs sm:text-sm font-medium pl-1">💬 "${logItem.userText}"</div>
+          <div class="text-slate-100 font-sans text-sm font-medium pl-1">💬 "${logItem.userText}"</div>
         `;
         stepsContainer.appendChild(row);
       });
@@ -504,7 +501,7 @@
       copyText += `[내가 작성한 알고리즘 순서도]\n`;
 
       validStudentPromptsLog.forEach((log, idx) => {
-        copyText += `${idx + 1}단계: "${log.userText}" ➔ [${log.actions.join(', ')}]\n`;
+        copyText += `${idx + 1}단계: "${log.userText}"\n`;
       });
 
       navigator.clipboard.writeText(copyText).then(() => {
