@@ -14,6 +14,17 @@
   7. 순서도 블록 실행 순서 정렬 및 뱃지 번호화 (`sortBlocksByExecution`): 생성 순서가 아닌 실제 실행 순서(`1. 단말 🟣 시작` ➔ `2. 자료 🟢` ➔ `3. 판단 🟠` ➔ `4. 처리 🔵` ➔ ... ➔ `종료`)대로 배치. 사이클(루프백 반복) 발생 시에도 `visited Set`을 통해 무한 루프 없이 안전 처리되며, 고립 블록도 누락 없이 뒤쪽에 보존.
   8. 대형/세로 순서도 반응형 캔버스 자동 축소 및 라이트박스 스크롤: 썸네일(800x340)은 Bounding Box 기준 100% 자동 축소 맞춤, [크게 보기] 라이트박스는 순서도 길이에 맞춰 캔버스 높이 동적 확장(`max-h-[75vh] overflow-auto`) 지원.
   9. `evalService.getSession(classId)` 스냅샷 조회, `leaveWaitingRoom` 퇴장 로직, 순서도 실행 정렬 단위 테스트(42개 전체 통과) 완료.
+  10. **48문항 문제 은행(Question Bank) 모듈 구축 및 결정론적 난이도 추출 (`js/data/eval-question-bank.js`, `js/data/eval-questions.js`)**:
+      - 2022 개정 중2 정보과 교육과정 부합 및 선생님 요청(변수/디버깅 이론 100% 배제, 경계값 판정 및 단말/자료/판단/처리 구분 집중)
+      - 총 48문항 풀: Part 1 객관식 30문항(하 12[A형 9, B형 3], 중 12, 상 6), Part 2 단답형 18문항(하 6, 중 6, 상 6[실행 추적 Trace 3, 비문학 복합 시나리오 3]). 단답형 글자 수 및 풍부한 유사 정답(`answers: [...]`) 등록 완료.
+      - 학생별 시드 기반 PRNG(`attemptId + '_' + classId + '_' + studentNum`) 난이도별 추출: Part 1 총 10문항 [하 4(A 3+B 1), 중 4, 상 2], Part 2 총 6문항 [하 2, 중 2, 상 2(반복 1, 시나리오 1)]. 새로고침(F5) 시에도 `answers.assignedQuestions` 영구 불변 및 교사 채점 모달 100% 일치 보장.
+  11. **학교 디벗(갤럭시 탭 S7~S9 11~12인치) 및 태블릿 터치/뷰포트 최적화**:
+      - 가상 키보드 팝업 시 입력창 가림 방지: `<meta name="viewport" ... interactive-widget=resizes-content>`, `.eval-question-card` / `#eval-part2-list > div`에 `scroll-margin-bottom: 240px`, 포커스 시 `scrollIntoView({behavior:'smooth',block:'center'})`.
+      - 당겨서 새로고침 방지: `html, body { overscroll-behavior-y: contain; }`.
+      - 순서도 캔버스 터치 제스처 잠금: `touch-action: none`, `touchstart`/`touchmove`/`touchend`/`touchcancel` 이벤트 완벽 지원으로 손가락 드래그 시 브라우저 스크롤 간섭 방지.
+      - 팔레트 기호 원터치/클릭 추가: 모바일 브라우저 HTML5 Drag&Drop 미지원 환경 대응으로 단말/자료/판단/처리 블록 터치 시 캔버스 정중앙 자동 배치 지원.
+      - 36px draw.io 자석 스냅(Magnet Snap) 터치 최적화 및 시험 중 화면 이탈 감지(`visibilitychange`) 친절 토스트 안내.
+      - 신규 문항 난이도 추출·결정론성·만점(60점) 자동 채점 단위 테스트(43개 전체 통과) 완료.
 * **최신 배포(2026-09-14):** 나만의 백지 AI 검사 캐싱, 수행평가 대기실 기본 OFF(`ended`) 정책, 교사용 학생 모달 상세 답안 바인딩 복원, Part 3 Solar AI 채점 프롬프트 엄격성 강화 배포 완료 (`dd28f17`, `9ebf6bc`).
 * **최신 배포(2026-09-14):** AI 일일 안전 쿼터 1,000회 상향 및 사용자 액셔너블 에러 UI 개선(Firestore 300회 쿼터 도달 차단 해소, 한도 도달 및 잠시 대기 전용 안내 배지 추가). 제품 `8d0a474`, 운영 병합 `1611d19`; GitHub CI 및 Vercel Production 배포 완료. 운영 주소에서 실시간 호출 복구(HTTP 200) 및 사용량 카운터 정상 증가(300 → 301) 확인 완료.
 * **이전 배포:** 나만의 백지 AI 검사 기준 고도화(자연어 1단계 ↔ 순서도 2~3개 구체화 시 칭찬 및 기획서 카드 추가 유도, 입출력/처리 기호 모호함 관용, 단일 if문 및 일상 루프백 허용, AI 한 줄 텍스트 흐름 요약 추가, 파서 마크다운 정규식 유연화) 완료. 제품 `7f5115a`, 운영 병합 `f25d652`.
