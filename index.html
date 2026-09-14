@@ -2242,7 +2242,11 @@
               <i class="fa-solid fa-users text-indigo-600"></i>
               <span>컴퓨터실 27인 실시간 좌석 현황판 (클릭 시 개별 답안 조회 및 점수 조정)</span>
             </span>
-            <div class="flex items-center gap-3 text-xs">
+            <div class="flex items-center gap-2.5 text-xs">
+              <button id="classroom-blind-toggle" type="button" onclick="toggleScoreBlindMode()" class="px-2.5 py-1 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 cursor-pointer bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100 shadow-2xs mr-1" title="교실 빔프로젝터에 화면을 띄울 때 학생들의 실시간 점수를 가려 정답 역추적 및 비교를 방지합니다.">
+                <i id="classroom-blind-toggle-icon" class="fa-solid fa-eye-slash text-amber-600"></i>
+                <span id="classroom-blind-toggle-label">스크린 점수 숨김 (보호 중)</span>
+              </button>
               <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-slate-300"></span> 미접속</span>
               <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-amber-400"></span> 대기중</span>
               <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-blue-500"></span> 풀이중</span>
@@ -2657,6 +2661,25 @@
             <i class="fa-solid fa-rotate-left text-[11px]"></i> <span>재시험 허용 (답안 초기화 후 시험장 복귀)</span>
           </button>
         </div>
+      </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 교사용 순서도 다이어그램 고해상도 확대 모달 (Lightbox) -->
+  <!-- ========================================== -->
+  <div id="classroom-flowchart-lightbox" class="fixed inset-0 z-[80] bg-slate-900/75 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-5xl w-full p-5 space-y-3 fade-enter">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">📐</span>
+          <h4 id="classroom-flowchart-lightbox-title" class="text-base font-black text-slate-900">순서도 다이어그램 상세 보기</h4>
+        </div>
+        <button type="button" onclick="closeFlowchartModalPreview()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-xs transition cursor-pointer">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="w-full overflow-auto rounded-2xl border border-slate-200 bg-slate-50 p-3 flex items-center justify-center max-h-[75vh]">
+        <canvas id="classroom-lightbox-flowchart-canvas" width="1100" height="650" class="max-w-full h-auto object-contain bg-white rounded-xl shadow-xs"></canvas>
       </div>
     </div>
   </div>

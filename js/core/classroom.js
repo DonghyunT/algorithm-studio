@@ -31,6 +31,8 @@ let currentLiveSession = null;
 let liveSessionError = false;
 let teacherSessionPending = false;
 let teacherSessionPendingLabel = '';
+let isScoreBlindMode = true; // 프로젝터 투사 시 학생 실시간 점수 유출 방지 (기본 ON)
+let currentModalStudent = null;
 
 // 1. 클래스룸 데이터 로드 및 초기화
 function getClassroomData() { return Object.fromEntries(DEFAULT_CLASSES.map(name => [name, []])); }
@@ -485,14 +487,24 @@ function renderLiveGrid(students = []) {
         statusBg = "bg-blue-50/80 border-blue-400 text-blue-900";
         const pCount = (Number(s.progress?.part1) || 0) + (Number(s.progress?.part2) || 0);
         const currentObjScore = (s.scores?.part1 || 0) + (s.scores?.part2 || 0);
-        statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-600 text-white font-bold animate-pulse">풀이중 (${pCount}문항 · ${currentObjScore}점)</span>`;
+        if (isScoreBlindMode) {
+          statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-600 text-white font-bold animate-pulse">풀이중 (${pCount}/16문항)</span>`;
+          scoreDisplay = `<span class="text-xs text-slate-400 font-medium">풀이 진행 중</span>`;
+        } else {
+          statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-600 text-white font-bold animate-pulse">풀이중 (${pCount}문항 · ${currentObjScore}점)</span>`;
+          scoreDisplay = `<span class="text-xs text-slate-500 font-bold font-mono">${currentObjScore}점 (임시)</span>`;
+        }
       } else if (s.status === 'submitted') {
         statusBg = "bg-emerald-50 border-emerald-400 text-emerald-950 shadow-xs";
         const finalScore = (s.scores?.teacherOverride !== null && s.scores?.teacherOverride !== undefined)
           ? s.scores.teacherOverride
           : (s.scores?.total || 0);
         statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-600 text-white font-bold">제출완료</span>`;
-        scoreDisplay = `<span class="text-sm font-black text-emerald-700">${s.scores?.pendingReview ? '소계 ' + ((s.scores?.part1 || 0) + (s.scores?.part2 || 0)) + '점 (검토대기)' : finalScore + '점'}</span>`;
+        if (isScoreBlindMode) {
+          scoreDisplay = `<span class="text-xs text-emerald-700 font-bold">제출 완료 (비공개)</span>`;
+        } else {
+          scoreDisplay = `<span class="text-sm font-black text-emerald-700">${s.scores?.pendingReview ? '소계 ' + ((s.scores?.part1 || 0) + (s.scores?.part2 || 0)) + '점 (검토대기)' : finalScore + '점'}</span>`;
+        }
       }
     }
 
@@ -516,6 +528,26 @@ function renderLiveGrid(students = []) {
   gridContainer.innerHTML = html;
 }
 
+// 칠판 프로젝터 점수 블라인드 토글 (학생 실시간 점수 유출 방지)
+function toggleScoreBlindMode() {
+  isScoreBlindMode = !isScoreBlindMode;
+  const btn = document.getElementById('classroom-blind-toggle');
+  const icon = document.getElementById('classroom-blind-toggle-icon');
+  const label = document.getElementById('classroom-blind-toggle-label');
+  if (btn && icon && label) {
+    if (isScoreBlindMode) {
+      btn.className = "px-2.5 py-1 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 cursor-pointer bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100 shadow-2xs mr-1";
+      icon.className = "fa-solid fa-eye-slash text-amber-600";
+      label.textContent = "스크린 점수 숨김 (보호 중)";
+    } else {
+      btn.className = "px-2.5 py-1 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 cursor-pointer bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200 shadow-2xs mr-1";
+      icon.className = "fa-solid fa-eye text-indigo-600";
+      label.textContent = "스크린 점수 표시 중";
+    }
+  }
+  renderLiveGrid(currentLiveStudents);
+}
+
 // 나이스 CSV 다운로드
 function handleTeacherExportCSV() {
   const classId = getClassIdFromSelected();
@@ -524,10 +556,278 @@ function handleTeacherExportCSV() {
   }
 }
 
+/**
+ * 교사용 학생 순서도 다이어그램 Canvas 2D 고해상도 미니어처 렌더링 엔진
+ * - 순수 HTML5 Canvas API 사용 (외부 캡처 라이브러리 Zero)
+ * - 엔트리 표준 4대 기호 색상 완벽 일치 (단말 🟣, 자료 🟢, 판단 🟠, 처리 🔵)
+ */
+function drawFlowchartPreview(canvas, blocks = [], connections = []) {
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  const W = canvas.width;
+  const H = canvas.height;
+
+  // 1. 캔버스 배경 및 격자 도트
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = "#f1f5f9";
+  for (let x = 16; x < W; x += 24) {
+    for (let y = 16; y < H; y += 24) {
+      ctx.fillRect(x, y, 2, 2);
+    }
+  }
+
+  // 2. 블록 없을 때 안내
+  if (!Array.isArray(blocks) || blocks.length === 0) {
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "bold 14px 'Pretendard', sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("배치된 순서도 블록이 없습니다.", W / 2, H / 2);
+    return;
+  }
+
+  // 둥근 모서리 사각형 헬퍼
+  const drawRoundRect = (x, y, w, h, r, fill, stroke) => {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+    if (fill) ctx.fill();
+    if (stroke) ctx.stroke();
+  };
+
+  // 3. 전체 블록의 경계 상자(Bounding Box) 계산
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  blocks.forEach(b => {
+    const bw = b.shape === 'decision' ? 220 : (b.shape === 'terminal' ? 200 : (b.shape === 'io' ? 220 : 210));
+    const bh = b.shape === 'decision' ? 120 : 60;
+    const bx = Number(b.x) || 0;
+    const by = Number(b.y) || 0;
+    if (bx < minX) minX = bx;
+    if (by < minY) minY = by;
+    if (bx + bw > maxX) maxX = bx + bw;
+    if (by + bh > maxY) maxY = by + bh;
+  });
+
+  const contentW = Math.max(maxX - minX, 120);
+  const contentH = Math.max(maxY - minY, 120);
+  const pad = 36;
+  const availW = W - pad * 2;
+  const availH = H - pad * 2;
+  const scale = Math.min(availW / contentW, availH / contentH, 1.0);
+
+  const offsetX = (W - contentW * scale) / 2 - minX * scale;
+  const offsetY = (H - contentH * scale) / 2 - minY * scale;
+
+  const toX = (x) => offsetX + x * scale;
+  const toY = (y) => offsetY + y * scale;
+
+  // 4. 연결선 (connections) 드로잉
+  (connections || []).forEach(conn => {
+    const fromB = blocks.find(b => b.id === conn.from);
+    const toB = blocks.find(b => b.id === conn.to);
+    if (!fromB || !toB) return;
+
+    const fromBW = (fromB.shape === 'decision' ? 220 : (fromB.shape === 'terminal' ? 200 : (fromB.shape === 'io' ? 220 : 210)));
+    const fromBH = (fromB.shape === 'decision' ? 120 : 60);
+    const toBW = (toB.shape === 'decision' ? 220 : (toB.shape === 'terminal' ? 200 : (toB.shape === 'io' ? 220 : 210)));
+    const toBH = (toB.shape === 'decision' ? 120 : 60);
+
+    let p1X = (Number(fromB.x) || 0) + fromBW / 2, p1Y = (Number(fromB.y) || 0) + fromBH;
+    if (conn.fromPort === 'right' || conn.fromPort === 'no') { p1X = (Number(fromB.x) || 0) + fromBW; p1Y = (Number(fromB.y) || 0) + fromBH / 2; }
+    else if (conn.fromPort === 'left') { p1X = (Number(fromB.x) || 0); p1Y = (Number(fromB.y) || 0) + fromBH / 2; }
+    else if (conn.fromPort === 'top' || conn.fromPort === 'in') { p1X = (Number(fromB.x) || 0) + fromBW / 2; p1Y = (Number(fromB.y) || 0); }
+
+    let p2X = (Number(toB.x) || 0) + toBW / 2, p2Y = (Number(toB.y) || 0);
+    let entryDir = 'down';
+    if (conn.toPort === 'left') { p2X = (Number(toB.x) || 0); p2Y = (Number(toB.y) || 0) + toBH / 2; entryDir = 'right'; }
+    else if (conn.toPort === 'right') { p2X = (Number(toB.x) || 0) + toBW; p2Y = (Number(toB.y) || 0) + toBH / 2; entryDir = 'left'; }
+    else if (conn.toPort === 'bottom' || conn.toPort === 'out') { p2X = (Number(toB.x) || 0) + toBW / 2; p2Y = (Number(toB.y) || 0) + toBH; entryDir = 'up'; }
+
+    const x1 = toX(p1X), y1 = toY(p1Y);
+    const x2 = toX(p2X), y2 = toY(p2Y);
+
+    let strokeCol = "#475569";
+    let badgeText = "";
+    if (conn.fromPort === 'yes') { strokeCol = "#059669"; badgeText = "예"; }
+    else if (conn.fromPort === 'no') { strokeCol = "#d97706"; badgeText = "아니오"; }
+    else if (conn.fromPort === 'left') { strokeCol = "#d97706"; badgeText = "분기"; }
+
+    ctx.strokeStyle = strokeCol;
+    ctx.lineWidth = Math.max(1.8, 2.2 * scale);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+
+    if (conn.fromPort === 'right' || conn.fromPort === 'no') {
+      const midX = Math.max(x1 + 18 * scale, (x1 + x2) / 2);
+      ctx.lineTo(midX, y1);
+      ctx.lineTo(midX, y2);
+      ctx.lineTo(x2, y2);
+    } else if (conn.fromPort === 'left') {
+      const midX = Math.min(x1 - 18 * scale, (x1 + x2) / 2);
+      ctx.lineTo(midX, y1);
+      ctx.lineTo(midX, y2);
+      ctx.lineTo(x2, y2);
+    } else {
+      if (y2 > y1 + 10) {
+        const midY = (y1 + y2) / 2;
+        ctx.lineTo(x1, midY);
+        ctx.lineTo(x2, midY);
+        ctx.lineTo(x2, y2);
+      } else {
+        const loopX = x2 < x1 ? Math.min(x1 - 35 * scale, x2 - 35 * scale) : Math.max(x1 + 35 * scale, x2 + 35 * scale);
+        ctx.lineTo(x1, y1 + 14 * scale);
+        ctx.lineTo(loopX, y1 + 14 * scale);
+        ctx.lineTo(loopX, y2 - 14 * scale);
+        ctx.lineTo(x2, y2 - 14 * scale);
+        ctx.lineTo(x2, y2);
+      }
+    }
+    ctx.stroke();
+
+    // 화살표 머리
+    const headLen = Math.max(6, 8 * scale);
+    ctx.fillStyle = strokeCol;
+    ctx.beginPath();
+    if (entryDir === 'right') {
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 - headLen, y2 - headLen * 0.55);
+      ctx.lineTo(x2 - headLen, y2 + headLen * 0.55);
+    } else if (entryDir === 'left') {
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 + headLen, y2 - headLen * 0.55);
+      ctx.lineTo(x2 + headLen, y2 + headLen * 0.55);
+    } else if (entryDir === 'up') {
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 - headLen * 0.55, y2 + headLen);
+      ctx.lineTo(x2 + headLen * 0.55, y2 + headLen);
+    } else {
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 - headLen * 0.55, y2 - headLen);
+      ctx.lineTo(x2 + headLen * 0.55, y2 - headLen);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    // 분기 뱃지 텍스트
+    if (badgeText) {
+      const badgeX = conn.fromPort === 'left' ? x1 - 16 * scale : x1 + 16 * scale;
+      const badgeY = y1 + 10 * scale;
+      ctx.fillStyle = strokeCol;
+      ctx.font = `bold ${Math.max(10, Math.round(11 * scale))}px 'Pretendard', sans-serif`;
+      ctx.textAlign = conn.fromPort === 'left' ? 'right' : 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(badgeText, badgeX, badgeY);
+    }
+  });
+
+  // 5. 블록 (blocks) 드로잉 (엔트리 표준 4대 기호 색상)
+  blocks.forEach(b => {
+    const bw = (b.shape === 'decision' ? 220 : (b.shape === 'terminal' ? 200 : (b.shape === 'io' ? 220 : 210)));
+    const bh = (b.shape === 'decision' ? 120 : 60);
+    const x = toX(Number(b.x) || 0);
+    const y = toY(Number(b.y) || 0);
+    const w = bw * scale;
+    const h = bh * scale;
+
+    ctx.save();
+    let fill = "#eff6ff";
+    let stroke = "#2563eb"; // default proc 🔵
+
+    if (b.shape === 'terminal') {
+      fill = "#f5f3ff"; stroke = "#7c3aed"; // 🟣 단말
+    } else if (b.shape === 'io') {
+      fill = "#ecfdf5"; stroke = "#059669"; // 🟢 자료
+    } else if (b.shape === 'decision') {
+      fill = "#fffbeb"; stroke = "#d97706"; // 🟠 판단
+    }
+
+    ctx.fillStyle = fill;
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = Math.max(1.5, 2.2 * scale);
+
+    if (b.shape === 'terminal') {
+      drawRoundRect(x, y, w, h, Math.min(w / 2, h / 2), true, true);
+    } else if (b.shape === 'decision') {
+      ctx.beginPath();
+      ctx.moveTo(x + w / 2, y);
+      ctx.lineTo(x + w, y + h / 2);
+      ctx.lineTo(x + w / 2, y + h);
+      ctx.lineTo(x, y + h / 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else if (b.shape === 'io') {
+      const skew = Math.min(w * 0.15, 20 * scale);
+      ctx.beginPath();
+      ctx.moveTo(x + skew, y);
+      ctx.lineTo(x + w, y);
+      ctx.lineTo(x + w - skew, y + h);
+      ctx.lineTo(x, y + h);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      drawRoundRect(x, y, w, h, 8 * scale, true, true);
+    }
+
+    // 블록 텍스트 렌더링
+    const fontSize = Math.max(10, Math.min(13, Math.round(13 * scale)));
+    ctx.font = `bold ${fontSize}px 'Pretendard', sans-serif`;
+    ctx.fillStyle = "#1e293b";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    const text = (b.text || '').trim() || (b.shape === 'terminal' ? '시작/끝' : '블록 내용');
+    const maxTextW = b.shape === 'decision' ? w * 0.65 : w * 0.85;
+    let displayText = text;
+    if (ctx.measureText(displayText).width > maxTextW) {
+      while (displayText.length > 2 && ctx.measureText(displayText + '…').width > maxTextW) {
+        displayText = displayText.slice(0, -1);
+      }
+      displayText += '…';
+    }
+    ctx.fillText(displayText, x + w / 2, y + h / 2);
+
+    ctx.restore();
+  });
+}
+
+function openFlowchartModalPreview() {
+  if (!currentModalStudent) return;
+  const lightbox = document.getElementById('classroom-flowchart-lightbox');
+  const canvas = document.getElementById('classroom-lightbox-flowchart-canvas');
+  const title = document.getElementById('classroom-flowchart-lightbox-title');
+  if (!lightbox || !canvas) return;
+
+  if (title) {
+    title.textContent = `${currentSelectedClass} ${currentModalStudent.num}번 ${currentModalStudent.name} 학생 순서도 다이어그램`;
+  }
+  drawFlowchartPreview(canvas, currentModalStudent.answers?.part3?.blocks, currentModalStudent.answers?.part3?.connections);
+  lightbox.classList.remove('hidden');
+}
+
+function closeFlowchartModalPreview() {
+  const lightbox = document.getElementById('classroom-flowchart-lightbox');
+  if (lightbox) lightbox.classList.add('hidden');
+}
+
 // 학생 개별 답안 상세 팝업 및 점수 수동 조정 / 재시험 허용
 function openLiveStudentModal(studentNum) {
   const s = currentLiveStudents.find(item => item.num === studentNum);
   if (!s) return;
+  currentModalStudent = s;
 
   const modal = document.getElementById('classroom-live-detail-modal');
   if (!modal) return;
@@ -665,12 +965,34 @@ function openLiveStudentModal(studentNum) {
           <span>순서도 캔버스 구성</span>
           <span class="text-[10px] font-normal bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full shadow-sm">${s.questionVersion === 3 ? '교사 수동 40점 배점' : `자동 계산: ${(s.scores?.part3 || 0)}/40점`}</span>
         </div>
+        <!-- 캔버스 미니어처 뷰어 영역 -->
+        <div class="my-3 bg-slate-50 border border-slate-200 rounded-2xl p-3 shadow-2xs">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-200 mb-2">
+            <span class="text-xs font-black text-slate-800 flex items-center gap-1.5">
+              <i class="fa-solid fa-diagram-project text-emerald-600"></i>
+              <span>순서도 다이어그램 시각화 (엔트리 표준 색상)</span>
+            </span>
+            <button type="button" onclick="openFlowchartModalPreview()" class="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded-xl text-[11px] font-bold text-slate-700 transition flex items-center gap-1 shadow-2xs cursor-pointer">
+              <i class="fa-solid fa-up-right-and-down-left-from-center text-[10px] text-slate-500"></i>
+              <span>크게 보기 (확대 팝업)</span>
+            </button>
+          </div>
+          <div class="w-full overflow-hidden rounded-xl border border-slate-200 bg-white flex items-center justify-center min-h-[220px]">
+            <canvas id="classroom-live-flowchart-canvas" width="800" height="340" class="w-full max-h-[340px] object-contain block"></canvas>
+          </div>
+        </div>
+        <div class="mb-1 text-[11px] text-slate-500 font-bold">배치된 블록 목록:</div>
         <div class="mb-2 text-[11px]">${blocksHtml || '<div class="text-slate-400 italic">배치된 블록 없음</div>'}</div>
         <div class="mb-2">${connsHtml || '<div class="text-slate-400 italic text-[11px]">연결선 없음</div>'}</div>
       </div>
     `;
     p3El.innerHTML = p3Html;
     p3El.style.whiteSpace = 'normal';
+
+    const canvas = document.getElementById('classroom-live-flowchart-canvas');
+    if (canvas) {
+      drawFlowchartPreview(canvas, graph.blocks, graph.connections);
+    }
   }
 
   const currentScore = (s.scores?.teacherOverride !== null && s.scores?.teacherOverride !== undefined)
@@ -715,6 +1037,8 @@ function openLiveStudentModal(studentNum) {
 }
 
 function closeLiveStudentModal() {
+  currentModalStudent = null;
+  closeFlowchartModalPreview();
   const modal = document.getElementById('classroom-live-detail-modal');
   if (modal) modal.classList.add('hidden');
 }

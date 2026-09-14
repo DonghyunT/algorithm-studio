@@ -1,7 +1,7 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),crypto=require('node:crypto');
 function setup(){
  const records=new Map(),copy=value=>JSON.parse(JSON.stringify(value));let fail=false;
- function ref(path){return {path,id:path.split('/').pop(),collection:name=>({doc:id=>ref(path+'/'+name+'/'+id)}),get:async()=>({exists:records.has(path),id:path.split('/').pop(),ref:ref(path),data:()=>copy(records.get(path)||{})})};}
+ function ref(path){return {path,id:path.split('/').pop(),collection:name=>({doc:id=>ref(path+'/'+name+'/'+id)}),update:async value=>{records.set(path,{...records.get(path),...copy(value)});},get:async()=>({exists:records.has(path),id:path.split('/').pop(),ref:ref(path),data:()=>copy(records.get(path)||{})})};}
  const db={collection:name=>({doc:id=>ref(name+'/'+id)}),runTransaction:async task=>{
    const writes=[];
    const result=await task({get:async doc=>({exists:records.has(doc.path),id:doc.id,ref:doc,data:()=>copy(records.get(doc.path)||{})}),set:(doc,value)=>writes.push(['set',doc.path,copy(value)]),update:(doc,value)=>writes.push(['update',doc.path,copy(value)]),delete:doc=>writes.push(['delete',doc.path])});
@@ -116,5 +116,32 @@ test('student can leave waiting room and free seat for another student, but cann
   await service.startSession('2-1');
   records.get('classrooms/2-1/students/05').status='in_progress';
   await assert.rejects(service.leaveWaitingRoom('2-1',5),/평가가 이미 시작되었거나/);
+});
+
+test('student answers include blocks and connections that can be mapped for teacher canvas rendering', async () => {
+  const {records, service} = setup();
+  await service.prepareSession('2-1');
+  await service.joinWaitingRoom('2-1', 7, '순서도학생');
+  await service.startSession('2-1');
+  const blocks = [
+    { id: 'b1', shape: 'terminal', text: '시작', x: 100, y: 50 },
+    { id: 'b2', shape: 'proc', text: '환기 팬 가동', x: 100, y: 150 },
+    { id: 'b3', shape: 'terminal', text: '끝', x: 100, y: 250 }
+  ];
+  const connections = [
+    { id: 'c1', from: 'b1', to: 'b2', fromPort: 'bottom', toPort: 'top' },
+    { id: 'c2', from: 'b2', to: 'b3', fromPort: 'bottom', toPort: 'top' }
+  ];
+  await service.updateStudentProgress('2-1', 7, { part1: 5, part2: 3, part3: 1 }, {
+    part1: { p1_q1: 0 },
+    part2: { p2_q1: '순차' },
+    part3: { blocks, connections, questionVersion: 3 }
+  });
+
+  const student = records.get('classrooms/2-1/students/07');
+  assert.equal(student.answers.part3.blocks.length, 3);
+  assert.equal(student.answers.part3.connections.length, 2);
+  assert.equal(student.answers.part3.blocks[0].shape, 'terminal');
+  assert.equal(student.answers.part3.blocks[1].text, '환기 팬 가동');
 });
 
