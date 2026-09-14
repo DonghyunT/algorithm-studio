@@ -963,6 +963,16 @@ function openLiveStudentModal(studentNum) {
   const p3El = document.getElementById('classroom-live-modal-p3');
   const scoreInp = document.getElementById('classroom-live-override-score');
 
+  let assigned = s.answers?.assignedQuestions || s.answers?.part3?.assignedQuestions;
+  if (!assigned && (s.questionVersion >= 3 || s.answers?.part3?.questionVersion >= 3)) {
+    const assignFn = typeof window.assignQuestions === 'function' ? window.assignQuestions : (typeof assignQuestions === 'function' ? assignQuestions : null);
+    const session = typeof currentSelectedClass !== 'undefined' && window.evalService ? window.evalService.read('EVAL_SESSION_' + currentSelectedClass, null) : null;
+    const attemptId = s.attemptId || session?.attemptId || 'demo';
+    if (assignFn && attemptId) {
+      assigned = assignFn(`${attemptId}_${currentSelectedClass || '2-1'}_${s.num || s.numStr || 1}`);
+      if (s.answers) s.answers.assignedQuestions = assigned;
+    }
+  }
   const questions = typeof window.evaluationQuestions === 'function'
     ? window.evaluationQuestions(s.answers, s.questionVersion)
     : (window.EVAL_QUESTIONS || (typeof EVAL_QUESTIONS !== 'undefined' ? EVAL_QUESTIONS : { part1: [], part2: [] }));

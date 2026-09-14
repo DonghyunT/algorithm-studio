@@ -56,7 +56,7 @@ service cloud.firestore {
         function owner() { return anonymousStudent() && resource.data.ownerUid == request.auth.uid; }
         function validAnswers() {
           return request.resource.data.answers is map
-            && request.resource.data.answers.keys().hasOnly(['part1', 'part2', 'part3'])
+            && request.resource.data.answers.keys().hasOnly(['part1', 'part2', 'part3', 'assignedQuestions'])
             && request.resource.data.answers.part1 is map
             && request.resource.data.answers.part2 is map;
         }

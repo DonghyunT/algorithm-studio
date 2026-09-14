@@ -144,19 +144,25 @@ class EvalService {
       const ref = db.collection('classrooms').doc(classId).collection('students').doc(docId);
       return db.runTransaction(async transaction => {
         const existing = await transaction.get(ref);
-        if (existing.exists) {
-          if (existing.data().ownerUid !== user.uid) throw new Error('이 번호는 다른 응시 기록에 연결되어 있습니다. 선생님께 확인해 주세요.');
-          return existing.data();
-        }
         const session=await transaction.get(db.collection('classrooms').doc(classId));
         const sessionData = session.exists ? session.data() : null;
+        const assignFn = typeof assignQuestions === 'function' ? assignQuestions : (typeof window !== 'undefined' ? window.assignQuestions : null);
+        if (existing.exists) {
+          const existingData = existing.data();
+          if (existingData.ownerUid !== user.uid) throw new Error('이 번호는 다른 응시 기록에 연결되어 있습니다. 선생님께 확인해 주세요.');
+          if (sessionData && (sessionData.questionVersion >= 3) && assignFn && !existingData.answers?.assignedQuestions) {
+            existingData.answers = existingData.answers || {};
+            existingData.answers.assignedQuestions = assignFn(`${existingData.attemptId || sessionData.attemptId}_${classId}_${studentNum}`);
+            transaction.update(ref, { 'answers.assignedQuestions': existingData.answers.assignedQuestions });
+          }
+          return existingData;
+        }
         if(!sessionData || !['waiting','in_progress'].includes(sessionData.status) || !sessionData.attemptId) {
           throw Error(`현재 ${classId}반은 수행평가가 열려 있지 않습니다. 선생님께서 대기실을 연 후 입장해 주세요.`);
         }
         student.attemptId=sessionData.attemptId;
         student.answers.part3.questionVersion=sessionData.questionVersion||1;
-        const assignFn = typeof assignQuestions === 'function' ? assignQuestions : (typeof window !== 'undefined' ? window.assignQuestions : null);
-        if ((sessionData.questionVersion >= 4) && assignFn && !student.answers.assignedQuestions) {
+        if ((sessionData.questionVersion >= 3) && assignFn && !student.answers.assignedQuestions) {
           student.answers.assignedQuestions = assignFn(`${student.attemptId}_${classId}_${studentNum}`);
         }
         transaction.set(ref, student);
@@ -168,14 +174,23 @@ class EvalService {
 
     }
     const existing = this.read('EVAL_STUDENTS_' + classId, []).find(item => item.numStr === docId);
-    if (existing) return existing;
+    if (existing) {
+      const session=this.read('EVAL_SESSION_'+classId,this.defaultSession(classId));
+      const assignFn = typeof assignQuestions === 'function' ? assignQuestions : (typeof window !== 'undefined' ? window.assignQuestions : null);
+      if (session && (session.questionVersion >= 3) && assignFn && !existing.answers?.assignedQuestions) {
+        existing.answers = existing.answers || {};
+        existing.answers.assignedQuestions = assignFn(`${existing.attemptId || session.attemptId}_${classId}_${studentNum}`);
+        this.mergeLocalStudent(classId, existing);
+      }
+      return existing;
+    }
     const session=this.read('EVAL_SESSION_'+classId,this.defaultSession(classId));
     if(!['waiting','in_progress'].includes(session?.status) || !session?.attemptId) {
       throw Error(`현재 ${classId}반은 수행평가가 열려 있지 않습니다. 선생님께서 대기실을 연 후 입장해 주세요.`);
     }
     student.answers.part3.questionVersion=session.questionVersion||1;student.attemptId=session.attemptId||'';
     const assignFn = typeof assignQuestions === 'function' ? assignQuestions : (typeof window !== 'undefined' ? window.assignQuestions : null);
-    if ((session.questionVersion >= 4) && assignFn && !student.answers.assignedQuestions) {
+    if ((session.questionVersion >= 3) && assignFn && !student.answers.assignedQuestions) {
       student.answers.assignedQuestions = assignFn(`${student.attemptId}_${classId}_${studentNum}`);
     }
     this.mergeLocalStudent(classId, student); this.notify(classId, {students:[student]}); return student;

@@ -281,7 +281,8 @@ function assignQuestions(studentKey, bank) {
 }
 
 function evaluationQuestions(answers, version=answers?.part3?.questionVersion) {
-  if (answers && answers.assignedQuestions) {
+  const assigned = answers?.assignedQuestions || answers?.part3?.assignedQuestions;
+  if (answers && assigned) {
     let bank = typeof EVAL_QUESTION_BANK !== 'undefined' ? EVAL_QUESTION_BANK : (typeof window !== 'undefined' ? window.EVAL_QUESTION_BANK : null);
     if (!bank && typeof require === 'function') {
       try { bank = require('./eval-question-bank.js').EVAL_QUESTION_BANK; } catch {}
@@ -289,12 +290,12 @@ function evaluationQuestions(answers, version=answers?.part3?.questionVersion) {
     if (bank && Array.isArray(bank.part1) && Array.isArray(bank.part2)) {
       const p1Map = new Map(bank.part1.map(q => [q.id, q]));
       const p2Map = new Map(bank.part2.map(q => [q.id, q]));
-      const p1List = (answers.assignedQuestions.part1 || []).map((id, idx) => {
+      const p1List = (assigned.part1 || []).map((id, idx) => {
         const q = p1Map.get(id);
         if (!q) return null;
         return { ...q, title: `${idx + 1}번 문제` };
       }).filter(Boolean);
-      const p2List = (answers.assignedQuestions.part2 || []).map((id, idx) => {
+      const p2List = (assigned.part2 || []).map((id, idx) => {
         const q = p2Map.get(id);
         if (!q) return null;
         return { ...q, title: `${idx + 1}번 문제` };

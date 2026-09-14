@@ -70,6 +70,9 @@ class StudentEvalApp {
     if (student?.status==="submitted") { this.answers=student.answers; this.isSubmitted=true; }
     else if(validDraft) { this.answers=draft.answers; this.deadlineMs=draft.deadlineMs; }
     else if(student?.answers) this.answers=student.answers;
+    if (student?.answers?.assignedQuestions && !this.answers?.assignedQuestions) {
+      this.answers.assignedQuestions = student.answers.assignedQuestions;
+    }
     if(!this.answers.part3) this.answers.part3={selectedThemeId:"theme_greenhouse",blocks:[],connections:[],isVerified:false};
     this.visitedPart3=!!this.answers.part3.visited || !!(validDraft && draft.visitedPart3);
     this.currentPart=validDraft&&['part1','part2','part3'].includes(draft.currentPart)?draft.currentPart:'part1';
@@ -311,12 +314,13 @@ class StudentEvalApp {
       }
     }, 1000);
 
-    // 문제은행 난이도별 문항 추출 보장 (버전 4 이상 또는 미배정 시 결정론적 추출)
+    // 문제은행 난이도별 문항 추출 보장 (버전 3 이상 또는 미배정 시 결정론적 추출)
     const qVersion = (sessionData && sessionData.questionVersion) || this.answers?.part3?.questionVersion || 1;
     const assignFn = typeof assignQuestions === 'function' ? assignQuestions : (typeof window !== 'undefined' ? window.assignQuestions : null);
-    if ((qVersion >= 4) && assignFn && !this.answers.assignedQuestions) {
-      this.answers.assignedQuestions = assignFn(`${this.attemptId || 'demo'}_${this.currentClass}_${this.studentNum}`);
+    if ((qVersion >= 3) && assignFn && !this.answers.assignedQuestions) {
+      this.answers.assignedQuestions = assignFn(`${this.attemptId || sessionData?.attemptId || 'demo'}_${this.currentClass}_${this.studentNum}`);
       this.saveDraft();
+      this.syncStudentProgress();
     }
 
     // 디벗/태블릿 및 웹 환경 시험 중 화면 이탈 감지 (부정행위 예방 안내)
@@ -437,7 +441,7 @@ class StudentEvalApp {
             ${q.options.map((opt, optIdx) => `
               <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition text-xs sm:text-sm font-medium">
                 <input type="radio" name="${q.id}" value="${optIdx}" ${this.answers.part1[q.id] === optIdx ? 'checked' : ''} onchange="window.studentEvalApp.onSelectPart1('${q.id}', ${optIdx})" class="w-4 h-4 text-indigo-600 focus:ring-indigo-500">
-                <span>${opt.replace(/\s*\([^)]*\)/g,'')}</span>
+                <span>${escapeHtml(opt)}</span>
               </label>
             `).join('')}
           </div>

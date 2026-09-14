@@ -10,6 +10,8 @@ function setup(){
  }};
  const ctx={window:{firebaseDb:db,authService:{isDemo:()=>false,teacher:async()=>({uid:'teacher'}),student:async()=>({uid:'new-student'})}},crypto,console,Map,Set};
  vm.createContext(ctx);
+ vm.runInContext(fs.readFileSync(require.resolve('../js/data/eval-question-bank.js'),'utf8'),ctx);
+ vm.runInContext(fs.readFileSync(require.resolve('../js/data/eval-questions.js'),'utf8'),ctx);
  vm.runInContext(fs.readFileSync(require.resolve('../js/core/assessment-policy.js'),'utf8'),ctx);
  vm.runInContext(fs.readFileSync(require.resolve('../js/core/eval-service.js'),'utf8'),ctx);
  records.set('classrooms/2-1',{classId:'2-1',status:'ended',attemptId:'old',deadlineMs:1,schoolYear:2026});
@@ -263,6 +265,37 @@ test('question bank: assignQuestions extracts exact difficulty distributions det
   assert.equal(graded.scores.objectiveTotal, 60, 'Total auto-graded score must be 60 points');
   assert.equal(graded.scores.pendingReview, true, 'Part 3 must remain pendingReview for teacher grading');
 });
+
+test('eval-service assigns distinct question sets to different students and backfills missing assignedQuestions', async () => {
+  const { records, service } = setup();
+  await service.prepareSession('2-1');
+
+  // Student 1 joins
+  const student1 = await service.joinWaitingRoom('2-1', 1, '학생1');
+  assert.ok(student1.answers.assignedQuestions, 'Student 1 must have assignedQuestions');
+  assert.equal(student1.answers.assignedQuestions.part1.length, 10);
+  assert.equal(student1.answers.assignedQuestions.part2.length, 6);
+
+  // Student 2 joins
+  const student2 = await service.joinWaitingRoom('2-1', 2, '학생2');
+  assert.ok(student2.answers.assignedQuestions, 'Student 2 must have assignedQuestions');
+  assert.equal(student2.answers.assignedQuestions.part1.length, 10);
+  assert.equal(student2.answers.assignedQuestions.part2.length, 6);
+
+  // They must have different questions
+  assert.notDeepEqual(student1.answers.assignedQuestions.part1, student2.answers.assignedQuestions.part1, 'Student 1 and 2 must receive different Part 1 questions');
+
+  // Backfill test: simulate existing student without assignedQuestions
+  const rawStudent = records.get('classrooms/2-1/students/01');
+  delete rawStudent.answers.assignedQuestions;
+  records.set('classrooms/2-1/students/01', rawStudent);
+
+  // Re-joining should backfill assignedQuestions
+  const rejoined = await service.joinWaitingRoom('2-1', 1, '학생1');
+  assert.ok(rejoined.answers.assignedQuestions, 'Rejoined student must have backfilled assignedQuestions');
+  assert.deepEqual(rejoined.answers.assignedQuestions, student1.answers.assignedQuestions, 'Backfilled questions must match original deterministic set');
+});
+
 
 
 
