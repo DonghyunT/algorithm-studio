@@ -947,8 +947,39 @@ function openLiveStudentModal(studentNum) {
       return `<div class="ml-2 mb-1"><span class="font-bold text-slate-600">[순차]</span> ${step.text || '미작성'}</div>`;
     }).join('');
 
-    let blocksHtml = (Array.isArray(graph.blocks) ? graph.blocks : []).filter(Boolean).map(b => `<span class="inline-block bg-slate-100 border border-slate-300 px-1.5 py-0.5 rounded text-[10px] mr-1 mb-1 font-mono">[${b.shape}] ${b.text}</span>`).join('');
-    let connsHtml = (Array.isArray(graph.connections) ? graph.connections : []).filter(Boolean).map(c => `<div class="text-[10px] text-slate-500 ml-2 font-mono">↳ ${c.from} (${c.fromPort}) → ${c.to}</div>`).join('');
+    const shapeMeta = {
+      terminal: { label: '단말 🟣', cls: 'bg-purple-50 text-purple-700 border-purple-200' },
+      io: { label: '자료 🟢', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+      decision: { label: '판단 🟠', cls: 'bg-amber-50 text-amber-800 border-amber-200' },
+      proc: { label: '처리 🔵', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+      process: { label: '처리 🔵', cls: 'bg-blue-50 text-blue-700 border-blue-200' }
+    };
+
+    const blockMap = {};
+    (graph.blocks || []).forEach(b => {
+      if (b && b.id) {
+        blockMap[b.id] = (b.text || '').trim() || (shapeMeta[b.shape]?.label || '블록');
+      }
+    });
+    blockMap['eblk_start'] = '시작';
+
+    let blocksHtml = (Array.isArray(graph.blocks) ? graph.blocks : []).filter(Boolean).map(b => {
+      const meta = shapeMeta[b.shape] || { label: b.shape, cls: 'bg-slate-50 text-slate-700 border-slate-200' };
+      const txt = (b.text || '').trim() || '내용 없음';
+      return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border ${meta.cls} text-xs font-bold mr-1.5 mb-1.5 shadow-2xs">
+        <span class="text-[10px] px-1.5 py-0.5 rounded bg-white/80 font-mono">${meta.label}</span>
+        <span>${escapeHtml(txt)}</span>
+      </span>`;
+    }).join('');
+
+    let connsHtml = (Array.isArray(graph.connections) ? graph.connections : []).filter(Boolean).map(c => {
+      const fromName = blockMap[c.from] || '블록';
+      const toName = blockMap[c.to] || '블록';
+      let branchBadge = '';
+      if (c.fromPort === 'yes') branchBadge = ' <span class="text-emerald-600 font-bold">[예]</span>';
+      else if (c.fromPort === 'no') branchBadge = ' <span class="text-amber-600 font-bold">[아니오]</span>';
+      return `<div class="text-[11px] text-slate-600 py-0.5 font-medium">↳ <strong class="text-slate-800">${escapeHtml(fromName)}</strong>${branchBadge} ➔ <strong class="text-slate-800">${escapeHtml(toName)}</strong></div>`;
+    }).join('');
 
     let p3Html = `
       <div class="mb-4">
@@ -981,9 +1012,21 @@ function openLiveStudentModal(studentNum) {
             <canvas id="classroom-live-flowchart-canvas" width="800" height="340" class="w-full max-h-[340px] object-contain block"></canvas>
           </div>
         </div>
-        <div class="mb-1 text-[11px] text-slate-500 font-bold">배치된 블록 목록:</div>
-        <div class="mb-2 text-[11px]">${blocksHtml || '<div class="text-slate-400 italic">배치된 블록 없음</div>'}</div>
-        <div class="mb-2">${connsHtml || '<div class="text-slate-400 italic text-[11px]">연결선 없음</div>'}</div>
+        <div class="mb-1.5 text-xs font-bold text-slate-700 flex items-center justify-between">
+          <span>배치된 블록 목록 (${(graph.blocks || []).length}개):</span>
+        </div>
+        <div class="flex flex-wrap items-center mb-2">${blocksHtml || '<div class="text-slate-400 italic text-xs">배치된 블록 없음</div>'}</div>
+        ${connsHtml ? `
+        <details class="mt-2 text-xs text-slate-500">
+          <summary class="cursor-pointer font-bold hover:text-slate-800 text-[11px] select-none flex items-center gap-1">
+            <i class="fa-solid fa-list-nodes text-slate-400"></i>
+            <span>텍스트 연결 경로 보기 (${(graph.connections || []).length}개 연결)</span>
+          </summary>
+          <div class="pt-1.5 pl-2.5 space-y-0.5 border-l-2 border-slate-200 mt-1.5 bg-slate-50/50 p-2 rounded-lg">
+            ${connsHtml}
+          </div>
+        </details>
+        ` : ''}
       </div>
     `;
     p3El.innerHTML = p3Html;
