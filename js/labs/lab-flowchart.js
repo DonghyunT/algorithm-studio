@@ -1274,6 +1274,7 @@ let flowchartPassedReviewSnapshot = null;
 let flowchartReviewRevision = 0;
 let flowchartReviewRequestSequence = 0;
 let latestFlowchartReviewRequest = 0;
+let cachedFlowchartReview = null;
 
 // 상단 툴바 띵커보드 제출 버튼 상태 (AI 검사 통과 시 활성화)
 function invalidateFlowchartReview() {
@@ -1283,6 +1284,7 @@ function invalidateFlowchartReview() {
     updateThinkerToolbarButton();
     return;
   }
+  cachedFlowchartReview = null;
   flowchartReviewRevision += 1;
   flowchartPassedReviewSnapshot = null;
   window.isFlowchartAiPassed = false;
@@ -4354,11 +4356,55 @@ function closeAiAuditModal() {
   if (modal) modal.classList.add('hidden');
 }
 
-async function diagnoseFreeAlgorithmWithSolarAI() {
+async function diagnoseFreeAlgorithmWithSolarAI(force = false) {
   const modal = document.getElementById('flowchart-ai-audit-modal');
   const content = document.getElementById('flowchart-ai-audit-content');
   const actions = document.getElementById('flowchart-ai-audit-actions');
   if (!modal || !content) return;
+
+  const currentSnapshot = flowchartReviewSnapshot();
+  if (force !== true && cachedFlowchartReview && cachedFlowchartReview.snapshot === currentSnapshot) {
+    openAiAuditModal();
+    const cachedNoticeHtml = `
+      <div class="p-3 bg-indigo-50/80 border border-indigo-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-indigo-950 font-medium shadow-2xs">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-clock-rotate-left text-indigo-600"></i>
+          <span>변경된 내용이 없어 <strong>마지막 AI 검사 결과</strong>를 다시 표시합니다.</span>
+        </div>
+        <button onclick="diagnoseFreeAlgorithmWithSolarAI(true)" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-[11px] transition shadow-2xs cursor-pointer flex items-center justify-center gap-1.5 self-start sm:self-auto">
+          <i class="fa-solid fa-rotate-right text-[10px]"></i><span>AI에게 새로 검사 요청</span>
+        </button>
+      </div>
+    `;
+    content.innerHTML = `
+      ${cachedNoticeHtml}
+      ${cachedFlowchartReview.headerHtml}
+      ${cachedFlowchartReview.quantGridHtml}
+      ${cachedFlowchartReview.adviceHtml}
+    `;
+    if (actions) {
+      if (cachedFlowchartReview.isGood) {
+        actions.innerHTML = `
+          <button onclick="closeAiAuditModal()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition">캔버스 확인</button>
+          <button onclick="diagnoseFreeAlgorithmWithSolarAI(true)" class="px-3.5 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold rounded-xl text-xs transition flex items-center gap-1.5"><i class="fa-solid fa-rotate-right text-[11px]"></i><span>새로 검사하기</span></button>
+          <button onclick="closeAiAuditModal(); openThinkerSubmissionModal();" class="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black rounded-xl text-xs shadow-md shadow-emerald-500/20 flex items-center gap-1.5 transition active:scale-95">
+            <i class="fa-solid fa-clipboard-check"></i>
+            <span>현재 작품 띵커보드에 제출하기</span>
+          </button>
+        `;
+      } else {
+        actions.innerHTML = `
+          <button onclick="closeAiAuditModal()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition">캔버스 확인</button>
+          <button onclick="diagnoseFreeAlgorithmWithSolarAI(true)" class="px-3.5 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold rounded-xl text-xs transition flex items-center gap-1.5"><i class="fa-solid fa-rotate-right text-[11px]"></i><span>새로 검사하기</span></button>
+          <button onclick="closeAiAuditModal()" class="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black rounded-xl text-xs shadow-md shadow-amber-500/20 flex items-center gap-1.5 transition active:scale-95">
+            <i class="fa-solid fa-screwdriver-wrench"></i>
+            <span>캔버스로 돌아가 보완하기</span>
+          </button>
+        `;
+      }
+    }
+    return;
+  }
 
   openAiAuditModal();
 
@@ -4582,6 +4628,17 @@ async function diagnoseFreeAlgorithmWithSolarAI() {
     ${quantGridHtml}
     ${adviceHtml}
   `;
+
+  if (!isMalformedReview) {
+    cachedFlowchartReview = {
+      snapshot: reviewSnapshot,
+      isGood,
+      isMalformedReview,
+      headerHtml,
+      quantGridHtml,
+      adviceHtml
+    };
+  }
 
   if (actions) {
     if (isGood) {
