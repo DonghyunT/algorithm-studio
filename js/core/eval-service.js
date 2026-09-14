@@ -232,7 +232,7 @@ class EvalService {
   async submitStudentExam(classId, studentNum, fullSubmission) {
     const docId = this.identity(classId, studentNum);
     // Scores supplied by a student browser are never stored as authoritative grades.
-    const finalData = { status: 'submitted', submittedAt: new Date().toISOString(), answers: JSON.parse(JSON.stringify(fullSubmission.answers)) };
+    const finalData = { status: 'submitted', submittedAt: new Date().toISOString(), answers: JSON.parse(JSON.stringify(fullSubmission.answers || {})) };
     const db = this.getDb();
     if (db) {
       const ref=db.collection('classrooms').doc(classId).collection('students').doc(docId);

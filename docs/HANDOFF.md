@@ -5,15 +5,20 @@
 ## 지금 인수인계할 작업
 
 * **다음 예정 작업:** 수행평가 Part 3 Solar AI 초벌 채점 엔진 및 프롬프트 고도화 (자유 설계 4대 영역 [문제·조건 명확성, 알고리즘 논리성, 자연어-순서도 일치, 구조·동작 타당성] 각 10점 평가 정밀도 향상).
-* **최신 작업(2026-09-14, 문제은행 추출 버전 3 연동 및 학생별 상이 문항 배정 복구):**
+* **최신 작업(2026-09-14, 문제은행 추출 버전 3 연동, blurCount 보안 규칙 허용 및 학생 제출 실패 해소):**
   1. **문제은행 미적용 및 학생 간 동일 문항 버그 원인 규명**:
      - 기존 `eval-service.js` 및 `lab-eval.js`에서 문제은행 추출 조건이 `questionVersion >= 4`로 하드코딩되어 있었으나, 현재 운영 세션 및 기본 세션 버전은 `questionVersion: 3`(Part 3 자유 설계)으로 동작함.
      - 조건 불일치(`3 >= 4 === false`)로 인해 `student.answers.assignedQuestions`가 생성되지 않고, `evaluationQuestions()`가 기존 고정 10문항(`EVAL_QUESTIONS`)으로 폴백되어 모든 학생이 똑같은 구 문항을 받았음.
      - `firestore.rules`에서 `answers` 허용 키 목록이 `['part1', 'part2', 'part3']`로 제한되어 있어 `assignedQuestions` 포함 시 저장 거부 위험이 있었음.
      - `lab-eval.js`에서 정규식으로 보기에 포함된 괄호(`\([^)]*\)`)를 강제 치환 제거하여 `(타원)`, `(평행사변형)` 등의 안내가 사라졌던 문제 발견.
-  2. **완전한 해결책 반영**:
-     - `firestore.rules`: `validAnswers()`에 `'assignedQuestions'` 허용 키 추가 및 Firebase 클라우드 배포 완료.
-     - `eval-service.js`: 대기실 입장 시 `questionVersion >= 3` 기준으로 학생별 시드(`attemptId + '_' + classId + '_' + studentNum`)를 통해 48문항 은행에서 Part 1 10문항 + Part 2 6문항 결정론적 추출. 기존 입장 학생(`existing`)도 `assignedQuestions`가 없을 경우 즉시 백필 및 DB 갱신.
+  2. **학생 시험 중 이탈(`blurCount`) 시 제출 및 서버 저장 실패 버그 원인 규명 및 해결**:
+     - 학생이 다른 탭으로 이동하거나 캡처 등을 위해 화면을 벗어날 때 `visibilitychange` 이벤트가 발생하여 `this.answers.blurCount`를 1씩 증가시키고 서버 저장을 시도함.
+     - 하지만 `firestore.rules`의 `validAnswers()` 허용 키 목록에 `blurCount`가 누락되어 있어, 화면을 한 번이라도 이탈한 학생의 답안 저장이 Firestore에서 `PERMISSION_DENIED`로 전면 거부됨 (화면 상단 "서버 저장 실패" 및 최종 제출 시 "저장 권한 또는 마감 상태를 확인해 주세요" 팝업의 직접적 원인).
+     - `firestore.rules`의 `validAnswers()` 허용 키 목록에 `blurCount`를 추가하고, `progress` 범위 검증도 안전하게 상한을 확장(30)하여 배포 완료.
+     - 실제 라이브 Firestore 대상 REST 진단 검증: `blurCount` 포함 시 403 거부되던 문제가 신규 규칙 적용 후 **HTTP 200 정상 갱신 및 정상 제출**됨을 100% 실측 검증 완료.
+  3. **완전한 해결책 반영**:
+     - `firestore.rules`: `validAnswers()`에 `'assignedQuestions'` 및 `'blurCount'` 허용 키 추가 및 Firebase 클라우드 배포 완료.
+     - `eval-service.js`: 대기실 입장 시 `questionVersion >= 3` 기준으로 학생별 시드(`attemptId + '_' + classId + '_' + studentNum`)를 통해 48문항 은행에서 Part 1 10문항 + Part 2 6문항 결정론적 추출. 기존 입장 학생(`existing`)도 `assignedQuestions`가 없을 경우 즉시 백필 및 DB 갱신. `submitStudentExam` 시 빈 객체 폴백 안전 처리.
      - `lab-eval.js`: `startExam()`에서 `qVersion >= 3` 검사 및 `syncStudentProgress()` 연동, `restoreDraft()`에서 `assignedQuestions` 보존, 객관식 보기 렌더링 시 `escapeHtml(opt)`로 괄호 설명 완전 보존.
      - `classroom.js`: 교사 상세 답안 모달 오픈 시 `assignedQuestions`가 누락된 경우에도 학급/회차/번호 시드로 100% 동일하게 복원하여 채점 일치 보장.
      - 단위 테스트 추가 (`tests/rounds.test.cjs`): 1번 학생과 2번 학생의 상이 문항 배정 및 누락 시 백필 복구 테스트 포함 총 44개 테스트 100% 통과.
