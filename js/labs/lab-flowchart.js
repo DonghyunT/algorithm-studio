@@ -4403,7 +4403,22 @@ async function diagnoseFreeAlgorithmWithSolarAI() {
       content.textContent = '검사 중 내용이 변경됐어요. 수정한 내용을 다시 검사해 주세요.';
       return;
     }
-    content.innerHTML = '<p class="p-4 text-slate-700" role="status">AI 연결을 확인할 수 없어요. 인터넷 연결을 확인한 뒤 잠시 후 다시 검사해 주세요. AI 설계 검사를 통과하면 제출할 수 있습니다.</p>';
+    const isQuotaError = err && err.message && (err.message.includes('사용량') || err.message.includes('회복'));
+    const isRateLimit = err && err.message && err.message.includes('기다린 뒤');
+    const headerTitle = isQuotaError ? '오늘의 AI 도움 사용량 안내' : (isRateLimit ? '잠시 대기 안내' : 'AI 연결 안내');
+    const errorMsg = escapeHtml(err?.message || 'AI 연결을 확인할 수 없습니다. 인터넷 연결을 확인한 뒤 잠시 후 다시 검사해 주세요.');
+    content.innerHTML = `
+      <div class="p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-2">
+        <div class="flex items-center gap-2 font-black text-xs text-amber-900">
+          <i class="fa-solid fa-triangle-exclamation text-amber-600"></i>
+          <span>${headerTitle}</span>
+        </div>
+        <div class="text-xs sm:text-sm text-slate-800 leading-relaxed font-medium">
+          ${errorMsg}
+        </div>
+        ${isQuotaError ? '<div class="text-[11px] text-amber-800 font-medium mt-1">선생님께 AI 일일 사용량 상향을 요청하거나, 직접 캔버스와 실행 결과를 확인하며 다듬어 보세요.</div>' : ''}
+      </div>
+    `;
     if (actions) actions.innerHTML = '<button onclick="closeAiAuditModal()" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl">돌아가서 점검하기</button><button onclick="diagnoseFreeAlgorithmWithSolarAI()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl">다시 검사하기</button>';
     return;
   }

@@ -1,6 +1,7 @@
 // Uses the verified caller's Firebase token; no service-account private key is deployed.
-async function reserveAiQuota(token,projectId,limit=300){
-  limit=Math.min(1000,Math.max(1,Number(limit)||300));
+async function reserveAiQuota(token,projectId,limit=1000){
+  // 학급 규모(최대 11개 반 x 27명)의 실습과 재검사를 지원하기 위해 Firestore 보안 규칙 최대치(1000회) 보장
+  limit=Math.min(1000,Math.max(1000,Number(limit)||1000));
   const day=Math.floor(Date.now()/86400000);
   const url=`https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/databases/(default)/documents/ai_usage/${day}`;
   const headers={Authorization:'Bearer '+token,'Content-Type':'application/json'};
