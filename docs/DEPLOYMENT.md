@@ -1,5 +1,13 @@
 # 운영 배포 기록
 
+## 2026-09-14 AI 일일 사용량 1,000회 상향 및 액셔너블 에러 안내 운영 배포
+
+사용자의 보고("지금 vercel로 접속하면 ai호출이 안되는데 토큰을 다 쓴건가?")에 따라 점검한 결과, Upstage Solar AI 토큰 소진이 아닌 Firestore 내부 일일 안전 쿼터(`ai_usage/20710`) 상한선(300회)에 도달하여 HTTP 429가 발생하고 있던 원인을 확인했습니다. 사용자 승인에 따라 다음 작업을 완료하여 배포했습니다.
+
+1. `server/ai-quota.cjs`: 학급 규모(11개 반 × 최대 27명) 실습 및 재검사 수요를 안정적으로 지원할 수 있도록 기본 한도 및 최소 클램프를 1,000회(Firestore 보안 규칙 `firestore.rules`의 최대 허용치)로 보장. 오늘 이미 300회를 채운 Firestore 카운터에서도 즉시 700회의 추가 여유 슬롯을 확보.
+2. `js/labs/lab-flowchart.js`: AI 일일 사용량 도달(`isQuotaError`) 또는 단시간 호출 집중 대기(`isRateLimit`) 시, 단순 네트워크 오류 문구로 가려지지 않고 "오늘의 AI 도움 사용량 안내" 또는 "잠시 대기 안내" 전용 배지와 함께 교사 문의 안내 및 자체 검토를 유도하는 친절한 액셔너블 한국어 UI로 개선.
+3. 제품 `8d0a474`, 운영 병합 `1611d19`. Vercel Production `algorithm-studio-7ygy43s9q-donghyun2.vercel.app`, GitHub deployment `6430526286` success. 고정 운영 주소 `https://algorithm-studio-ten.vercel.app/`에서 실제 익명 인증 기반 `/api/chat` 호출 시 HTTP 200("안녕하세요! 무엇을 도와드릴까요?") 응답 및 Firestore 카운터 정상 증가(300 → 301)를 직접 확인 완료. 문법 검사 56개, 단위/API 검사 37개 전체 통과.
+
 ## 2026-09-14 나만의 백지 AI 검사 프롬프트 고도화 및 운영 배포
 
 사용자 피드백에 따라 '나만의 백지' 실습의 Solar AI 검사 기준을 교육적 스캐폴딩과 학생 성취감 관점에서 고도화하여 배포했습니다.
