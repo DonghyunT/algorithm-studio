@@ -1,5 +1,27 @@
 # 운영 배포 기록
 
+## 2026-09-14 48문항 문제은행 고도화, 난이도 캘리브레이션 및 디벗 터치 최적화 운영 배포
+
+사용자 승인("지금까지의 작업내용을 다른 환경에서도 테스트해보게 vercel배포까지도 완료해줄래?")에 따라 `codex/classroom-session-and-submit-polish`의 모든 변경사항을 `main`에 병합하고 Vercel Production 운영 배포를 완료했습니다.
+
+1. **48문항 고품질 문제 은행(Question Bank) 구축 및 난이도 캘리브레이션 (`js/data/eval-question-bank.js`, `docs/QUESTION_BANK.md`)**:
+   - 객관식(Part 1)과 주관식(Part 2) 정답 중복 및 힌트 누출 원천 차단 (Part 2 [하]는 실생활 레시피·기호 역할 식별 문항으로 전면 개편).
+   - 4대 순서도 기호 보기 표기 100% 표준화 (`단말 기호 (타원)`, `자료 기호 (평행사변형)`, `판단 기호 (마름모)`, `처리 기호 (직사각형)`).
+   - 컴퓨팅 사고력 기반 상태 추적(Trace Table) 문항 구현 (층간 이동 증분, 경계 탈출 시점의 나머지 잔여량 계산, 가중치 누적).
+   - 다중 규칙 비문학 실생활 시나리오 고도화 및 **선지 동형성(모든 후보 5글자 일치, `p2_h_5` '정상감시중' 5글자 반영)**으로 글자 수 꼼수 배제.
+   - 주관식 placeholder 중립화 (`"정답 입력"`으로 통일) 및 변수(Variable) 표현 완전 배제.
+   - 2022 개정 교과서 알고리즘 5대 조건(입력, 출력, 명확성, 유한성, 수행가능성) 체계적 반영.
+   - 슬롯별 난이도 점수(`difficultyScore`) 정밀 캘리브레이션을 통해 **전교생의 16문항 총 난이도 점수(78점) 100% 수학적 동등화** 달성.
+2. **학생 시험지 화면 줄바꿈 가시성 및 카드 균형 CSS 적용 (`js/labs/lab-eval.js`, `css/studio-ui.css`)**:
+   - 지문 `<p>` 태그에 `whitespace-pre-line`을 적용하여 지문의 [규칙 1], [규칙 2], [규칙 3]이 실제 줄바꿈되어 쾌적하게 렌더링되도록 개선.
+   - `.eval-question-card`에 `justify-content: space-between`, 입력창 컨테이너에 `mt-auto pt-2`를 적용하여 문항 길이 편차에도 안정적인 바닥 정렬 유지.
+3. **학교 디벗(갤럭시 탭 11~12인치) 터치/뷰포트 최적화**:
+   - 가상 키보드 가림 방지 여백(`scroll-margin-bottom: 240px`, `interactive-widget=resizes-content`), 당겨서 새로고침 방지(`overscroll-behavior-y: contain`), 캔버스 터치 제스처 잠금(`touch-action: none`), 기호 원터치 추가, 자석 스냅(Magnet Snap), 화면 이탈 감지 안내 배너 적용.
+4. **교사용 대기실 관제 및 학생 좌석 사용성 개선**:
+   - 개별 대기실 닫기 및 안전 2단계 확인 일괄 닫기, 학생 자율 대기실 퇴장(좌석 점유 해제), 빔프로젝터 점수 블라인드 모드, 학생 모달 순서도 2D 캔버스 렌더링 및 크게 보기 라이트박스, 블록 실행 순서 정렬(`sortBlocksByExecution`).
+5. 제품 `9efb550`, 운영 병합 `f4ede83`. Vercel Production `https://algorithm-studio-loxzopupa-donghyun2.vercel.app`, deployment `6437056775` success.
+6. 고정 운영 주소 `https://algorithm-studio-ten.vercel.app/`에서 실제 정적 에셋 서빙(`difficultyScore`, `정상감시중`, `whitespace-pre-line` 포함) 정상 일치를 확인 완료. 문법 검사 58개, 단위/API 검사 43개 전체 통과.
+
 ## 2026-09-14 나만의 백지 AI 검사 캐싱 및 수행평가 운영 고도화 배포
 
 사용자 승인("검토하고 왔어. 병합과 배포 두과자!!")에 따라 `codex/eval-and-review-polish`의 모든 변경사항을 `main`에 병합하고 운영 배포했습니다.
