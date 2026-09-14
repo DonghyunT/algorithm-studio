@@ -1,5 +1,18 @@
 # 운영 배포 기록
 
+## 2026-09-14 문제은행 추출 버전 3 연동, blurCount 보안 규칙 허용 및 학생 제출 실패 해소 운영 배포
+
+사용자의 실시간 시험 테스트 보고("두 학생의 문제가 똑같은디??!", "시간이 다 지나기 전에 제출하려니까 사진과 같은 문구가 뜨네")에 따라 문제 원인을 정밀 진단하고 즉시 핫픽스를 배포했습니다.
+
+1. **문제은행 버전 정합성 복구 (`questionVersion >= 3`)**:
+   - `eval-service.js` 및 `lab-eval.js`의 문제은행 추출 조건을 `questionVersion >= 3`으로 수정하여, 운영 세션(버전 3)에서 학생별 고유 시드(`attemptId + '_' + classId + '_' + studentNum`) 기반으로 난이도 78점 동등 16문항이 학생마다 상이하게 정상 추출되도록 복구.
+   - 기존 입장 학생에 대한 자동 백필(Backfill) 및 교사 모달에서의 결정론적 복원 로직 추가.
+2. **화면 이탈 감지(`blurCount`) 보안 규칙 허용 및 조기 제출 오류 해소**:
+   - 학생이 화면을 이탈할 때 `this.answers.blurCount`가 추가되면서 `firestore.rules`의 화이트리스트 검증 실패로 HTTP 403 `PERMISSION_DENIED`가 발생하던 버그를 해결.
+   - `firestore.rules`의 `validAnswers()`에 `'blurCount'`를 추가하고, `validProgress()` 상한을 여유 있게 확장(30)하여 Firebase CLI를 통해 `donghyun-algo` 클라우드에 배포 완료.
+   - 실제 라이브 DB REST 진단을 통해 `blurCount` 포함 시 403 거부되던 것이 200 정상 저장 및 정상 제출로 완벽 복구됨을 실측 검증.
+3. 제품 `2283913`, `987661d`, 운영 병합 및 Vercel Production 배포 완료. 단위/회귀 테스트 44개 전체 통과.
+
 ## 2026-09-14 48문항 문제은행 고도화, 난이도 캘리브레이션 및 디벗 터치 최적화 운영 배포
 
 사용자 승인("지금까지의 작업내용을 다른 환경에서도 테스트해보게 vercel배포까지도 완료해줄래?")에 따라 `codex/classroom-session-and-submit-polish`의 모든 변경사항을 `main`에 병합하고 Vercel Production 운영 배포를 완료했습니다.
