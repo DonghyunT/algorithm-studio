@@ -204,3 +204,23 @@ html {
   line-height: 1 !important;
 }
 
+/* ==========================================
+   📱 학교 디벗(Galaxy Tab) 및 터치 환경 최적화
+   ========================================== */
+html, body {
+  overscroll-behavior-y: contain; /* 안드로이드 크롬/웨일 당겨서 새로고침(Pull-to-refresh) 차단 */
+}
+
+/* 태블릿 가상 키보드 팝업 시 입력창 가림 방지 여백 */
+.eval-question-card, #eval-part2-list > div {
+  scroll-margin-top: 80px;
+  scroll-margin-bottom: 240px;
+}
+
+/* 순서도 캔버스 터치 제스처 잠금 (손가락 드래그 시 브라우저 스크롤 간섭 방지) */
+#free-flowchart-viewport, #free-flowchart-stage, .flowchart-canvas {
+  touch-action: none;
+  -webkit-touch-callout: none;
+}
+
+

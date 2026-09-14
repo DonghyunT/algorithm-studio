@@ -210,13 +210,115 @@ const EVAL_LEGACY_QUESTIONS = JSON.parse(JSON.stringify(EVAL_QUESTIONS));
 EVAL_QUESTIONS.part1.forEach((q,i)=>{q.title=(i+1)+'번 문제';q.options=q.options.map(text=>text.replace(/\s*\([A-Za-z ]+\)/g,''));});
 EVAL_QUESTIONS.part2[4]={id:'p2_q5_v2',title:'5번 문제',desc:'기온이 30℃ 이상이면 선풍기를 켜고, 그렇지 않으면 끕니다. 기온이 30℃일 때의 동작을 써 보세요.',placeholder:'켜기 또는 끄기',answers:['켜기','켠다','선풍기 켜기','선풍기를 켠다'],points:5};
 EVAL_QUESTIONS.part2[5]={id:'p2_q6_v2',title:'6번 문제',desc:'씻지 않은 컵이 3개 있습니다. 컵 하나 씻기를 씻지 않은 컵이 없을 때까지 반복하면, 컵 씻기는 총 몇 번 실행되나요?',placeholder:'횟수를 적어 주세요',answers:['3','3번','3회','세 번','세번'],points:5};
-function evaluationQuestions(answers,version=answers?.part3?.questionVersion){return version>=2 ? EVAL_QUESTIONS : EVAL_LEGACY_QUESTIONS;}
+function createSeededRandom(seedStr) {
+  let h = 2166136261 >>> 0;
+  const str = String(seedStr || 'default_seed');
+  for (let i = 0; i < str.length; i++) {
+    h = Math.imul(h ^ str.charCodeAt(i), 16777619);
+  }
+  return function() {
+    h += 0x6D2B79F5;
+    let t = Math.imul(h ^ (h >>> 15), 1 | h);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function shuffleWithRng(array, rng) {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+/**
+ * 학생별 고유 시드를 기반으로 난이도별 무작위 문항 추출
+ * - Part 1 (10문항): [하 4개 (A형 3 + B형 1)] -> [중 4개] -> [상 2개]
+ * - Part 2 (6문항): [하 2개] -> [중 2개] -> [상 2개 (반복 1 + 비문학 1)]
+ */
+function assignQuestions(studentKey, bank) {
+  let qb = bank || (typeof EVAL_QUESTION_BANK !== 'undefined' ? EVAL_QUESTION_BANK : (typeof window !== 'undefined' ? window.EVAL_QUESTION_BANK : null));
+  if (!qb && typeof require === 'function') {
+    try { qb = require('./eval-question-bank.js').EVAL_QUESTION_BANK; } catch {}
+  }
+  if (!qb || !Array.isArray(qb.part1) || !Array.isArray(qb.part2)) {
+    return null;
+  }
+  const rng = createSeededRandom(studentKey);
+
+  // Part 1
+  const p1EasyC = qb.part1.filter(q => q.difficulty === 'easy' && q.subType === 'concept');
+  const p1EasyA = qb.part1.filter(q => q.difficulty === 'easy' && q.subType === 'applied');
+  const p1Med = qb.part1.filter(q => q.difficulty === 'medium');
+  const p1Hard = qb.part1.filter(q => q.difficulty === 'hard');
+
+  const pickedP1EasyC = shuffleWithRng(p1EasyC, rng).slice(0, 3);
+  const pickedP1EasyA = shuffleWithRng(p1EasyA, rng).slice(0, 1);
+  const pickedP1Med = shuffleWithRng(p1Med, rng).slice(0, 4);
+  const pickedP1Hard = shuffleWithRng(p1Hard, rng).slice(0, 2);
+
+  const pickedP1 = [...pickedP1EasyC, ...pickedP1EasyA, ...pickedP1Med, ...pickedP1Hard];
+
+  // Part 2
+  const p2Easy = qb.part2.filter(q => q.difficulty === 'easy');
+  const p2Med = qb.part2.filter(q => q.difficulty === 'medium');
+  const p2Trace = qb.part2.filter(q => q.difficulty === 'hard' && q.subType === 'trace');
+  const p2Scen = qb.part2.filter(q => q.difficulty === 'hard' && q.subType === 'scenario');
+
+  const pickedP2Easy = shuffleWithRng(p2Easy, rng).slice(0, 2);
+  const pickedP2Med = shuffleWithRng(p2Med, rng).slice(0, 2);
+  const pickedP2Trace = shuffleWithRng(p2Trace, rng).slice(0, 1);
+  const pickedP2Scen = shuffleWithRng(p2Scen, rng).slice(0, 1);
+
+  const pickedP2 = [...pickedP2Easy, ...pickedP2Med, ...pickedP2Trace, ...pickedP2Scen];
+
+  return {
+    part1: pickedP1.map(q => q.id),
+    part2: pickedP2.map(q => q.id)
+  };
+}
+
+function evaluationQuestions(answers, version=answers?.part3?.questionVersion) {
+  if (answers && answers.assignedQuestions) {
+    let bank = typeof EVAL_QUESTION_BANK !== 'undefined' ? EVAL_QUESTION_BANK : (typeof window !== 'undefined' ? window.EVAL_QUESTION_BANK : null);
+    if (!bank && typeof require === 'function') {
+      try { bank = require('./eval-question-bank.js').EVAL_QUESTION_BANK; } catch {}
+    }
+    if (bank && Array.isArray(bank.part1) && Array.isArray(bank.part2)) {
+      const p1Map = new Map(bank.part1.map(q => [q.id, q]));
+      const p2Map = new Map(bank.part2.map(q => [q.id, q]));
+      const p1List = (answers.assignedQuestions.part1 || []).map((id, idx) => {
+        const q = p1Map.get(id);
+        if (!q) return null;
+        return { ...q, title: `${idx + 1}번 문제` };
+      }).filter(Boolean);
+      const p2List = (answers.assignedQuestions.part2 || []).map((id, idx) => {
+        const q = p2Map.get(id);
+        if (!q) return null;
+        return { ...q, title: `${idx + 1}번 문제` };
+      }).filter(Boolean);
+
+      if (p1List.length > 0 || p2List.length > 0) {
+        return {
+          part1: p1List,
+          part2: p2List,
+          part3Themes: (version >= 2 ? EVAL_QUESTIONS : EVAL_LEGACY_QUESTIONS).part3Themes
+        };
+      }
+    }
+  }
+  return version >= 2 ? EVAL_QUESTIONS : EVAL_LEGACY_QUESTIONS;
+}
 
 if (typeof window !== 'undefined') {
   window.EVAL_QUESTIONS = EVAL_QUESTIONS;
   window.EVAL_LEGACY_QUESTIONS = EVAL_LEGACY_QUESTIONS;
   window.evaluationQuestions = evaluationQuestions;
+  window.assignQuestions = assignQuestions;
+  window.createSeededRandom = createSeededRandom;
 }
 if (typeof module !== 'undefined') {
-  module.exports = { EVAL_QUESTIONS, EVAL_LEGACY_QUESTIONS, evaluationQuestions };
+  module.exports = { EVAL_QUESTIONS, EVAL_LEGACY_QUESTIONS, evaluationQuestions, assignQuestions, createSeededRandom };
 }

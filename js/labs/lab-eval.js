@@ -311,10 +311,49 @@ class StudentEvalApp {
       }
     }, 1000);
 
+    // 문제은행 난이도별 문항 추출 보장 (버전 4 이상 또는 미배정 시 결정론적 추출)
+    const qVersion = (sessionData && sessionData.questionVersion) || this.answers?.part3?.questionVersion || 1;
+    const assignFn = typeof assignQuestions === 'function' ? assignQuestions : (typeof window !== 'undefined' ? window.assignQuestions : null);
+    if ((qVersion >= 4) && assignFn && !this.answers.assignedQuestions) {
+      this.answers.assignedQuestions = assignFn(`${this.attemptId || 'demo'}_${this.currentClass}_${this.studentNum}`);
+      this.saveDraft();
+    }
+
+    // 디벗/태블릿 및 웹 환경 시험 중 화면 이탈 감지 (부정행위 예방 안내)
+    if (!this.visibilityListenerAttached) {
+      this.visibilityListenerAttached = true;
+      document.addEventListener('visibilitychange', () => {
+        if (this.sessionStatus === 'in_progress' && !this.isSubmitted) {
+          if (document.hidden) {
+            this.answers.blurCount = (this.answers.blurCount || 0) + 1;
+            this.syncStudentProgress();
+          } else {
+            this.showTabWarningNotice();
+          }
+        }
+      });
+    }
+
     // 문항 렌더링 & 순서도 백지 초기화
     this.renderPartQuestions();
     this.initPart3Canvas();
     this.switchPart(this.currentPart || 'part1');
+  }
+
+  showTabWarningNotice() {
+    let toast = document.getElementById('eval-tab-warning-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'eval-tab-warning-toast';
+      toast.className = 'fixed top-16 left-1/2 -translate-x-1/2 z-[100] bg-rose-600 text-white px-5 py-2.5 rounded-2xl shadow-xl border-2 border-white flex items-center gap-2.5 font-bold text-xs sm:text-sm animate-bounce';
+      document.body.appendChild(toast);
+    }
+    toast.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-amber-300 text-base"></i><span>시험 화면을 벗어난 기록이 감지되었습니다. 시험에 집중해 주세요.</span>`;
+    toast.classList.remove('hidden');
+    clearTimeout(this.tabWarningTimer);
+    this.tabWarningTimer = setTimeout(() => {
+      toast.classList.add('hidden');
+    }, 4000);
   }
 
   renderTimer() {
@@ -417,7 +456,7 @@ class StudentEvalApp {
           </div>
           <p class="text-xs sm:text-sm font-bold text-slate-800 leading-relaxed">${q.desc}</p>
           <div class="flex items-center gap-2 max-w-md">
-            <input type="text" id="${q.id}_input" value="${escapeHtml(this.answers.part2[q.id] || '')}" oninput="window.studentEvalApp.onInputPart2('${q.id}', this.value)" class="flex-1 text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:border-indigo-500 focus:bg-white font-bold text-slate-800" placeholder="${q.placeholder}">
+            <input type="text" id="${q.id}_input" value="${escapeHtml(this.answers.part2[q.id] || '')}" onfocus="this.scrollIntoView({behavior:'smooth',block:'center'})" oninput="window.studentEvalApp.onInputPart2('${q.id}', this.value)" class="flex-1 text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:border-indigo-500 focus:bg-white font-bold text-slate-800" placeholder="${q.placeholder}">
             <span class="text-xs font-bold text-slate-400">단답형</span>
           </div>
         </div>

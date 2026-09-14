@@ -197,4 +197,72 @@ test('sortBlocksByExecution orders blocks by execution flow, handles branching a
   assert.equal(loopTexts[5], '연결 안 된 메모');
 });
 
+test('question bank: assignQuestions extracts exact difficulty distributions deterministically', () => {
+  const { EVAL_QUESTION_BANK } = require('../js/data/eval-question-bank.js');
+  const { assignQuestions, evaluationQuestions } = require('../js/data/eval-questions.js');
+  const { gradeEvaluation } = require('../js/core/flow-validation.js');
+
+  // Verify total question bank size
+  assert.equal(EVAL_QUESTION_BANK.part1.length, 30, 'Part 1 bank must have 30 questions');
+  assert.equal(EVAL_QUESTION_BANK.part2.length, 18, 'Part 2 bank must have 18 questions');
+
+  // Assign questions for student 1
+  const student1Key = 'attempt_20260914_2-1_05';
+  const assigned1 = assignQuestions(student1Key, EVAL_QUESTION_BANK);
+
+  assert.equal(assigned1.part1.length, 10, 'Part 1 must assign exactly 10 questions');
+  assert.equal(assigned1.part2.length, 6, 'Part 2 must assign exactly 6 questions');
+
+  // Check Part 1 breakdown: 4 easy (3 concept, 1 applied), 4 medium, 2 hard
+  const p1Questions = assigned1.part1.map(id => EVAL_QUESTION_BANK.part1.find(q => q.id === id));
+  assert.equal(p1Questions.filter(q => q.difficulty === 'easy').length, 4);
+  assert.equal(p1Questions.filter(q => q.difficulty === 'easy' && q.subType === 'concept').length, 3);
+  assert.equal(p1Questions.filter(q => q.difficulty === 'easy' && q.subType === 'applied').length, 1);
+  assert.equal(p1Questions.filter(q => q.difficulty === 'medium').length, 4);
+  assert.equal(p1Questions.filter(q => q.difficulty === 'hard').length, 2);
+
+  // Check Part 2 breakdown: 2 easy, 2 medium, 2 hard (1 trace, 1 scenario)
+  const p2Questions = assigned1.part2.map(id => EVAL_QUESTION_BANK.part2.find(q => q.id === id));
+  assert.equal(p2Questions.filter(q => q.difficulty === 'easy').length, 2);
+  assert.equal(p2Questions.filter(q => q.difficulty === 'medium').length, 2);
+  assert.equal(p2Questions.filter(q => q.difficulty === 'hard').length, 2);
+  assert.equal(p2Questions.filter(q => q.difficulty === 'hard' && q.subType === 'trace').length, 1);
+  assert.equal(p2Questions.filter(q => q.difficulty === 'hard' && q.subType === 'scenario').length, 1);
+
+  // Determinism test: same studentKey must produce identical assignment
+  const assigned1Repeat = assignQuestions(student1Key, EVAL_QUESTION_BANK);
+  assert.deepEqual(assigned1, assigned1Repeat, 'Same studentKey must produce identical assignment');
+
+  // Variation test: different studentKey should produce different set of questions
+  const student2Key = 'attempt_20260914_2-1_06';
+  const assigned2 = assignQuestions(student2Key, EVAL_QUESTION_BANK);
+  assert.notDeepEqual(assigned1.part1, assigned2.part1, 'Different students should get different Part 1 questions');
+
+  // Resolution and grading test:
+  const resolved = evaluationQuestions({ assignedQuestions: assigned1 });
+  assert.equal(resolved.part1.length, 10);
+  assert.equal(resolved.part2.length, 6);
+
+  // Prepare full correct answers for assigned questions
+  const answers = {
+    assignedQuestions: assigned1,
+    part1: {},
+    part2: {},
+    part3: { questionVersion: 3 }
+  };
+  resolved.part1.forEach(q => {
+    answers.part1[q.id] = q.correctAnswer;
+  });
+  resolved.part2.forEach(q => {
+    answers.part2[q.id] = q.answers[0]; // first valid alternative answer
+  });
+
+  const graded = gradeEvaluation(answers, 3);
+  assert.equal(graded.scores.part1, 30, 'All correct Part 1 must score 30 points');
+  assert.equal(graded.scores.part2, 30, 'All correct Part 2 must score 30 points');
+  assert.equal(graded.scores.objectiveTotal, 60, 'Total auto-graded score must be 60 points');
+  assert.equal(graded.scores.pendingReview, true, 'Part 3 must remain pendingReview for teacher grading');
+});
+
+
 
