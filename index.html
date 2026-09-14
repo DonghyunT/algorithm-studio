@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
   <title>정보 알고리즘 스튜디오 | 2022 개정 중학교 정보 교과 연계</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23202938'/%3E%3Cpath d='M16 5 22 15H10Z' fill='white'/%3E%3Ccircle cx='10' cy='23' r='5' fill='white'/%3E%3Cpath d='M18 18h9v9h-9z' fill='white'/%3E%3C/svg%3E">
   
@@ -1769,9 +1769,9 @@
                   <p class="text-[10px] text-slate-400 mt-0.5 font-medium">끌어서 놓기<br>또는 두 번 클릭</p>
                 </div>
 
-                <!-- 순서도 4대 표준 기호 블록 (엔트리 실물 블록 디자인 & D&D & 더블클릭) -->
+                <!-- 순서도 4대 표준 기호 블록 (엔트리 실물 블록 디자인 & D&D & 터치/클릭) -->
                 <div class="space-y-2.5">
-                  <div draggable="true" ondragstart="handlePaletteDragStart(event, 'terminal')" ondblclick="addCanvasBlock('terminal')" class="palette-entry-block palette-block-terminal cursor-grab active:cursor-grabbing transition-transform hover:scale-105 select-none text-center" title="더블클릭하거나 캔버스로 드래그하여 추가">
+                  <div draggable="true" ondragstart="handlePaletteDragStart(event, 'terminal')" onclick="handlePaletteBlockClick('terminal')" ondblclick="addCanvasBlock('terminal')" class="palette-entry-block palette-block-terminal cursor-grab active:cursor-grabbing transition-transform hover:scale-105 select-none text-center" title="터치/클릭하거나 캔버스로 드래그하여 추가">
                     <div class="pointer-events-none flex flex-col items-center justify-center leading-tight">
                       <div class="text-[11px] font-black flex items-center gap-1">
                         <span>⬭</span> <span>단말</span>
@@ -1780,7 +1780,7 @@
                     </div>
                   </div>
 
-                  <div draggable="true" ondragstart="handlePaletteDragStart(event, 'io')" ondblclick="addCanvasBlock('io')" class="palette-entry-block palette-block-io cursor-grab active:cursor-grabbing transition-transform hover:scale-105 select-none text-center" title="더블클릭하거나 캔버스로 드래그하여 추가">
+                  <div draggable="true" ondragstart="handlePaletteDragStart(event, 'io')" onclick="handlePaletteBlockClick('io')" ondblclick="addCanvasBlock('io')" class="palette-entry-block palette-block-io cursor-grab active:cursor-grabbing transition-transform hover:scale-105 select-none text-center" title="터치/클릭하거나 캔버스로 드래그하여 추가">
                     <div class="pointer-events-none flex flex-col items-center justify-center leading-tight">
                       <div class="text-[11px] font-black flex items-center gap-1">
                         <span>▱</span> <span>자료</span>
@@ -1789,7 +1789,7 @@
                     </div>
                   </div>
 
-                  <div draggable="true" ondragstart="handlePaletteDragStart(event, 'decision')" ondblclick="addCanvasBlock('decision')" class="palette-entry-block palette-block-decision cursor-grab active:cursor-grabbing transition-transform hover:scale-105 select-none text-center" title="더블클릭하거나 캔버스로 드래그하여 추가">
+                  <div draggable="true" ondragstart="handlePaletteDragStart(event, 'decision')" onclick="handlePaletteBlockClick('decision')" ondblclick="addCanvasBlock('decision')" class="palette-entry-block palette-block-decision cursor-grab active:cursor-grabbing transition-transform hover:scale-105 select-none text-center" title="터치/클릭하거나 캔버스로 드래그하여 추가">
                     <div class="pointer-events-none flex flex-col items-center justify-center leading-tight">
                       <div class="text-[11px] font-black flex items-center gap-1">
                         <span>◇</span> <span>판단</span>
@@ -1798,7 +1798,7 @@
                     </div>
                   </div>
 
-                  <div draggable="true" ondragstart="handlePaletteDragStart(event, 'process')" ondblclick="addCanvasBlock('process')" class="palette-entry-block palette-block-process cursor-grab active:cursor-grabbing transition-transform hover:scale-105 select-none text-center" title="더블클릭하거나 캔버스로 드래그하여 추가">
+                  <div draggable="true" ondragstart="handlePaletteDragStart(event, 'process')" onclick="handlePaletteBlockClick('process')" ondblclick="addCanvasBlock('process')" class="palette-entry-block palette-block-process cursor-grab active:cursor-grabbing transition-transform hover:scale-105 select-none text-center" title="터치/클릭하거나 캔버스로 드래그하여 추가">
                     <div class="pointer-events-none flex flex-col items-center justify-center leading-tight">
                       <div class="text-[11px] font-black flex items-center gap-1">
                         <span>▭</span> <span>처리</span>
@@ -1812,7 +1812,7 @@
               <!-- 하단 팁 배너 -->
               <div class="bg-white/80 border border-slate-200 rounded-xl p-2 text-center text-[10px] text-slate-500 leading-tight shadow-2xs">
                 <i class="fa-solid fa-lightbulb text-amber-500 mb-1 block"></i>
-                기호를 끌어서<br>원하는 곳에 놓으세요.
+                기호를 터치(클릭)하거나<br>원하는 곳으로 끌어놓으세요.
               </div>
             </section>
 
@@ -2027,6 +2027,12 @@
           <div class="text-[11px] text-amber-800/80 bg-white/70 p-2.5 rounded-xl font-medium">
             새로고침(F5)을 하더라도 번호와 상태는 안전하게 보존됩니다.
           </div>
+          <div class="pt-2">
+            <button type="button" onclick="window.studentEvalApp.leaveWaitingRoom()" class="px-4 py-2.5 bg-white hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-amber-300 hover:border-rose-300 rounded-xl text-xs sm:text-sm font-bold transition shadow-2xs cursor-pointer flex items-center justify-center gap-1.5 mx-auto">
+              <i class="fa-solid fa-arrow-right-from-bracket text-xs text-slate-400"></i>
+              <span>대기실 나가기 (번호·이름 다시 입력)</span>
+            </button>
+          </div>
         </div>
 
         <button type="button" onclick="switchUnit('roadmap')" class="text-xs text-slate-400 hover:text-slate-600 font-bold transition flex items-center gap-1 cursor-pointer pt-2">
@@ -2054,7 +2060,7 @@
               <span class="text-xs text-slate-400 font-bold">남은 시간:</span>
               <span id="eval-exam-timer" class="text-base sm:text-lg font-black font-mono text-amber-300">30:00</span>
             </div>
-            <button type="button" data-eval-submit disabled onclick="window.studentEvalApp.submitExam(false)" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs sm:text-sm font-black transition shadow-md shadow-emerald-600/30 cursor-pointer flex items-center gap-1.5">
+            <button type="button" data-eval-submit onclick="window.studentEvalApp.submitExam(false)" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs sm:text-sm font-black transition shadow-md shadow-emerald-600/30 cursor-pointer flex items-center gap-1.5">
               <span>최종 제출</span> <i class="fa-solid fa-paper-plane text-xs"></i>
             </button>
           </div>
@@ -2186,10 +2192,14 @@
 
       <!-- 공통 상단 학급 선택 바 -->
       <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
-        <div class="flex items-center gap-3">
+        <div class="flex flex-wrap items-center gap-3">
           <label class="text-xs sm:text-sm font-bold text-slate-700">대상 학급 선택:</label>
           <select id="classroom-class-select" onchange="switchClassroomClass(this.value)" class="bg-white border border-slate-300 rounded-xl px-4 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:outline-none focus:border-indigo-500 shadow-2xs cursor-pointer">
           </select>
+          <button id="classroom-close-all-btn" type="button" onclick="handleCloseAllWaitingRooms()" class="text-xs font-bold text-slate-600 hover:text-rose-700 bg-white hover:bg-rose-50 border border-slate-300 hover:border-rose-300 px-3 py-2 rounded-xl transition flex items-center gap-1.5 shadow-2xs cursor-pointer" title="열려 있는 모든 학급의 대기실을 일괄 닫습니다. (진행 중인 평가는 안전하게 보호됩니다)">
+            <i class="fa-solid fa-lock text-slate-400"></i>
+            <span>모든 대기실 닫기</span>
+          </button>
         </div>
         <div class="text-xs text-slate-500 font-bold flex items-center gap-2">
           <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
@@ -2218,6 +2228,7 @@
           </div>
           <div class="teacher-session-actions flex items-center gap-2.5">
             <button id="teacher-session-action" type="button" onclick="handleTeacherSessionAction()" class="teacher-session-action" aria-describedby="teacher-session-hint" disabled>상태 확인 중</button>
+            <button id="teacher-session-close-waiting" type="button" onclick="handleCloseWaitingRoom()" class="teacher-session-sub-action hidden" title="현재 학급의 대기실을 닫아 학생 입장을 차단합니다">대기실 닫기</button>
             <button type="button" onclick="handleTeacherExportCSV()" class="teacher-export-action">
               <i class="fa-solid fa-file-excel" aria-hidden="true"></i> <span>성적표 CSV</span>
             </button>
@@ -2231,7 +2242,11 @@
               <i class="fa-solid fa-users text-indigo-600"></i>
               <span>컴퓨터실 27인 실시간 좌석 현황판 (클릭 시 개별 답안 조회 및 점수 조정)</span>
             </span>
-            <div class="flex items-center gap-3 text-xs">
+            <div class="flex items-center gap-2.5 text-xs">
+              <button id="classroom-blind-toggle" type="button" onclick="toggleScoreBlindMode()" class="px-2.5 py-1 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 cursor-pointer bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100 shadow-2xs mr-1" title="교실 빔프로젝터에 화면을 띄울 때 학생들의 실시간 점수를 가려 정답 역추적 및 비교를 방지합니다.">
+                <i id="classroom-blind-toggle-icon" class="fa-solid fa-eye-slash text-amber-600"></i>
+                <span id="classroom-blind-toggle-label">스크린 점수 숨김 (보호 중)</span>
+              </button>
               <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-slate-300"></span> 미접속</span>
               <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-amber-400"></span> 대기중</span>
               <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-blue-500"></span> 풀이중</span>
@@ -2414,6 +2429,7 @@
   <!-- ========================================== -->
   <!-- 2. 공통 엔진 (사운드 효과음, 네비게이션, AI 통신 서비스, AI 튜터, 실시간 평가) -->
   <!-- ========================================== -->
+  <script src="js/data/eval-question-bank.js"></script>
   <script src="js/data/eval-questions.js"></script>
   <script src="js/core/flow-expressions.js"></script>
   <script src="js/core/flow-validation.js"></script>
@@ -2646,6 +2662,25 @@
             <i class="fa-solid fa-rotate-left text-[11px]"></i> <span>재시험 허용 (답안 초기화 후 시험장 복귀)</span>
           </button>
         </div>
+      </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 교사용 순서도 다이어그램 고해상도 확대 모달 (Lightbox) -->
+  <!-- ========================================== -->
+  <div id="classroom-flowchart-lightbox" class="fixed inset-0 z-[80] bg-slate-900/75 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-5xl w-full p-5 space-y-3 fade-enter">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">📐</span>
+          <h4 id="classroom-flowchart-lightbox-title" class="text-base font-black text-slate-900">순서도 다이어그램 상세 보기</h4>
+        </div>
+        <button type="button" onclick="closeFlowchartModalPreview()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-xs transition cursor-pointer">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="w-full overflow-auto rounded-2xl border border-slate-200 bg-slate-50 p-3 max-h-[75vh]">
+        <canvas id="classroom-lightbox-flowchart-canvas" width="1100" height="650" class="max-w-full h-auto object-contain bg-white rounded-xl shadow-xs mx-auto block"></canvas>
       </div>
     </div>
   </div>

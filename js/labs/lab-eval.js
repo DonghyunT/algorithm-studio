@@ -235,6 +235,40 @@ class StudentEvalApp {
     if(this.isSubmitted) { this.calculateScores(); this.renderResult(); }
   }
 
+  // 2-1. 대기실 나가기 (번호·이름 오입력 수정용)
+  async leaveWaitingRoom() {
+    if (!this.joined || this.isSubmitted || this.sessionStatus !== 'waiting') return;
+    if (!confirm('대기실에서 나가시겠습니까?\n번호와 이름을 다시 입력하여 재입장할 수 있습니다.')) return;
+
+    const classId = this.currentClass;
+    const studentNum = this.studentNum;
+
+    try {
+      if (window.evalService && classId && studentNum) {
+        await window.evalService.leaveWaitingRoom(classId, studentNum);
+      }
+    } catch (error) {
+      console.warn('대기실 퇴장 기록 정리 중 알림:', error);
+    }
+
+    this.sessionUnsub?.(); this.studentUnsub?.();
+    this.sessionUnsub = null; this.studentUnsub = null;
+    this.joined = false;
+    this.ownerUid = null;
+    sessionStorage.removeItem(this.draftKey());
+    sessionStorage.removeItem('ALGO_ACTIVE_EXAM');
+
+    const waitArea = document.getElementById('eval-lobby-waiting-area');
+    const formArea = document.getElementById('eval-lobby-form-area');
+    if (waitArea) waitArea.classList.add('hidden');
+    if (formArea) formArea.classList.remove('hidden');
+
+    const numInp = document.getElementById('eval-st-num');
+    if (numInp) numInp.focus();
+
+    this.checkSelectedClassStatus();
+  }
+
   // 3. 시험장 진입 및 타이머 가동
   startExam(sessionData) {
     if (this.sessionStatus === 'in_progress') return;
@@ -277,10 +311,49 @@ class StudentEvalApp {
       }
     }, 1000);
 
+    // 문제은행 난이도별 문항 추출 보장 (버전 4 이상 또는 미배정 시 결정론적 추출)
+    const qVersion = (sessionData && sessionData.questionVersion) || this.answers?.part3?.questionVersion || 1;
+    const assignFn = typeof assignQuestions === 'function' ? assignQuestions : (typeof window !== 'undefined' ? window.assignQuestions : null);
+    if ((qVersion >= 4) && assignFn && !this.answers.assignedQuestions) {
+      this.answers.assignedQuestions = assignFn(`${this.attemptId || 'demo'}_${this.currentClass}_${this.studentNum}`);
+      this.saveDraft();
+    }
+
+    // 디벗/태블릿 및 웹 환경 시험 중 화면 이탈 감지 (부정행위 예방 안내)
+    if (!this.visibilityListenerAttached) {
+      this.visibilityListenerAttached = true;
+      document.addEventListener('visibilitychange', () => {
+        if (this.sessionStatus === 'in_progress' && !this.isSubmitted) {
+          if (document.hidden) {
+            this.answers.blurCount = (this.answers.blurCount || 0) + 1;
+            this.syncStudentProgress();
+          } else {
+            this.showTabWarningNotice();
+          }
+        }
+      });
+    }
+
     // 문항 렌더링 & 순서도 백지 초기화
     this.renderPartQuestions();
     this.initPart3Canvas();
     this.switchPart(this.currentPart || 'part1');
+  }
+
+  showTabWarningNotice() {
+    let toast = document.getElementById('eval-tab-warning-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'eval-tab-warning-toast';
+      toast.className = 'fixed top-16 left-1/2 -translate-x-1/2 z-[100] bg-rose-600 text-white px-5 py-2.5 rounded-2xl shadow-xl border-2 border-white flex items-center gap-2.5 font-bold text-xs sm:text-sm animate-bounce';
+      document.body.appendChild(toast);
+    }
+    toast.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-amber-300 text-base"></i><span>시험 화면을 벗어난 기록이 감지되었습니다. 시험에 집중해 주세요.</span>`;
+    toast.classList.remove('hidden');
+    clearTimeout(this.tabWarningTimer);
+    this.tabWarningTimer = setTimeout(() => {
+      toast.classList.add('hidden');
+    }, 4000);
   }
 
   renderTimer() {
@@ -343,7 +416,7 @@ class StudentEvalApp {
         `<div>${index<2?`${questions[part].length}문항 중 ${count}문항 응답`:'작성한 내용을 확인하고 제출하세요.'}${index<2&&count<questions[part].length?'<small>풀지 않은 문제는 나중에 돌아와 풀 수 있어요.</small>':''}</div>`+
         (index<2?`<button type="button" onclick="studentEvalApp.switchPart('part${index+2}',true)">다음: ${index===0?'단답형':'순서도'}</button>`:'<button type="button" data-eval-submit onclick="studentEvalApp.submitExam(false)">최종 제출</button>');
     }
-    document.querySelectorAll('[data-eval-submit]').forEach(b=>{b.disabled=!this.visitedPart3||this.isSubmitting||this.isSubmitted;b.title=this.visitedPart3?'최종 제출':'Part 3을 확인한 뒤 제출할 수 있어요.';});
+    document.querySelectorAll('[data-eval-submit]').forEach(b=>{b.disabled=this.isSubmitting||this.isSubmitted;b.title=this.visitedPart3?'최종 제출':'Part 3을 확인한 뒤 제출할 수 있어요.';});
     document.querySelectorAll('#eval-part1-list input,#eval-part2-list input').forEach(input=>{input.disabled=this.isSubmitting||this.isSubmitted||this.sessionStatus==='ended';});
   }
 
@@ -359,7 +432,7 @@ class StudentEvalApp {
             <span class="text-xs font-black px-3 py-1 bg-indigo-50 text-indigo-700 rounded-lg border border-indigo-100">${i+1}번 문제</span>
             <span class="text-xs font-black text-slate-400 font-mono">${q.points}점</span>
           </div>
-          <p class="text-xs sm:text-sm font-bold text-slate-800 leading-relaxed">${q.desc}</p>
+          <p class="text-xs sm:text-sm font-bold text-slate-800 leading-relaxed whitespace-pre-line">${q.desc}</p>
           <div class="eval-question-options space-y-2 pt-1">
             ${q.options.map((opt, optIdx) => `
               <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition text-xs sm:text-sm font-medium">
@@ -376,14 +449,14 @@ class StudentEvalApp {
     const p2Box = document.getElementById('eval-part2-list');
     if (p2Box) {
       p2Box.innerHTML = questions.part2.map((q,i) => `
-        <div class="p-5 bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-3.5">
+        <div class="eval-question-card p-5 bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-3.5">
           <div class="flex items-center justify-between">
             <span class="text-xs font-black px-3 py-1 bg-amber-50 text-amber-800 rounded-lg border border-amber-200">${i+1}번 문제</span>
             <span class="text-xs font-black text-slate-400 font-mono">${q.points}점</span>
           </div>
-          <p class="text-xs sm:text-sm font-bold text-slate-800 leading-relaxed">${q.desc}</p>
-          <div class="flex items-center gap-2 max-w-md">
-            <input type="text" id="${q.id}_input" value="${escapeHtml(this.answers.part2[q.id] || '')}" oninput="window.studentEvalApp.onInputPart2('${q.id}', this.value)" class="flex-1 text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:border-indigo-500 focus:bg-white font-bold text-slate-800" placeholder="${q.placeholder}">
+          <p class="text-xs sm:text-sm font-bold text-slate-800 leading-relaxed whitespace-pre-line">${q.desc}</p>
+          <div class="flex items-center gap-2 max-w-md mt-auto pt-2">
+            <input type="text" id="${q.id}_input" value="${escapeHtml(this.answers.part2[q.id] || '')}" onfocus="this.scrollIntoView({behavior:'smooth',block:'center'})" oninput="window.studentEvalApp.onInputPart2('${q.id}', this.value)" class="flex-1 text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:border-indigo-500 focus:bg-white font-bold text-slate-800" placeholder="${q.placeholder}">
             <span class="text-xs font-bold text-slate-400">단답형</span>
           </div>
         </div>
@@ -539,7 +612,11 @@ class StudentEvalApp {
   // 5. 최종 제출 처리
   async submitExam(isAuto = false) {
     if (this.isSubmitted || this.isSubmitting) return;
-    if(!isAuto&&!this.visitedPart3){alert('Part 3을 확인한 뒤 제출해 주세요. 미완성 답안도 제출할 수 있습니다.');return;}
+    if(!isAuto&&!this.visitedPart3){
+      alert('Part 3(알고리즘 설계) 문제를 확인한 뒤 제출해 주세요.\n문제를 다 풀지 못했더라도 제출할 수 있습니다.');
+      this.switchPart('part3',true);
+      return;
+    }
     window.assessmentWorkspace?.capture();
     if (!isAuto && !confirm("정말로 수행평가 답안을 최종 제출하시겠습니까?\n제출 후에는 교사의 재시험 승인이 있어야 답안을 다시 작성할 수 있습니다.")) {
       return;

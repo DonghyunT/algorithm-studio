@@ -1,0 +1,764 @@
+const EVAL_QUESTION_BANK = {
+  "part1": [
+    {
+      "id": "p1_e_c_1",
+      "difficulty": "easy",
+      "subType": "concept",
+      "difficultyScore": 2,
+      "title": "문제 해결을 위한 첫 걸음",
+      "desc": "복잡한 문제에서 불필요한 세부 사항은 제거하고, 문제 해결에 꼭 필요한 핵심 요소만 단순화하여 나타내는 과정을 무엇이라고 하나요?",
+      "options": [
+        "순서도",
+        "추상화",
+        "알고리즘",
+        "코딩"
+      ],
+      "correctAnswer": 1,
+      "points": 3
+    },
+    {
+      "id": "p1_e_c_2",
+      "difficulty": "easy",
+      "subType": "concept",
+      "difficultyScore": 2,
+      "title": "알고리즘의 조건 - 명확성",
+      "desc": "알고리즘의 모든 명령어는 누구나 오해 없이 이해할 수 있도록 뜻이 단 한 가지로 분명해야 합니다. 이는 알고리즘의 어떤 조건에 해당하나요?",
+      "options": [
+        "유한성",
+        "수행 가능성",
+        "명확성",
+        "효율성"
+      ],
+      "correctAnswer": 2,
+      "points": 3
+    },
+    {
+      "id": "p1_e_c_3",
+      "difficulty": "easy",
+      "subType": "concept",
+      "difficultyScore": 2,
+      "title": "알고리즘의 조건 - 유한성",
+      "desc": "알고리즘은 무한히 반복되지 않고, 정해진 단계를 거친 후에는 반드시 끝이 나야 합니다. 이 조건은 무엇인가요?",
+      "options": [
+        "명확성",
+        "유한성",
+        "수행 가능성",
+        "정확성"
+      ],
+      "correctAnswer": 1,
+      "points": 3
+    },
+    {
+      "id": "p1_e_c_4",
+      "difficulty": "easy",
+      "subType": "concept",
+      "difficultyScore": 2,
+      "title": "알고리즘의 조건 - 수행 가능성",
+      "desc": "알고리즘에 포함된 모든 명령어는 컴퓨터나 사람이 실제로 물리적·논리적으로 실행할 수 있어야 한다는 조건은 무엇인가요?",
+      "options": [
+        "수행 가능성",
+        "명확성",
+        "유한성",
+        "다양성"
+      ],
+      "correctAnswer": 0,
+      "points": 3
+    },
+    {
+      "id": "p1_e_c_5",
+      "difficulty": "easy",
+      "subType": "concept",
+      "difficultyScore": 2,
+      "title": "순서도의 정의",
+      "desc": "문제 해결을 위한 알고리즘의 진행 순서를 약속된 기호와 화살표를 사용하여 한눈에 알아보기 쉽게 표현한 그림을 무엇이라고 하나요?",
+      "options": [
+        "마인드맵",
+        "순서도",
+        "체크리스트",
+        "스케치북"
+      ],
+      "correctAnswer": 1,
+      "points": 3
+    },
+    {
+      "id": "p1_e_c_6",
+      "difficulty": "easy",
+      "subType": "concept",
+      "difficultyScore": 2,
+      "title": "순서도 기호의 의미 (시작과 끝)",
+      "desc": "순서도에서 알고리즘의 전체적인 '시작'과 '끝'을 나타낼 때 사용하는 순서도 기호는 무엇인가요?",
+      "options": [
+        "단말 기호 (타원)",
+        "자료 기호 (평행사변형)",
+        "판단 기호 (마름모)",
+        "처리 기호 (직사각형)"
+      ],
+      "correctAnswer": 0,
+      "points": 3
+    },
+    {
+      "id": "p1_e_c_7",
+      "difficulty": "easy",
+      "subType": "concept",
+      "difficultyScore": 2,
+      "title": "제어 구조의 종류 (순차)",
+      "desc": "명령어들을 위에서 아래로 정해진 순서에 따라 차례대로 한 번씩만 실행하는 제어 구조는 무엇인가요?",
+      "options": [
+        "선택 구조",
+        "반복 구조",
+        "순차 구조",
+        "분기 구조"
+      ],
+      "correctAnswer": 2,
+      "points": 3
+    },
+    {
+      "id": "p1_e_c_8",
+      "difficulty": "easy",
+      "subType": "concept",
+      "difficultyScore": 2,
+      "title": "제어 구조의 종류 (선택)",
+      "desc": "주어진 조건에 따라 참(Yes)일 때와 거짓(No)일 때 실행할 명령 경로가 서로 다르게 나뉘어지는 제어 구조는 무엇인가요?",
+      "options": [
+        "반복 구조",
+        "선택 구조",
+        "순차 구조",
+        "단일 구조"
+      ],
+      "correctAnswer": 1,
+      "points": 3
+    },
+    {
+      "id": "p1_e_c_9",
+      "difficulty": "easy",
+      "subType": "concept",
+      "difficultyScore": 2,
+      "title": "제어 구조의 종류 (반복)",
+      "desc": "특정 조건을 만족하는 동안 같은 명령들을 여러 번 되풀이하여 실행하는 제어 구조는 무엇인가요?",
+      "options": [
+        "순차 구조",
+        "선택 구조",
+        "반복 구조",
+        "분리 구조"
+      ],
+      "correctAnswer": 2,
+      "points": 3
+    },
+    {
+      "id": "p1_e_a_1",
+      "difficulty": "easy",
+      "subType": "applied",
+      "difficultyScore": 3,
+      "title": "자동판매기의 입출력 기호",
+      "desc": "자동판매기 알고리즘을 순서도로 나타낼 때, '동전을 투입구에 입력 받는다'는 단계에 사용할 알맞은 순서도 기호는 무엇인가요?",
+      "options": [
+        "단말 기호 (타원)",
+        "자료 기호 (평행사변형)",
+        "판단 기호 (마름모)",
+        "처리 기호 (직사각형)"
+      ],
+      "correctAnswer": 1,
+      "points": 3
+    },
+    {
+      "id": "p1_e_a_2",
+      "difficulty": "easy",
+      "subType": "applied",
+      "difficultyScore": 3,
+      "title": "점수 출력 기호 찾기",
+      "desc": "채점 프로그램에서 최종적으로 '학생의 시험 점수를 화면에 출력한다'는 단계를 표현하기에 알맞은 순서도 기호는 무엇인가요?",
+      "options": [
+        "단말 기호 (타원)",
+        "자료 기호 (평행사변형)",
+        "판단 기호 (마름모)",
+        "처리 기호 (직사각형)"
+      ],
+      "correctAnswer": 1,
+      "points": 3
+    },
+    {
+      "id": "p1_e_a_3",
+      "difficulty": "easy",
+      "subType": "applied",
+      "difficultyScore": 3,
+      "title": "비밀번호 입력 기호 매칭",
+      "desc": "도어락 잠금 해제 알고리즘에서 '사용자가 비밀번호 4자리를 입력한다'는 단계를 나타낼 가장 적절한 순서도 기호는 무엇인가요?",
+      "options": [
+        "단말 기호 (타원)",
+        "자료 기호 (평행사변형)",
+        "판단 기호 (마름모)",
+        "처리 기호 (직사각형)"
+      ],
+      "correctAnswer": 1,
+      "points": 3
+    },
+    {
+      "id": "p1_m_1",
+      "difficulty": "medium",
+      "subType": "standard",
+      "difficultyScore": 5,
+      "title": "경계값 판정 - 에어컨 온도",
+      "desc": "스마트 에어컨 알고리즘에 [현재 실내 온도 > 28℃] 라는 판단 기호가 있습니다. 현재 실내 온도가 정확히 28℃일 때, 판단 기호의 결과는 무엇인가요?",
+      "options": [
+        "참 (Yes)",
+        "거짓 (No)",
+        "오류 발생",
+        "측정 불가"
+      ],
+      "correctAnswer": 1,
+      "points": 3
+    },
+    {
+      "id": "p1_m_2",
+      "difficulty": "medium",
+      "subType": "standard",
+      "difficultyScore": 5,
+      "title": "경계값 판정 - 놀이기구 탑승",
+      "desc": "놀이기구 탑승 조건이 [키 >= 130cm] 입니다. 어떤 학생의 키가 정확히 130cm라면 판단 기호의 조건 평가 결과는 어떻게 될까요?",
+      "options": [
+        "참 (Yes)",
+        "거짓 (No)",
+        "조건 불명확",
+        "탑승 불가"
+      ],
+      "correctAnswer": 0,
+      "points": 3
+    },
+    {
+      "id": "p1_m_3",
+      "difficulty": "medium",
+      "subType": "standard",
+      "difficultyScore": 5,
+      "title": "자료 vs 처리 구분 - 센서 거리 측정",
+      "desc": "로봇 청소기의 동작 중 '초음파 센서로 벽면과의 거리를 측정(입력)한다'는 단계를 순서도로 표현할 때 가장 적절한 기호는 무엇인가요?",
+      "options": [
+        "단말 기호 (타원)",
+        "자료 기호 (평행사변형)",
+        "판단 기호 (마름모)",
+        "처리 기호 (직사각형)"
+      ],
+      "correctAnswer": 1,
+      "points": 3
+    },
+    {
+      "id": "p1_m_4",
+      "difficulty": "medium",
+      "subType": "standard",
+      "difficultyScore": 5,
+      "title": "자료 vs 처리 구분 - 연산 실행",
+      "desc": "계산기 알고리즘에서 '두 수의 합을 계산한다'는 연산 실행 과정을 순서도로 표현할 때 사용할 알맞은 기호는 무엇인가요?",
+      "options": [
+        "단말 기호 (타원)",
+        "자료 기호 (평행사변형)",
+        "판단 기호 (마름모)",
+        "처리 기호 (직사각형)"
+      ],
+      "correctAnswer": 3,
+      "points": 3
+    },
+    {
+      "id": "p1_m_5",
+      "difficulty": "medium",
+      "subType": "standard",
+      "difficultyScore": 5,
+      "title": "자료 vs 처리 구분 - 스피커 안내 방송",
+      "desc": "스마트 안내 스피커가 '현재 날씨 안내 멘트를 음성으로 출력한다'는 단계를 순서도로 표현할 때 알맞은 기호는 무엇인가요?",
+      "options": [
+        "단말 기호 (타원)",
+        "자료 기호 (평행사변형)",
+        "판단 기호 (마름모)",
+        "처리 기호 (직사각형)"
+      ],
+      "correctAnswer": 1,
+      "points": 3
+    },
+    {
+      "id": "p1_m_6",
+      "difficulty": "medium",
+      "subType": "standard",
+      "difficultyScore": 5,
+      "title": "자료 vs 처리 구분 - 모터 구동 명령",
+      "desc": "무인 주행 차량이 '오른쪽 바퀴 모터를 3초간 회전시켜 우회전한다'는 동작 명령을 실행하는 단계를 나타낼 알맞은 순서도 기호는 무엇인가요?",
+      "options": [
+        "단말 기호 (타원)",
+        "자료 기호 (평행사변형)",
+        "판단 기호 (마름모)",
+        "처리 기호 (직사각형)"
+      ],
+      "correctAnswer": 3,
+      "points": 3
+    },
+    {
+      "id": "p1_m_7",
+      "difficulty": "medium",
+      "subType": "standard",
+      "difficultyScore": 5,
+      "title": "추상화 - 샌드위치 조리 레시피",
+      "desc": "샌드위치를 만드는 알고리즘을 설계하려 합니다. 다음 중 추상화 과정에서 '문제 해결에 불필요한 정보(노이즈)'로 보아 제거해야 할 것은 무엇인가요?",
+      "options": [
+        "빵의 종류 선택",
+        "햄과 치즈 넣기",
+        "주방 식탁의 색상",
+        "완성된 샌드위치 포장"
+      ],
+      "correctAnswer": 2,
+      "points": 3
+    },
+    {
+      "id": "p1_m_8",
+      "difficulty": "medium",
+      "subType": "standard",
+      "difficultyScore": 5,
+      "title": "알고리즘의 조건 - 출력",
+      "desc": "알고리즘이 문제 해결을 위해 올바르게 동작한 후에는, 반드시 적어도 하나 이상의 결과를 외부로 만들어 내놓아야 합니다. 이는 알고리즘의 어떤 조건에 해당하나요?",
+      "options": [
+        "입력",
+        "출력",
+        "명확성",
+        "효율성"
+      ],
+      "correctAnswer": 1,
+      "points": 3
+    },
+    {
+      "id": "p1_m_9",
+      "difficulty": "medium",
+      "subType": "standard",
+      "difficultyScore": 5,
+      "title": "알고리즘의 5대 조건 종합 이해",
+      "desc": "다음 중 교과서에서 설명하는 알고리즘의 5대 조건(입력, 출력, 명확성, 유한성, 수행 가능성)에 대한 설명으로 가장 옳지 않은 것은 무엇인가요?",
+      "options": [
+        "외부에서 제공되는 0개 이상의 입력 자료가 있을 수 있다.",
+        "실행 후에는 반드시 1개 이상의 결과를 외부로 출력해야 한다.",
+        "명령어는 상황이나 사람에 따라 여러 가지 뜻으로 해석될 수 있어야 한다.",
+        "명령어를 일정한 단계 동안 수행한 후에는 반드시 스스로 종료되어야 한다."
+      ],
+      "correctAnswer": 2,
+      "points": 3
+    },
+    {
+      "id": "p1_m_10",
+      "difficulty": "medium",
+      "subType": "trace",
+      "difficultyScore": 5,
+      "title": "순차 구조 흐름 예측 (베이킹 재료)",
+      "desc": "쿠키를 만드는 베이킹 명령이 순서대로 실행됩니다.\n1. 반죽 그릇에 밀가루 500g을 넣는다.\n2. 반죽 그릇에 설탕 100g을 추가로 넣는다.\n3. 반죽 그릇에 초코칩 50g을 추가로 넣는다.\n모든 명령이 완료된 후 그릇 속 재료들의 총 무게는 얼마일까요?",
+      "options": [
+        "500g",
+        "600g",
+        "650g",
+        "750g"
+      ],
+      "correctAnswer": 2,
+      "points": 3
+    },
+    {
+      "id": "p1_m_11",
+      "difficulty": "medium",
+      "subType": "trace",
+      "difficultyScore": 5,
+      "title": "선택 구조 실행 예측 - 수 비교",
+      "desc": "사용자가 숫자 10을 입력했습니다. 조건 [입력된 수 > 5]가 참(Yes)이면 '크다'를 출력하고, 거짓(No)이면 '작다'를 출력합니다. 화면에 출력되는 결과는 무엇인가요?",
+      "options": [
+        "크다",
+        "작다",
+        "5",
+        "10"
+      ],
+      "correctAnswer": 0,
+      "points": 3
+    },
+    {
+      "id": "p1_m_12",
+      "difficulty": "medium",
+      "subType": "trace",
+      "difficultyScore": 5,
+      "title": "경계값 선택 구조 - 합격 여부 판정",
+      "desc": "점수가 80점 이상이면 '합격', 80점 미만이면 '불합격'을 출력하는 알고리즘이 있습니다. 점수로 80점을 입력받았을 때 화면에 출력되는 결과는 무엇인가요?",
+      "options": [
+        "합격",
+        "불합격",
+        "보류",
+        "재시험"
+      ],
+      "correctAnswer": 0,
+      "points": 3
+    },
+    {
+      "id": "p1_h_1",
+      "difficulty": "hard",
+      "subType": "trace",
+      "difficultyScore": 8,
+      "title": "반복문 실행 추적 - 계수 증가",
+      "desc": "시작 숫자 0에서 출발합니다. [조건: 숫자에 3을 더한다]는 동작 과정을 정확히 4번 반복하여 수행했습니다. 반복이 끝난 후 최종 숫자는 얼마가 될까요?",
+      "options": [
+        "9",
+        "12",
+        "15",
+        "16"
+      ],
+      "correctAnswer": 1,
+      "points": 3
+    },
+    {
+      "id": "p1_h_2",
+      "difficulty": "hard",
+      "subType": "trace",
+      "difficultyScore": 8,
+      "title": "반복문 실행 추적 - 어항 물 빼기",
+      "desc": "어항에 물이 10L 채워져 있습니다.\n[조건: 남은 물의 양 > 4L 인 동안 반복]\n반복 실행 명령: '어항에서 물 2L를 퍼낸다'\n조건을 더 이상 만족하지 않아 반복이 종료되었을 때, 어항에 최종적으로 남아있는 물의 양은 몇 L일까요?",
+      "options": [
+        "2L",
+        "4L",
+        "6L",
+        "8L"
+      ],
+      "correctAnswer": 1,
+      "points": 3
+    },
+    {
+      "id": "p1_h_3",
+      "difficulty": "hard",
+      "subType": "trace",
+      "difficultyScore": 8,
+      "title": "반복과 내부 조건의 결합",
+      "desc": "상자에 사탕이 5개 들어있습니다. [사탕이 0개가 될 때까지 반복]하면서 매번 '사탕 1개를 꺼내 먹는다'를 수행합니다. 사탕을 먹을 때마다 [만약 남은 사탕이 3개라면 '간식시간'을 외친다]를 확인합니다. '간식시간'이라는 외침은 총 몇 번 실행될까요?",
+      "options": [
+        "0번",
+        "1번",
+        "2번",
+        "3번"
+      ],
+      "correctAnswer": 1,
+      "points": 3
+    },
+    {
+      "id": "p1_h_4",
+      "difficulty": "hard",
+      "subType": "trace",
+      "difficultyScore": 8,
+      "title": "다중 조건 분기 1 - 영화관 요금",
+      "desc": "영화관 요금 결제 규칙입니다.\n[조건 1: 나이가 14세 미만인가?]\n- 참(Yes)이면 '5000원'\n- 거짓(No)일 때 ➔ [조건 2: 조조 할인 시간대인가?]\n  * 참(Yes)이면 '7000원'\n  * 거짓(No)이면 '10000원'\n나이가 15세이고 조조 할인 시간대가 아닐 때 내야 할 요금은 얼마일까요?",
+      "options": [
+        "5000원",
+        "7000원",
+        "10000원",
+        "무료"
+      ],
+      "correctAnswer": 2,
+      "points": 3
+    },
+    {
+      "id": "p1_h_5",
+      "difficulty": "hard",
+      "subType": "trace",
+      "difficultyScore": 8,
+      "title": "다중 조건 분기 2 - 날씨별 복장 추천",
+      "desc": "날씨 안내 시스템의 옷차림 추천 규칙입니다.\n[조건 1: 비가 오고 있는가?]\n- 참(Yes)이면 '우산 준비'\n- 거짓(No)일 때 ➔ [조건 2: 현재 기온이 10도 이하인가?]\n  * 참(Yes)이면 '두꺼운 외투'\n  * 거짓(No)이면 '가벼운 반팔'\n현재 비가 오지 않고 기온이 8도일 때 시스템이 추천하는 복장은 무엇인가요?",
+      "options": [
+        "우산 준비",
+        "두꺼운 외투",
+        "가벼운 반팔",
+        "추천 없음"
+      ],
+      "correctAnswer": 1,
+      "points": 3
+    },
+    {
+      "id": "p1_h_6",
+      "difficulty": "hard",
+      "subType": "trace",
+      "difficultyScore": 8,
+      "title": "다중 조건 분기 3 - 놀이공원 자유이용권",
+      "desc": "놀이공원 요금 규칙입니다.\n[조건 1: 키가 120cm 미만인가?]\n- 참(Yes)이면 '무료 입장'\n- 거짓(No)일 때 ➔ [조건 2: 연간 회원인가?]\n  * 참(Yes)이면 '10000원'\n  * 거짓(No)이면 '25000원'\n키가 135cm이고 연간 회원이 아닌 관람객이 지불해야 할 요금은 얼마일까요?",
+      "options": [
+        "무료 입장",
+        "10000원",
+        "25000원",
+        "입장 불가"
+      ],
+      "correctAnswer": 2,
+      "points": 3
+    }
+  ],
+  "part2": [
+    {
+      "id": "p2_e_1",
+      "difficulty": "easy",
+      "subType": "term",
+      "difficultyScore": 3,
+      "title": "실생활 제어 구조 식별 - 라면 조리법",
+      "desc": "[라면 조리법] '1. 냄비에 물 붓기 ➔ 2. 면과 스프 넣기 ➔ 3. 4분간 끓이기'와 같이 이전 단계가 완료되면 다음 단계 명령이 순서대로 차례차례 한 번씩 실행되는 제어 구조의 이름을 쓰시오.",
+      "placeholder": "정답 입력",
+      "answers": [
+        "순차구조",
+        "순차 구조",
+        "순차"
+      ],
+      "points": 5
+    },
+    {
+      "id": "p2_e_2",
+      "difficulty": "easy",
+      "subType": "term",
+      "difficultyScore": 3,
+      "title": "실생활 제어 구조 식별 - 외출 준비",
+      "desc": "[외출 준비 규칙] '비가 오면 우산을 챙기고, 비가 오지 않으면 모자를 쓴다'와 같이 조건의 참 또는 거짓에 따라 실행할 명령 경로가 두 갈래로 나뉘는 제어 구조의 이름을 쓰시오.",
+      "placeholder": "정답 입력",
+      "answers": [
+        "선택구조",
+        "선택 구조",
+        "선택"
+      ],
+      "points": 5
+    },
+    {
+      "id": "p2_e_3",
+      "difficulty": "easy",
+      "subType": "term",
+      "difficultyScore": 3,
+      "title": "실생활 제어 구조 식별 - 줄넘기 훈련",
+      "desc": "[체육 시간 줄넘기] '줄넘기 횟수가 100회가 될 때까지 줄넘기를 계속 뛴다'와 같이 주어진 조건을 만족하는 동안 같은 명령들을 되풀이하여 실행하는 제어 구조의 이름을 쓰시오.",
+      "placeholder": "정답 입력",
+      "answers": [
+        "반복구조",
+        "반복 구조",
+        "반복"
+      ],
+      "points": 5
+    },
+    {
+      "id": "p2_e_4",
+      "difficulty": "easy",
+      "subType": "term",
+      "difficultyScore": 3,
+      "title": "순서도 기호 식별 - 입출력 역할",
+      "desc": "순서도에서 사용자의 키보드 '입력'을 받거나 모니터 화면으로 결과를 '출력'할 때 사용하는 평행사변형 모양 기호의 이름을 쓰시오.",
+      "placeholder": "정답 입력",
+      "answers": [
+        "자료기호",
+        "자료 기호",
+        "자료"
+      ],
+      "points": 5
+    },
+    {
+      "id": "p2_e_5",
+      "difficulty": "easy",
+      "subType": "term",
+      "difficultyScore": 3,
+      "title": "순서도 기호 식별 - 조건 분기 역할",
+      "desc": "순서도에서 '기온이 28도 이상인가?'와 같이 주어진 조건의 참과 거짓을 따져 실행 경로를 둘로 나눌 때 사용하는 마름모 모양 기호의 이름을 쓰시오.",
+      "placeholder": "정답 입력",
+      "answers": [
+        "판단기호",
+        "판단 기호",
+        "판단"
+      ],
+      "points": 5
+    },
+    {
+      "id": "p2_e_6",
+      "difficulty": "easy",
+      "subType": "term",
+      "difficultyScore": 3,
+      "title": "순서도 기호 식별 - 계산 및 동작 실행 역할",
+      "desc": "순서도에서 '점수에 10점을 더한다'나 '로봇이 앞으로 전진한다'와 같이 연산 처리나 구체적인 동작 명령을 실행할 때 사용하는 직사각형 모양 기호의 이름을 쓰시오.",
+      "placeholder": "정답 입력",
+      "answers": [
+        "처리기호",
+        "처리 기호",
+        "처리"
+      ],
+      "points": 5
+    },
+    {
+      "id": "p2_m_1",
+      "difficulty": "medium",
+      "subType": "condition",
+      "difficultyScore": 5,
+      "title": "선풍기 자동 가동 조건",
+      "desc": "조건: [현재 실내 온도 >= 26℃] 일 때 참(Yes)이면 '켜기', 거짓(No)이면 '끄기'를 출력합니다. 현재 실내 온도가 24℃일 때 출력 결과를 두 글자로 쓰시오.",
+      "placeholder": "정답 입력",
+      "answers": [
+        "끄기",
+        "꺼짐"
+      ],
+      "points": 5
+    },
+    {
+      "id": "p2_m_2",
+      "difficulty": "medium",
+      "subType": "condition",
+      "difficultyScore": 5,
+      "title": "자동문 센서 감지",
+      "desc": "조건: [사람이 감지되었는가?] 참(Yes)이면 '열림', 거짓(No)이면 '닫힘'을 실행합니다. 문 앞 센서에 사람이 감지되었을 때 동작 결과를 두 글자로 쓰시오.",
+      "placeholder": "정답 입력",
+      "answers": [
+        "열림",
+        "열리기"
+      ],
+      "points": 5
+    },
+    {
+      "id": "p2_m_3",
+      "difficulty": "medium",
+      "subType": "condition",
+      "difficultyScore": 5,
+      "title": "경계값 판정 - 수하물 무게 미만",
+      "desc": "조건: [수하물 무게 < 10kg] 일 때 참(Yes)이면 '통과', 거짓(No)이면 '초과'를 출력합니다. 측정된 수하물 무게가 정확히 10kg일 때 출력 결과를 두 글자로 쓰시오.",
+      "placeholder": "정답 입력",
+      "answers": [
+        "초과",
+        "불통과"
+      ],
+      "points": 5
+    },
+    {
+      "id": "p2_m_4",
+      "difficulty": "medium",
+      "subType": "condition",
+      "difficultyScore": 5,
+      "title": "경계값 판정 - 자동차 속도 초과",
+      "desc": "속도위반 단속 카메라 조건이 [주행 속도 > 60km/h] 입니다. 참(Yes)이면 '단속', 거짓(No)이면 '정상'을 출력합니다. 자동차의 현재 속도가 정확히 60km/h일 때 출력 결과를 두 글자로 쓰시오.",
+      "placeholder": "정답 입력",
+      "answers": [
+        "정상",
+        "통과"
+      ],
+      "points": 5
+    },
+    {
+      "id": "p2_m_5",
+      "difficulty": "medium",
+      "subType": "condition",
+      "difficultyScore": 5,
+      "title": "비밀번호 일치 여부 확인",
+      "desc": "조건: [입력된 비밀번호 == 저장된 비밀번호] 일 때 참(Yes)이면 '성공', 거짓(No)이면 '실패'를 출력합니다. 올바른 비밀번호를 입력했을 때 나타날 결과를 두 글자로 쓰시오.",
+      "placeholder": "정답 입력",
+      "answers": [
+        "성공",
+        "통과"
+      ],
+      "points": 5
+    },
+    {
+      "id": "p2_m_6",
+      "difficulty": "medium",
+      "subType": "condition",
+      "difficultyScore": 5,
+      "title": "놀이기구 신장 제한 이상",
+      "desc": "조건: [탑승객의 키 >= 150cm] 일 때 참(Yes)이면 '탑승', 거짓(No)이면 '불가'를 출력합니다. 키가 정확히 150cm인 학생이 판정받을 결과를 두 글자로 쓰시오.",
+      "placeholder": "정답 입력",
+      "answers": [
+        "탑승",
+        "가능"
+      ],
+      "points": 5
+    },
+    {
+      "id": "p2_h_1",
+      "difficulty": "hard",
+      "subType": "trace",
+      "difficultyScore": 8,
+      "title": "알고리즘 실행 추적 - 계단형 층간 이동",
+      "desc": "스마트 배달 로봇이 1층에서 출발하여 한 번에 2개 층씩 위로 올라갑니다.\n[조건: 현재 층수가 7층 미만인 동안 반복]\n반복 실행 명령: '위로 2개 층 올라간다'\n로봇이 7층 이상에 도달하여 알고리즘이 멈췄을 때, '위로 2개 층 올라간다'는 명령은 총 몇 번 실행되었을지 숫자만 쓰시오.",
+      "placeholder": "정답 입력",
+      "answers": [
+        "3",
+        "3번",
+        "3회",
+        "세 번",
+        "세번"
+      ],
+      "points": 5
+    },
+    {
+      "id": "p2_h_2",
+      "difficulty": "hard",
+      "subType": "trace",
+      "difficultyScore": 8,
+      "title": "알고리즘 실행 추적 - 바구니 귤 꺼내기",
+      "desc": "바구니에 귤이 14개 들어있습니다.\n[조건: 바구니에 남은 귤이 3개 이상인 동안 반복]\n반복 실행 명령: '귤을 3개 꺼내 접시에 담는다'\n조건을 만족하지 않아 반복이 모두 끝났을 때, 바구니에 최종적으로 남아있는 귤은 몇 개인지 숫자만 쓰시오.",
+      "placeholder": "정답 입력",
+      "answers": [
+        "2",
+        "2개",
+        "두 개",
+        "두개"
+      ],
+      "points": 5
+    },
+    {
+      "id": "p2_h_3",
+      "difficulty": "hard",
+      "subType": "trace",
+      "difficultyScore": 8,
+      "title": "알고리즘 실행 추적 - 보물 상자 순회 누적",
+      "desc": "보물 상자 4개가 순서대로 놓여 있습니다.\n상자 안에는 차례대로 [다이아몬드, 루비, 루비, 다이아몬드]가 들어있습니다.\n[규칙: 다이아몬드는 3점 획득, 루비는 1점 획득]\n첫 번째 상자부터 네 번째 상자까지 차례대로 모두 열었을 때, 최종적으로 획득한 총 점수는 몇 점인지 숫자만 쓰시오.",
+      "placeholder": "정답 입력",
+      "answers": [
+        "8",
+        "8점",
+        "팔점"
+      ],
+      "points": 5
+    },
+    {
+      "id": "p2_h_4",
+      "difficulty": "hard",
+      "subType": "scenario",
+      "difficultyScore": 9,
+      "title": "실생활 시나리오 - 도서관 무인 방역 로봇",
+      "desc": "도서관 무인 방역 로봇의 알고리즘 규칙입니다.\n[규칙 1] 사람이 감지되면 즉시 '정지하기'를 실행한다.\n[규칙 2] 사람이 감지되지 않고 현재 시각이 18시 이후이면 '소독하기'를 실행한다.\n[규칙 3] 위 두 조건에 모두 해당하지 않으면 기본 동작으로 '충전하기'를 실행한다.\n현재 시각은 16시 30분이고 사람이 감지되지 않았습니다. 로봇이 지금 수행할 동작을 지문에서 찾아 네 글자로 쓰시오.",
+      "placeholder": "정답 입력",
+      "answers": [
+        "충전하기",
+        "충전",
+        "충전하기로",
+        "충전한다"
+      ],
+      "points": 5
+    },
+    {
+      "id": "p2_h_5",
+      "difficulty": "hard",
+      "subType": "scenario",
+      "difficultyScore": 9,
+      "title": "실생활 시나리오 - 스마트 화재 안전 제어",
+      "desc": "스마트 건물의 화재 안전 제어 알고리즘 규칙입니다.\n[규칙 1] 연기 농도가 70 이상이면 즉시 '비상벨울림'을 실행한다.\n[규칙 2] 연기 농도가 70 미만이고 실내 온도가 50도 이상이면 '환기팬가동'을 실행한다.\n[규칙 3] 위 두 조건에 모두 해당하지 않으면 '정상감시중' 상태를 유지한다.\n현재 화재 센서 측정 결과 연기 농도는 40이고 실내 온도는 55도입니다. 시스템이 지금 수행할 동작을 지문에서 찾아 다섯 글자로 쓰시오.",
+      "placeholder": "정답 입력",
+      "answers": [
+        "환기팬가동",
+        "환기팬 가동",
+        "환기팬",
+        "환기 팬 가동",
+        "환기 팬"
+      ],
+      "points": 5
+    },
+    {
+      "id": "p2_h_6",
+      "difficulty": "hard",
+      "subType": "scenario",
+      "difficultyScore": 9,
+      "title": "실생활 시나리오 - 무인 택배 스마트 보관함",
+      "desc": "무인 택배 스마트 보관함의 본인 인증 알고리즘 규칙입니다.\n[규칙 1] 입력한 비밀번호가 일치하면 즉시 '보관함개방'을 실행한다.\n[규칙 2] 비밀번호가 불일치하고 누적 오류 횟수가 3회 이상이면 '보관함잠금'을 실행한다.\n[규칙 3] 비밀번호가 불일치하지만 누적 오류 횟수가 3회 미만이면 '재입력요청'을 실행한다.\n사용자가 비밀번호를 입력했으나 일치하지 않았으며, 이번이 2번째 오류입니다. 보관함 시스템이 지금 수행할 동작을 지문에서 찾아 다섯 글자로 쓰시오.",
+      "placeholder": "정답 입력",
+      "answers": [
+        "재입력요청",
+        "재입력 요청",
+        "재입력",
+        "비밀번호 재입력"
+      ],
+      "points": 5
+    }
+  ]
+};
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { EVAL_QUESTION_BANK };
+}
+if (typeof window !== 'undefined') {
+  window.EVAL_QUESTION_BANK = EVAL_QUESTION_BANK;
+}

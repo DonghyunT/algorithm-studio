@@ -1368,7 +1368,7 @@ function initCanvasPanning() {
   if (!canvas || window._canvasPanningInitialized) return;
   window._canvasPanningInitialized = true;
 
-  canvas.addEventListener('mousedown', (e) => {
+  const onPanStart = (e) => {
     // 블록, 포트, 휴지통, 플로팅 제어기, 상단 툴바, 폼 입력 요소 클릭 시 팬 모드 제외
     if (
       e.target.closest('.free-block') || 
@@ -1382,30 +1382,43 @@ function initCanvasPanning() {
       return;
     }
 
+    const pt = (e.touches && e.touches[0]) ? e.touches[0] : e;
     isPanningCanvas = true;
-    panStartMouseX = e.clientX;
-    panStartMouseY = e.clientY;
+    panStartMouseX = pt.clientX;
+    panStartMouseY = pt.clientY;
     panStartCanvasX = canvasPanX;
     panStartCanvasY = canvasPanY;
     canvas.classList.add('canvas-panning');
-  });
+  };
 
-  window.addEventListener('mousemove', (e) => {
+  const onPanMove = (e) => {
     if (!isPanningCanvas) return;
-    const dx = e.clientX - panStartMouseX;
-    const dy = e.clientY - panStartMouseY;
+    if (e.cancelable && e.type.startsWith('touch')) e.preventDefault();
+    const pt = (e.touches && e.touches[0]) ? e.touches[0] : e;
+    const dx = pt.clientX - panStartMouseX;
+    const dy = pt.clientY - panStartMouseY;
     canvasPanX = panStartCanvasX + dx;
     canvasPanY = panStartCanvasY + dy;
     applyCanvasPan();
-  });
+  };
 
-  window.addEventListener('mouseup', () => {
+  const onPanEnd = () => {
     if (isPanningCanvas) {
       isPanningCanvas = false;
       const canvas = document.getElementById('free-flowchart-canvas');
       if (canvas) canvas.classList.remove('canvas-panning');
     }
-  });
+  };
+
+  canvas.addEventListener('mousedown', onPanStart);
+  canvas.addEventListener('touchstart', onPanStart, { passive: true });
+
+  window.addEventListener('mousemove', onPanMove);
+  window.addEventListener('touchmove', onPanMove, { passive: false });
+
+  window.addEventListener('mouseup', onPanEnd);
+  window.addEventListener('touchend', onPanEnd);
+  window.addEventListener('touchcancel', onPanEnd);
 }
 
 function initDraggableSimFloatingBar() {
@@ -2269,6 +2282,7 @@ function getBlockPortsHTML(b) {
            data-block-id="${b.id}" data-port-type="in"
            title="상단 연결점" 
            onmousedown="startConnecting('${b.id}', 'in', event)"
+           ontouchstart="startConnecting('${b.id}', 'in', event)"
            onmouseup="handlePortMouseUp('${b.id}', 'in')"></div>
     `);
   }
@@ -2281,6 +2295,7 @@ function getBlockPortsHTML(b) {
            data-block-id="${b.id}" data-port-type="${pName}"
            title="${isDecision ? '[예] 분기점 (하단)' : '하단 연결점'}" 
            onmousedown="startConnecting('${b.id}', '${pName}', event)"
+           ontouchstart="startConnecting('${b.id}', '${pName}', event)"
            onmouseup="handlePortMouseUp('${b.id}', '${pName}')"></div>
     `);
   }
@@ -2292,6 +2307,7 @@ function getBlockPortsHTML(b) {
          data-block-id="${b.id}" data-port-type="${leftName}"
          title="${isDecision ? '[분기선] (좌측)' : '좌측 연결점'}" 
          onmousedown="startConnecting('${b.id}', '${leftName}', event)"
+         ontouchstart="startConnecting('${b.id}', '${leftName}', event)"
          onmouseup="handlePortMouseUp('${b.id}', '${leftName}')"></div>
   `);
 
@@ -2302,6 +2318,7 @@ function getBlockPortsHTML(b) {
          data-block-id="${b.id}" data-port-type="${rightName}"
          title="${isDecision ? '[아니오] 분기점 (우측)' : '우측 연결점'}" 
          onmousedown="startConnecting('${b.id}', '${rightName}', event)"
+         ontouchstart="startConnecting('${b.id}', '${rightName}', event)"
          onmouseup="handlePortMouseUp('${b.id}', '${rightName}')"></div>
   `);
 
@@ -2452,8 +2469,9 @@ function createFreeBlockDOM(b) {
     selectCanvasBlock(b.id);
   });
 
-  // 블록 드래그 이동 핸들러
+  // 블록 드래그 이동 핸들러 (마우스 + 태블릿 터치)
   div.addEventListener('mousedown', (e) => handleBlockMouseDown(b.id, e));
+  div.addEventListener('touchstart', (e) => handleBlockMouseDown(b.id, e), { passive: false });
 
   return div;
 }
@@ -2481,12 +2499,21 @@ function handleBlockTextChange(blockId, newText) {
 
 let draggedPaletteShape = null;
 let paletteDragImage = null;
+let paletteDragHappened = false;
 
 function clearPaletteDrag() {
   if (paletteDragImage) paletteDragImage.remove();
   paletteDragImage = null;
   draggedPaletteShape = null;
+  setTimeout(() => { paletteDragHappened = false; }, 150);
 }
+
+function handlePaletteBlockClick(shape) {
+  if (paletteDragHappened) return;
+  addCanvasBlock(shape);
+  if (typeof playSfx === 'function') playSfx('step');
+}
+window.handlePaletteBlockClick = handlePaletteBlockClick;
 
 // Canvas pixels preserve the silhouette even when native drag snapshots omit CSS transforms.
 function createPaletteDragImage(shape) {
@@ -2518,6 +2545,7 @@ function createPaletteDragImage(shape) {
 function handlePaletteDragStart(e, shape) {
   clearPaletteDrag();
   if (!['terminal', 'io', 'decision', 'process'].includes(shape)) return;
+  paletteDragHappened = true;
   draggedPaletteShape = shape;
   if (e.dataTransfer) {
     e.dataTransfer.setData('text/plain', shape);
@@ -2686,17 +2714,25 @@ function handleBlockMouseDown(blockId, e) {
 
   const zoom = currentCanvasZoom || 1.0;
   const sRect = stage.getBoundingClientRect();
-  const startMouseX = (e.clientX - sRect.left) / zoom;
-  const startMouseY = (e.clientY - sRect.top) / zoom;
+  const isTouch = e.type && e.type.startsWith('touch');
+  const pt = (isTouch && e.touches && e.touches[0]) ? e.touches[0] : e;
+  if (isTouch && e.cancelable) e.preventDefault();
+
+  const startMouseX = (pt.clientX - sRect.left) / zoom;
+  const startMouseY = (pt.clientY - sRect.top) / zoom;
   const startBlockX = b.x;
   const startBlockY = b.y;
 
   let reviewInvalidatedForDrag = false;
   const onMouseMove = (moveEvent) => {
     if (!isDraggingBlock || !draggedBlockObj) return;
+    if (moveEvent.cancelable && moveEvent.type && moveEvent.type.startsWith('touch')) {
+      moveEvent.preventDefault();
+    }
 
-    const curMouseX = (moveEvent.clientX - sRect.left) / zoom;
-    const curMouseY = (moveEvent.clientY - sRect.top) / zoom;
+    const mPt = (moveEvent.touches && moveEvent.touches[0]) ? moveEvent.touches[0] : moveEvent;
+    const curMouseX = (mPt.clientX - sRect.left) / zoom;
+    const curMouseY = (mPt.clientY - sRect.top) / zoom;
 
     let nx = Math.round(startBlockX + (curMouseX - startMouseX));
     let ny = Math.round(startBlockY + (curMouseY - startMouseY));
@@ -2724,10 +2760,10 @@ function handleBlockMouseDown(blockId, e) {
     if (trashZone) {
       const tRect = trashZone.getBoundingClientRect();
       const isOverTrash = (
-        moveEvent.clientX >= tRect.left - 12 &&
-        moveEvent.clientX <= tRect.right + 12 &&
-        moveEvent.clientY >= tRect.top - 12 &&
-        moveEvent.clientY <= tRect.bottom + 12
+        mPt.clientX >= tRect.left - 12 &&
+        mPt.clientX <= tRect.right + 12 &&
+        mPt.clientY >= tRect.top - 12 &&
+        mPt.clientY <= tRect.bottom + 12
       );
       trashZone.classList.toggle('trash-active', isOverTrash);
 
@@ -2763,12 +2799,15 @@ function handleBlockMouseDown(blockId, e) {
     const trashZone = document.getElementById('entry-trash-zone');
     let droppedInTrash = false;
     if (trashZone) {
+      const uPt = (upEvent && upEvent.changedTouches && upEvent.changedTouches[0]) ? upEvent.changedTouches[0] : (upEvent || {});
+      const uClientX = typeof uPt.clientX === 'number' ? uPt.clientX : -999;
+      const uClientY = typeof uPt.clientY === 'number' ? uPt.clientY : -999;
       const tRect = trashZone.getBoundingClientRect();
       const isOverTrash = (
-        upEvent.clientX >= tRect.left - 12 &&
-        upEvent.clientX <= tRect.right + 12 &&
-        upEvent.clientY >= tRect.top - 12 &&
-        upEvent.clientY <= tRect.bottom + 12
+        uClientX >= tRect.left - 12 &&
+        uClientX <= tRect.right + 12 &&
+        uClientY >= tRect.top - 12 &&
+        uClientY <= tRect.bottom + 12
       );
       if (trashZone.classList.contains('trash-active') || isOverTrash) {
         trashZone.classList.remove('trash-active');
@@ -2778,6 +2817,9 @@ function handleBlockMouseDown(blockId, e) {
 
     document.removeEventListener('mousemove', onMouseMove);
     document.removeEventListener('mouseup', onMouseUp);
+    document.removeEventListener('touchmove', onMouseMove);
+    document.removeEventListener('touchend', onMouseUp);
+    document.removeEventListener('touchcancel', onMouseUp);
 
     if (droppedInTrash && blockToDelete) {
       removeCanvasBlock(blockToDelete.id);
@@ -2787,6 +2829,9 @@ function handleBlockMouseDown(blockId, e) {
 
   document.addEventListener('mousemove', onMouseMove);
   document.addEventListener('mouseup', onMouseUp);
+  document.addEventListener('touchmove', onMouseMove, { passive: false });
+  document.addEventListener('touchend', onMouseUp);
+  document.addEventListener('touchcancel', onMouseUp);
 }
 
 // --------------------------------------------------
@@ -2949,7 +2994,10 @@ function generateManhattanPath(x1, y1, fromPort, x2, y2, toPort) {
 let hoveredTargetPort = null;
 
 function startConnecting(blockId, portType, e) {
-  e.stopPropagation();
+  if (e) {
+    e.stopPropagation();
+    if (e.cancelable && e.type && e.type.startsWith('touch')) e.preventDefault();
+  }
   isConnecting = true;
   connectionSource = { blockId, portType };
   hoveredTargetPort = null;
@@ -2989,20 +3037,24 @@ function startConnecting(blockId, portType, e) {
 
   const onMouseMove = (moveEvent) => {
     if (!isConnecting) return;
+    if (moveEvent.cancelable && moveEvent.type && moveEvent.type.startsWith('touch')) {
+      moveEvent.preventDefault();
+    }
 
-    let targetX = (moveEvent.clientX - sRect.left) / zoom;
-    let targetY = (moveEvent.clientY - sRect.top) / zoom;
+    const mPt = (moveEvent.touches && moveEvent.touches[0]) ? moveEvent.touches[0] : moveEvent;
+    let targetX = (mPt.clientX - sRect.left) / zoom;
+    let targetY = (mPt.clientY - sRect.top) / zoom;
     let targetPortType = 'in';
 
-    // ★ 28px draw.io 자석 스냅(Magnet Snap) 감지
+    // ★ 36px draw.io 자석 스냅(Magnet Snap) 감지 (태블릿 터치 환경에서도 자석처럼 쏙 달라붙도록 지원)
     let closestPort = null;
-    let minDistance = 32;
+    let minDistance = 36;
 
     document.querySelectorAll('.flow-port.port-valid-glow').forEach(portEl => {
       const pRect = portEl.getBoundingClientRect();
       const pCenterX = pRect.left + pRect.width / 2;
       const pCenterY = pRect.top + pRect.height / 2;
-      const dist = Math.hypot(moveEvent.clientX - pCenterX, moveEvent.clientY - pCenterY);
+      const dist = Math.hypot(mPt.clientX - pCenterX, mPt.clientY - pCenterY);
       if (dist < minDistance) {
         minDistance = dist;
         closestPort = {
@@ -3032,10 +3084,26 @@ function startConnecting(blockId, portType, e) {
     tempPath.setAttribute("d", d);
   };
 
-  const onMouseUp = () => {
+  const onMouseUp = (upEvent) => {
     isConnecting = false;
     tempPath.remove();
     clearPortGlows();
+
+    // 터치 종료 시 마지막 좌표 기반 자석 스냅 추가 보정
+    if (!hoveredTargetPort && upEvent && upEvent.changedTouches && upEvent.changedTouches[0]) {
+      const uPt = upEvent.changedTouches[0];
+      let minDistance = 36;
+      document.querySelectorAll('.flow-port.port-valid-glow').forEach(portEl => {
+        const pRect = portEl.getBoundingClientRect();
+        const pCenterX = pRect.left + pRect.width / 2;
+        const pCenterY = pRect.top + pRect.height / 2;
+        const dist = Math.hypot(uPt.clientX - pCenterX, uPt.clientY - pCenterY);
+        if (dist < minDistance) {
+          minDistance = dist;
+          hoveredTargetPort = { blockId: portEl.dataset.blockId, portType: portEl.dataset.portType };
+        }
+      });
+    }
 
     // 자석 감지된 타겟 포트가 있다면 즉시 연결 완료!
     if (hoveredTargetPort) {
@@ -3046,10 +3114,16 @@ function startConnecting(blockId, portType, e) {
 
     document.removeEventListener('mousemove', onMouseMove);
     document.removeEventListener('mouseup', onMouseUp);
+    document.removeEventListener('touchmove', onMouseMove);
+    document.removeEventListener('touchend', onMouseUp);
+    document.removeEventListener('touchcancel', onMouseUp);
   };
 
   document.addEventListener('mousemove', onMouseMove);
   document.addEventListener('mouseup', onMouseUp);
+  document.addEventListener('touchmove', onMouseMove, { passive: false });
+  document.addEventListener('touchend', onMouseUp);
+  document.addEventListener('touchcancel', onMouseUp);
 }
 
 function highlightValidPorts(sourceBlock, portType) {

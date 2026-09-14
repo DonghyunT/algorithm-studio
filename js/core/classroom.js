@@ -31,6 +31,8 @@ let currentLiveSession = null;
 let liveSessionError = false;
 let teacherSessionPending = false;
 let teacherSessionPendingLabel = '';
+let isScoreBlindMode = true; // 프로젝터 투사 시 학생 실시간 점수 유출 방지 (기본 ON)
+let currentModalStudent = null;
 
 // 1. 클래스룸 데이터 로드 및 초기화
 function getClassroomData() { return Object.fromEntries(DEFAULT_CLASSES.map(name => [name, []])); }
@@ -299,8 +301,114 @@ function renderTeacherSessionControl() {
     button.dataset.action = model.action;
     button.setAttribute('aria-busy',String(teacherSessionPending));
   }
+  const closeWaitingBtn = document.getElementById('teacher-session-close-waiting');
+  if (closeWaitingBtn) {
+    const showCloseWaiting = model.state === 'waiting';
+    closeWaitingBtn.classList.toggle('hidden', !showCloseWaiting);
+    closeWaitingBtn.disabled = teacherSessionPending;
+  }
   const select = document.getElementById('classroom-class-select');
   if (select) select.disabled = teacherSessionPending;
+}
+
+async function handleCloseWaitingRoom() {
+  if (teacherSessionPending) return;
+  const model = teacherSessionState();
+  if (model.state !== 'waiting') return;
+  const classId = getClassIdFromSelected(), generation = liveDashboardGeneration;
+  const expected = {attemptId:currentLiveSession?.attemptId ?? null, status:currentLiveSession?.status ?? 'waiting'};
+  if (!confirm(`[${currentSelectedClass}] 대기실을 닫으시겠습니까?\n아직 시작하지 않은 학생들의 입장이 차단되고 '대기실 닫힘' 상태로 변경됩니다.`)) return;
+
+  teacherSessionPending = true;
+  teacherSessionPendingLabel = '대기실 닫는 중…';
+  setTeacherSessionFeedback(''); renderTeacherSessionControl();
+  try {
+    const session = {...currentLiveSession, ...await window.evalService.endSession(classId, expected)};
+    if (generation === liveDashboardGeneration) {
+      currentLiveSession = session;
+      setTeacherSessionFeedback('대기실을 닫았습니다. 학생 입장이 차단되었습니다.');
+    }
+  } catch(error) {
+    if (generation === liveDashboardGeneration) setTeacherSessionFeedback('처리하지 못했습니다. '+error.message);
+  } finally {
+    teacherSessionPending = false;
+    renderTeacherSessionControl();
+  }
+}
+
+async function handleCloseAllWaitingRooms() {
+  if (teacherSessionPending) return;
+  const btn = document.getElementById('classroom-close-all-btn');
+
+  // 1단계 확인 질문
+  const step1 = confirm(
+    "⚠️ 담당 학급 중 '입장 대기' 상태인 모든 대기실을 일괄 닫으시겠습니까?\n\n" +
+    "※ 이미 평가가 진행 중(시험 중)인 학급은 안전하게 보호되며 닫히지 않습니다.\n" +
+    "※ 계속하시려면 [확인]을 눌러주세요."
+  );
+  if (!step1) return;
+
+  if (btn) {
+    btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
+  }
+
+  try {
+    const allowedClasses = getAllowedClassNames();
+    const waitingTargets = [];
+
+    // 각 학급의 세션 상태 조회
+    for (const className of allowedClasses) {
+      const match = className.match(/(\d+)학년\s*(\d+)반/);
+      const cId = match ? `${match[1]}-${match[2]}` : null;
+      if (!cId) continue;
+      try {
+        const session = await window.evalService.getSession(cId);
+        if (session && session.status === 'waiting' && session.attemptId) {
+          waitingTargets.push({ className, classId: cId, session });
+        }
+      } catch (err) {
+        console.warn(`[${className}] 세션 조회 실패:`, err);
+      }
+    }
+
+    if (!waitingTargets.length) {
+      alert("현재 '입장 대기' 상태인 학급이 없습니다.\n모든 학급의 대기실이 이미 닫혀 있거나 진행 중입니다.");
+      return;
+    }
+
+    // 2단계 확인 질문 (실제 닫힐 대상 학급 목록 확인)
+    const targetNames = waitingTargets.map(t => t.className).join(', ');
+    const step2 = confirm(
+      `다음 ${waitingTargets.length}개 학급의 대기실을 닫습니다:\n` +
+      `[ ${targetNames} ]\n\n` +
+      `정말 진행하시겠습니까? 학생 입장이 즉시 차단됩니다.`
+    );
+    if (!step2) return;
+
+    let closedCount = 0;
+    for (const target of waitingTargets) {
+      try {
+        await window.evalService.endSession(target.classId, {
+          attemptId: target.session.attemptId,
+          status: 'waiting'
+        });
+        closedCount++;
+      } catch (err) {
+        console.error(`[${target.className}] 대기실 닫기 실패:`, err);
+      }
+    }
+
+    alert(`✅ 총 ${closedCount}개 학급의 대기실을 안전하게 닫았습니다.\n[ ${targetNames} ]`);
+    initLiveEvalDashboard();
+  } catch (error) {
+    alert("대기실 일괄 닫기 중 오류가 발생했습니다: " + error.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.removeAttribute('aria-busy');
+    }
+  }
 }
 
 async function handleTeacherSessionAction() {
@@ -379,14 +487,24 @@ function renderLiveGrid(students = []) {
         statusBg = "bg-blue-50/80 border-blue-400 text-blue-900";
         const pCount = (Number(s.progress?.part1) || 0) + (Number(s.progress?.part2) || 0);
         const currentObjScore = (s.scores?.part1 || 0) + (s.scores?.part2 || 0);
-        statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-600 text-white font-bold animate-pulse">풀이중 (${pCount}문항 · ${currentObjScore}점)</span>`;
+        if (isScoreBlindMode) {
+          statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-600 text-white font-bold animate-pulse">풀이중 (${pCount}/16문항)</span>`;
+          scoreDisplay = `<span class="text-xs text-slate-400 font-medium">풀이 진행 중</span>`;
+        } else {
+          statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-600 text-white font-bold animate-pulse">풀이중 (${pCount}문항 · ${currentObjScore}점)</span>`;
+          scoreDisplay = `<span class="text-xs text-slate-500 font-bold font-mono">${currentObjScore}점 (임시)</span>`;
+        }
       } else if (s.status === 'submitted') {
         statusBg = "bg-emerald-50 border-emerald-400 text-emerald-950 shadow-xs";
         const finalScore = (s.scores?.teacherOverride !== null && s.scores?.teacherOverride !== undefined)
           ? s.scores.teacherOverride
           : (s.scores?.total || 0);
         statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-600 text-white font-bold">제출완료</span>`;
-        scoreDisplay = `<span class="text-sm font-black text-emerald-700">${s.scores?.pendingReview ? '소계 ' + ((s.scores?.part1 || 0) + (s.scores?.part2 || 0)) + '점 (검토대기)' : finalScore + '점'}</span>`;
+        if (isScoreBlindMode) {
+          scoreDisplay = `<span class="text-xs text-emerald-700 font-bold">제출 완료 (비공개)</span>`;
+        } else {
+          scoreDisplay = `<span class="text-sm font-black text-emerald-700">${s.scores?.pendingReview ? '소계 ' + ((s.scores?.part1 || 0) + (s.scores?.part2 || 0)) + '점 (검토대기)' : finalScore + '점'}</span>`;
+        }
       }
     }
 
@@ -410,6 +528,26 @@ function renderLiveGrid(students = []) {
   gridContainer.innerHTML = html;
 }
 
+// 칠판 프로젝터 점수 블라인드 토글 (학생 실시간 점수 유출 방지)
+function toggleScoreBlindMode() {
+  isScoreBlindMode = !isScoreBlindMode;
+  const btn = document.getElementById('classroom-blind-toggle');
+  const icon = document.getElementById('classroom-blind-toggle-icon');
+  const label = document.getElementById('classroom-blind-toggle-label');
+  if (btn && icon && label) {
+    if (isScoreBlindMode) {
+      btn.className = "px-2.5 py-1 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 cursor-pointer bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100 shadow-2xs mr-1";
+      icon.className = "fa-solid fa-eye-slash text-amber-600";
+      label.textContent = "스크린 점수 숨김 (보호 중)";
+    } else {
+      btn.className = "px-2.5 py-1 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 cursor-pointer bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200 shadow-2xs mr-1";
+      icon.className = "fa-solid fa-eye text-indigo-600";
+      label.textContent = "스크린 점수 표시 중";
+    }
+  }
+  renderLiveGrid(currentLiveStudents);
+}
+
 // 나이스 CSV 다운로드
 function handleTeacherExportCSV() {
   const classId = getClassIdFromSelected();
@@ -418,10 +556,400 @@ function handleTeacherExportCSV() {
   }
 }
 
+/**
+ * 순서도 블록을 실행 흐름(시작 ➔ 다음 블록 ➔ ... ➔ 종료) 순서대로 정렬
+ * - 시작 블록('eblk_start' 또는 단말 '시작' 또는 진입 차수 0)에서 출발
+ * - 사이클(반복 루프백) 발생 시 무한 루프에 빠지지 않도록 visited Set 방어
+ * - 판단(decision) 블록 분기 시 [예] 경로를 우선 탐색 후 [아니오] 경로 탐색
+ * - 종료(terminal '끝'/'종료') 블록은 실행 흐름의 가장 마지막에 배치
+ * - 연결되지 않은 고립 블록도 누락 없이 Y축 순으로 마지막에 추가
+ */
+function sortBlocksByExecution(blocks = [], connections = []) {
+  if (!Array.isArray(blocks) || blocks.length === 0) return [];
+  if (!Array.isArray(connections)) connections = [];
+
+  const blockMap = new Map();
+  blocks.forEach(b => { if (b && b.id) blockMap.set(b.id, b); });
+
+  const adj = new Map();
+  const inDegree = new Map();
+  blocks.forEach(b => {
+    adj.set(b.id, []);
+    inDegree.set(b.id, 0);
+  });
+
+  connections.forEach(c => {
+    if (c && c.from && c.to && blockMap.has(c.from) && blockMap.has(c.to)) {
+      adj.get(c.from).push(c);
+      inDegree.set(c.to, (inDegree.get(c.to) || 0) + 1);
+    }
+  });
+
+  // 분기 우선순위: 'yes'(예) 우선, 'no'(아니오) 나중, 그 외 Y 좌표 순
+  adj.forEach(conns => {
+    conns.sort((a, b) => {
+      if (a.fromPort === 'yes' && b.fromPort !== 'yes') return -1;
+      if (b.fromPort === 'yes' && a.fromPort !== 'yes') return 1;
+      if (a.fromPort === 'no' && b.fromPort !== 'no') return 1;
+      if (b.fromPort === 'no' && a.fromPort !== 'no') return -1;
+      const targetA = blockMap.get(a.to);
+      const targetB = blockMap.get(b.to);
+      return (Number(targetA?.y) || 0) - (Number(targetB?.y) || 0);
+    });
+  });
+
+  // 시작 블록 탐색 (우선순위: eblk_start ➔ 단말 '시작' ➔ 진입 차수 0 ➔ Y 최소)
+  let startBlock = blocks.find(b => b.id === 'eblk_start');
+  if (!startBlock) {
+    startBlock = blocks.find(b => b.shape === 'terminal' && /시작|start/i.test(b.text || ''));
+  }
+  if (!startBlock) {
+    const zeroIn = blocks.filter(b => (inDegree.get(b.id) || 0) === 0);
+    if (zeroIn.length > 0) {
+      zeroIn.sort((a, b) => (Number(a.y) || 0) - (Number(b.y) || 0));
+      startBlock = zeroIn[0];
+    } else {
+      startBlock = [...blocks].sort((a, b) => (Number(a.y) || 0) - (Number(b.y) || 0))[0];
+    }
+  }
+
+  const isTerminalEnd = (b) => {
+    if (!b) return false;
+    const txt = (b.text || '').trim();
+    return b.shape === 'terminal' && (txt.includes('끝') || txt.includes('종료') || /end/i.test(txt) || (startBlock && b.id !== startBlock.id));
+  };
+
+  const ordered = [];
+  const endBlocks = [];
+  const visited = new Set();
+  const queue = [startBlock.id];
+  visited.add(startBlock.id);
+
+  while (queue.length > 0) {
+    const currId = queue.shift();
+    const currBlock = blockMap.get(currId);
+    if (!currBlock) continue;
+
+    if (isTerminalEnd(currBlock)) {
+      if (!endBlocks.some(eb => eb.id === currBlock.id)) {
+        endBlocks.push(currBlock);
+      }
+    } else {
+      ordered.push(currBlock);
+    }
+
+    const outConns = adj.get(currId) || [];
+    for (const conn of outConns) {
+      const nextId = conn.to;
+      if (!visited.has(nextId)) {
+        visited.add(nextId);
+        queue.push(nextId);
+      }
+    }
+  }
+
+  // 종료 블록들을 탐색 경로 맨 뒤에 배치
+  endBlocks.forEach(eb => {
+    if (!ordered.includes(eb)) {
+      ordered.push(eb);
+    }
+  });
+
+  // 미방문 고립 블록들도 누락 없이 Y 좌표순으로 맨 뒤에 추가
+  const unvisited = blocks.filter(b => !visited.has(b.id));
+  if (unvisited.length > 0) {
+    unvisited.sort((a, b) => (Number(a.y) || 0) - (Number(b.y) || 0));
+    ordered.push(...unvisited);
+  }
+
+  return ordered;
+}
+
+/**
+ * 교사용 학생 순서도 다이어그램 Canvas 2D 고해상도 미니어처 렌더링 엔진
+ * - 순수 HTML5 Canvas API 사용 (외부 캡처 라이브러리 Zero)
+ * - 엔트리 표준 4대 기호 색상 완벽 일치 (단말 🟣, 자료 🟢, 판단 🟠, 처리 🔵)
+ */
+function drawFlowchartPreview(canvas, blocks = [], connections = []) {
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  const W = canvas.width;
+  const H = canvas.height;
+
+  // 1. 캔버스 배경 및 격자 도트
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = "#f1f5f9";
+  for (let x = 16; x < W; x += 24) {
+    for (let y = 16; y < H; y += 24) {
+      ctx.fillRect(x, y, 2, 2);
+    }
+  }
+
+  // 2. 블록 없을 때 안내
+  if (!Array.isArray(blocks) || blocks.length === 0) {
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "bold 14px 'Pretendard', sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("배치된 순서도 블록이 없습니다.", W / 2, H / 2);
+    return;
+  }
+
+  // 둥근 모서리 사각형 헬퍼
+  const drawRoundRect = (x, y, w, h, r, fill, stroke) => {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+    if (fill) ctx.fill();
+    if (stroke) ctx.stroke();
+  };
+
+  // 3. 전체 블록의 경계 상자(Bounding Box) 계산
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  blocks.forEach(b => {
+    const bw = b.shape === 'decision' ? 220 : (b.shape === 'terminal' ? 200 : (b.shape === 'io' ? 220 : 210));
+    const bh = b.shape === 'decision' ? 120 : 60;
+    const bx = Number(b.x) || 0;
+    const by = Number(b.y) || 0;
+    if (bx < minX) minX = bx;
+    if (by < minY) minY = by;
+    if (bx + bw > maxX) maxX = bx + bw;
+    if (by + bh > maxY) maxY = by + bh;
+  });
+
+  const contentW = Math.max(maxX - minX, 120);
+  const contentH = Math.max(maxY - minY, 120);
+  const pad = 36;
+  const availW = W - pad * 2;
+  const availH = H - pad * 2;
+  const scale = Math.min(availW / contentW, availH / contentH, 1.0);
+
+  const offsetX = (W - contentW * scale) / 2 - minX * scale;
+  const offsetY = (H - contentH * scale) / 2 - minY * scale;
+
+  const toX = (x) => offsetX + x * scale;
+  const toY = (y) => offsetY + y * scale;
+
+  // 4. 연결선 (connections) 드로잉
+  (connections || []).forEach(conn => {
+    const fromB = blocks.find(b => b.id === conn.from);
+    const toB = blocks.find(b => b.id === conn.to);
+    if (!fromB || !toB) return;
+
+    const fromBW = (fromB.shape === 'decision' ? 220 : (fromB.shape === 'terminal' ? 200 : (fromB.shape === 'io' ? 220 : 210)));
+    const fromBH = (fromB.shape === 'decision' ? 120 : 60);
+    const toBW = (toB.shape === 'decision' ? 220 : (toB.shape === 'terminal' ? 200 : (toB.shape === 'io' ? 220 : 210)));
+    const toBH = (toB.shape === 'decision' ? 120 : 60);
+
+    let p1X = (Number(fromB.x) || 0) + fromBW / 2, p1Y = (Number(fromB.y) || 0) + fromBH;
+    if (conn.fromPort === 'right' || conn.fromPort === 'no') { p1X = (Number(fromB.x) || 0) + fromBW; p1Y = (Number(fromB.y) || 0) + fromBH / 2; }
+    else if (conn.fromPort === 'left') { p1X = (Number(fromB.x) || 0); p1Y = (Number(fromB.y) || 0) + fromBH / 2; }
+    else if (conn.fromPort === 'top' || conn.fromPort === 'in') { p1X = (Number(fromB.x) || 0) + fromBW / 2; p1Y = (Number(fromB.y) || 0); }
+
+    let p2X = (Number(toB.x) || 0) + toBW / 2, p2Y = (Number(toB.y) || 0);
+    let entryDir = 'down';
+    if (conn.toPort === 'left') { p2X = (Number(toB.x) || 0); p2Y = (Number(toB.y) || 0) + toBH / 2; entryDir = 'right'; }
+    else if (conn.toPort === 'right') { p2X = (Number(toB.x) || 0) + toBW; p2Y = (Number(toB.y) || 0) + toBH / 2; entryDir = 'left'; }
+    else if (conn.toPort === 'bottom' || conn.toPort === 'out') { p2X = (Number(toB.x) || 0) + toBW / 2; p2Y = (Number(toB.y) || 0) + toBH; entryDir = 'up'; }
+
+    const x1 = toX(p1X), y1 = toY(p1Y);
+    const x2 = toX(p2X), y2 = toY(p2Y);
+
+    let strokeCol = "#475569";
+    let badgeText = "";
+    if (conn.fromPort === 'yes') { strokeCol = "#059669"; badgeText = "예"; }
+    else if (conn.fromPort === 'no') { strokeCol = "#d97706"; badgeText = "아니오"; }
+    else if (conn.fromPort === 'left') { strokeCol = "#d97706"; badgeText = "분기"; }
+
+    ctx.strokeStyle = strokeCol;
+    ctx.lineWidth = Math.max(1.8, 2.2 * scale);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+
+    if (conn.fromPort === 'right' || conn.fromPort === 'no') {
+      const midX = Math.max(x1 + 18 * scale, (x1 + x2) / 2);
+      ctx.lineTo(midX, y1);
+      ctx.lineTo(midX, y2);
+      ctx.lineTo(x2, y2);
+    } else if (conn.fromPort === 'left') {
+      const midX = Math.min(x1 - 18 * scale, (x1 + x2) / 2);
+      ctx.lineTo(midX, y1);
+      ctx.lineTo(midX, y2);
+      ctx.lineTo(x2, y2);
+    } else {
+      if (y2 > y1 + 10) {
+        const midY = (y1 + y2) / 2;
+        ctx.lineTo(x1, midY);
+        ctx.lineTo(x2, midY);
+        ctx.lineTo(x2, y2);
+      } else {
+        const loopX = x2 < x1 ? Math.min(x1 - 35 * scale, x2 - 35 * scale) : Math.max(x1 + 35 * scale, x2 + 35 * scale);
+        ctx.lineTo(x1, y1 + 14 * scale);
+        ctx.lineTo(loopX, y1 + 14 * scale);
+        ctx.lineTo(loopX, y2 - 14 * scale);
+        ctx.lineTo(x2, y2 - 14 * scale);
+        ctx.lineTo(x2, y2);
+      }
+    }
+    ctx.stroke();
+
+    // 화살표 머리
+    const headLen = Math.max(6, 8 * scale);
+    ctx.fillStyle = strokeCol;
+    ctx.beginPath();
+    if (entryDir === 'right') {
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 - headLen, y2 - headLen * 0.55);
+      ctx.lineTo(x2 - headLen, y2 + headLen * 0.55);
+    } else if (entryDir === 'left') {
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 + headLen, y2 - headLen * 0.55);
+      ctx.lineTo(x2 + headLen, y2 + headLen * 0.55);
+    } else if (entryDir === 'up') {
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 - headLen * 0.55, y2 + headLen);
+      ctx.lineTo(x2 + headLen * 0.55, y2 + headLen);
+    } else {
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 - headLen * 0.55, y2 - headLen);
+      ctx.lineTo(x2 + headLen * 0.55, y2 - headLen);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    // 분기 뱃지 텍스트
+    if (badgeText) {
+      const badgeX = conn.fromPort === 'left' ? x1 - 16 * scale : x1 + 16 * scale;
+      const badgeY = y1 + 10 * scale;
+      ctx.fillStyle = strokeCol;
+      ctx.font = `bold ${Math.max(10, Math.round(11 * scale))}px 'Pretendard', sans-serif`;
+      ctx.textAlign = conn.fromPort === 'left' ? 'right' : 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(badgeText, badgeX, badgeY);
+    }
+  });
+
+  // 5. 블록 (blocks) 드로잉 (엔트리 표준 4대 기호 색상)
+  blocks.forEach(b => {
+    const bw = (b.shape === 'decision' ? 220 : (b.shape === 'terminal' ? 200 : (b.shape === 'io' ? 220 : 210)));
+    const bh = (b.shape === 'decision' ? 120 : 60);
+    const x = toX(Number(b.x) || 0);
+    const y = toY(Number(b.y) || 0);
+    const w = bw * scale;
+    const h = bh * scale;
+
+    ctx.save();
+    let fill = "#eff6ff";
+    let stroke = "#2563eb"; // default proc 🔵
+
+    if (b.shape === 'terminal') {
+      fill = "#f5f3ff"; stroke = "#7c3aed"; // 🟣 단말
+    } else if (b.shape === 'io') {
+      fill = "#ecfdf5"; stroke = "#059669"; // 🟢 자료
+    } else if (b.shape === 'decision') {
+      fill = "#fffbeb"; stroke = "#d97706"; // 🟠 판단
+    }
+
+    ctx.fillStyle = fill;
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = Math.max(1.5, 2.2 * scale);
+
+    if (b.shape === 'terminal') {
+      drawRoundRect(x, y, w, h, Math.min(w / 2, h / 2), true, true);
+    } else if (b.shape === 'decision') {
+      ctx.beginPath();
+      ctx.moveTo(x + w / 2, y);
+      ctx.lineTo(x + w, y + h / 2);
+      ctx.lineTo(x + w / 2, y + h);
+      ctx.lineTo(x, y + h / 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else if (b.shape === 'io') {
+      const skew = Math.min(w * 0.15, 20 * scale);
+      ctx.beginPath();
+      ctx.moveTo(x + skew, y);
+      ctx.lineTo(x + w, y);
+      ctx.lineTo(x + w - skew, y + h);
+      ctx.lineTo(x, y + h);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      drawRoundRect(x, y, w, h, 8 * scale, true, true);
+    }
+
+    // 블록 텍스트 렌더링
+    const fontSize = Math.max(10, Math.min(13, Math.round(13 * scale)));
+    ctx.font = `bold ${fontSize}px 'Pretendard', sans-serif`;
+    ctx.fillStyle = "#1e293b";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    const text = (b.text || '').trim() || (b.shape === 'terminal' ? '시작/끝' : '블록 내용');
+    const maxTextW = b.shape === 'decision' ? w * 0.65 : w * 0.85;
+    let displayText = text;
+    if (ctx.measureText(displayText).width > maxTextW) {
+      while (displayText.length > 2 && ctx.measureText(displayText + '…').width > maxTextW) {
+        displayText = displayText.slice(0, -1);
+      }
+      displayText += '…';
+    }
+    ctx.fillText(displayText, x + w / 2, y + h / 2);
+
+    ctx.restore();
+  });
+}
+
+function openFlowchartModalPreview() {
+  if (!currentModalStudent) return;
+  const lightbox = document.getElementById('classroom-flowchart-lightbox');
+  const canvas = document.getElementById('classroom-lightbox-flowchart-canvas');
+  const title = document.getElementById('classroom-flowchart-lightbox-title');
+  if (!lightbox || !canvas) return;
+
+  if (title) {
+    title.textContent = `${currentSelectedClass} ${currentModalStudent.num}번 ${currentModalStudent.name} 학생 순서도 다이어그램`;
+  }
+
+  // 다이어그램 크기에 맞춘 캔버스 높이 동적 확장 (세로로 긴 순서도 가독성 확보)
+  const blocks = currentModalStudent.answers?.part3?.blocks || [];
+  let minY = Infinity, maxY = -Infinity;
+  blocks.forEach(b => {
+    const bh = b.shape === 'decision' ? 120 : 60;
+    const by = Number(b.y) || 0;
+    if (by < minY) minY = by;
+    if (by + bh > maxY) maxY = by + bh;
+  });
+  const contentH = Math.max(maxY - minY, 120);
+  canvas.height = Math.max(650, Math.min(1400, Math.round(contentH + 120)));
+
+  drawFlowchartPreview(canvas, blocks, currentModalStudent.answers?.part3?.connections);
+  lightbox.classList.remove('hidden');
+}
+
+function closeFlowchartModalPreview() {
+  const lightbox = document.getElementById('classroom-flowchart-lightbox');
+  if (lightbox) lightbox.classList.add('hidden');
+}
+
 // 학생 개별 답안 상세 팝업 및 점수 수동 조정 / 재시험 허용
 function openLiveStudentModal(studentNum) {
   const s = currentLiveStudents.find(item => item.num === studentNum);
   if (!s) return;
+  currentModalStudent = s;
 
   const modal = document.getElementById('classroom-live-detail-modal');
   if (!modal) return;
@@ -541,8 +1069,41 @@ function openLiveStudentModal(studentNum) {
       return `<div class="ml-2 mb-1"><span class="font-bold text-slate-600">[순차]</span> ${step.text || '미작성'}</div>`;
     }).join('');
 
-    let blocksHtml = (Array.isArray(graph.blocks) ? graph.blocks : []).filter(Boolean).map(b => `<span class="inline-block bg-slate-100 border border-slate-300 px-1.5 py-0.5 rounded text-[10px] mr-1 mb-1 font-mono">[${b.shape}] ${b.text}</span>`).join('');
-    let connsHtml = (Array.isArray(graph.connections) ? graph.connections : []).filter(Boolean).map(c => `<div class="text-[10px] text-slate-500 ml-2 font-mono">↳ ${c.from} (${c.fromPort}) → ${c.to}</div>`).join('');
+    const shapeMeta = {
+      terminal: { label: '단말 🟣', cls: 'bg-purple-50 text-purple-700 border-purple-200' },
+      io: { label: '자료 🟢', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+      decision: { label: '판단 🟠', cls: 'bg-amber-50 text-amber-800 border-amber-200' },
+      proc: { label: '처리 🔵', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+      process: { label: '처리 🔵', cls: 'bg-blue-50 text-blue-700 border-blue-200' }
+    };
+
+    const blockMap = {};
+    (graph.blocks || []).forEach(b => {
+      if (b && b.id) {
+        blockMap[b.id] = (b.text || '').trim() || (shapeMeta[b.shape]?.label || '블록');
+      }
+    });
+    blockMap['eblk_start'] = '시작';
+
+    const sortedBlocks = sortBlocksByExecution(graph.blocks, graph.connections);
+
+    let blocksHtml = sortedBlocks.filter(Boolean).map((b, idx) => {
+      const meta = shapeMeta[b.shape] || { label: b.shape, cls: 'bg-slate-50 text-slate-700 border-slate-200' };
+      const txt = (b.text || '').trim() || '내용 없음';
+      return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border ${meta.cls} text-xs font-bold mr-1.5 mb-1.5 shadow-2xs">
+        <span class="text-[10px] px-1.5 py-0.5 rounded bg-white/80 font-mono">${idx + 1}. ${meta.label}</span>
+        <span>${escapeHtml(txt)}</span>
+      </span>`;
+    }).join('');
+
+    let connsHtml = (Array.isArray(graph.connections) ? graph.connections : []).filter(Boolean).map(c => {
+      const fromName = blockMap[c.from] || '블록';
+      const toName = blockMap[c.to] || '블록';
+      let branchBadge = '';
+      if (c.fromPort === 'yes') branchBadge = ' <span class="text-emerald-600 font-bold">[예]</span>';
+      else if (c.fromPort === 'no') branchBadge = ' <span class="text-amber-600 font-bold">[아니오]</span>';
+      return `<div class="text-[11px] text-slate-600 py-0.5 font-medium">↳ <strong class="text-slate-800">${escapeHtml(fromName)}</strong>${branchBadge} ➔ <strong class="text-slate-800">${escapeHtml(toName)}</strong></div>`;
+    }).join('');
 
     let p3Html = `
       <div class="mb-4">
@@ -559,12 +1120,46 @@ function openLiveStudentModal(studentNum) {
           <span>순서도 캔버스 구성</span>
           <span class="text-[10px] font-normal bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full shadow-sm">${s.questionVersion === 3 ? '교사 수동 40점 배점' : `자동 계산: ${(s.scores?.part3 || 0)}/40점`}</span>
         </div>
-        <div class="mb-2 text-[11px]">${blocksHtml || '<div class="text-slate-400 italic">배치된 블록 없음</div>'}</div>
-        <div class="mb-2">${connsHtml || '<div class="text-slate-400 italic text-[11px]">연결선 없음</div>'}</div>
+        <!-- 캔버스 미니어처 뷰어 영역 -->
+        <div class="my-3 bg-slate-50 border border-slate-200 rounded-2xl p-3 shadow-2xs">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-200 mb-2">
+            <span class="text-xs font-black text-slate-800 flex items-center gap-1.5">
+              <i class="fa-solid fa-diagram-project text-emerald-600"></i>
+              <span>순서도 다이어그램 시각화 (엔트리 표준 색상)</span>
+            </span>
+            <button type="button" onclick="openFlowchartModalPreview()" class="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded-xl text-[11px] font-bold text-slate-700 transition flex items-center gap-1 shadow-2xs cursor-pointer">
+              <i class="fa-solid fa-up-right-and-down-left-from-center text-[10px] text-slate-500"></i>
+              <span>크게 보기 (확대 팝업)</span>
+            </button>
+          </div>
+          <div class="w-full overflow-hidden rounded-xl border border-slate-200 bg-white flex items-center justify-center min-h-[220px]">
+            <canvas id="classroom-live-flowchart-canvas" width="800" height="340" class="w-full max-h-[340px] object-contain block"></canvas>
+          </div>
+        </div>
+        <div class="mb-1.5 text-xs font-bold text-slate-700 flex items-center justify-between">
+          <span>실행 순서별 블록 (${(graph.blocks || []).length}개):</span>
+        </div>
+        <div class="flex flex-wrap items-center mb-2">${blocksHtml || '<div class="text-slate-400 italic text-xs">배치된 블록 없음</div>'}</div>
+        ${connsHtml ? `
+        <details class="mt-2 text-xs text-slate-500">
+          <summary class="cursor-pointer font-bold hover:text-slate-800 text-[11px] select-none flex items-center gap-1">
+            <i class="fa-solid fa-list-nodes text-slate-400"></i>
+            <span>텍스트 연결 경로 보기 (${(graph.connections || []).length}개 연결)</span>
+          </summary>
+          <div class="pt-1.5 pl-2.5 space-y-0.5 border-l-2 border-slate-200 mt-1.5 bg-slate-50/50 p-2 rounded-lg">
+            ${connsHtml}
+          </div>
+        </details>
+        ` : ''}
       </div>
     `;
     p3El.innerHTML = p3Html;
     p3El.style.whiteSpace = 'normal';
+
+    const canvas = document.getElementById('classroom-live-flowchart-canvas');
+    if (canvas) {
+      drawFlowchartPreview(canvas, graph.blocks, graph.connections);
+    }
   }
 
   const currentScore = (s.scores?.teacherOverride !== null && s.scores?.teacherOverride !== undefined)
@@ -609,6 +1204,8 @@ function openLiveStudentModal(studentNum) {
 }
 
 function closeLiveStudentModal() {
+  currentModalStudent = null;
+  closeFlowchartModalPreview();
   const modal = document.getElementById('classroom-live-detail-modal');
   if (modal) modal.classList.add('hidden');
 }
@@ -624,3 +1221,15 @@ function renderAssignmentsTable() {
 function exportClassroomCSV() { alert('단원별 과제 취합은 아직 연결되지 않았습니다. 수행평가 성적은 실시간 관제실의 CSV 버튼을 사용해 주세요.'); }
 function closeStudentDetailModal() { document.getElementById('classroom-detail-modal')?.classList.add('hidden'); }
 function copyPadletFormat() { alert('단원별 과제 취합은 아직 연결되지 않았습니다.'); }
+
+if (typeof window !== 'undefined') {
+  window.sortBlocksByExecution = sortBlocksByExecution;
+  window.drawFlowchartPreview = drawFlowchartPreview;
+}
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    sortBlocksByExecution,
+    drawFlowchartPreview
+  };
+}
+

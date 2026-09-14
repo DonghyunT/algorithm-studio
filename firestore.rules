@@ -85,7 +85,8 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','answers','progress','updatedAt','submittedAt'])
           && ((active() && request.resource.data.status in ['in_progress','submitted'])
             || (request.resource.data.status == 'submitted' && request.resource.data.answers == resource.data.answers)));
-        allow delete: if teacherForClass(classId) && getAfter(/databases/$(database)/documents/classrooms/$(classId)).data.status == 'waiting';
+        allow delete: if (teacherForClass(classId) && getAfter(/databases/$(database)/documents/classrooms/$(classId)).data.status == 'waiting')
+          || (owner() && resource.data.status == 'waiting');
       }
     }
   }

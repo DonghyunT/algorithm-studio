@@ -1,7 +1,7 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),crypto=require('node:crypto');
 function setup(){
  const records=new Map(),copy=value=>JSON.parse(JSON.stringify(value));let fail=false;
- function ref(path){return {path,id:path.split('/').pop(),collection:name=>({doc:id=>ref(path+'/'+name+'/'+id)})};}
+ function ref(path){return {path,id:path.split('/').pop(),collection:name=>({doc:id=>ref(path+'/'+name+'/'+id)}),update:async value=>{records.set(path,{...records.get(path),...copy(value)});},get:async()=>({exists:records.has(path),id:path.split('/').pop(),ref:ref(path),data:()=>copy(records.get(path)||{})})};}
  const db={collection:name=>({doc:id=>ref(name+'/'+id)}),runTransaction:async task=>{
    const writes=[];
    const result=await task({get:async doc=>({exists:records.has(doc.path),id:doc.id,ref:doc,data:()=>copy(records.get(doc.path)||{})}),set:(doc,value)=>writes.push(['set',doc.path,copy(value)]),update:(doc,value)=>writes.push(['update',doc.path,copy(value)]),delete:doc=>writes.push(['delete',doc.path])});
@@ -62,5 +62,207 @@ test('teacher review is bound to the submitted answer; failures and resets do no
  setFail(true);await assert.rejects(service.savePart3Review('2-1',1,source,{criteria},'confirmed'));assert.equal(records.get('classrooms/2-1/students/01').review,undefined);setFail(false);
  await service.savePart3Review('2-1',1,source,{criteria,attemptId:s.attemptId,uncertainties:[]},'proposal');assert.equal(records.get('classrooms/2-1/students/01').review.confirmed,undefined);
  await service.savePart3Review('2-1',1,source,{criteria},'confirmed');assert.equal(records.get('classrooms/2-1/students/01').review.confirmed.reviewerUid,'teacher');
- await service.resetStudentExam('2-1',1);assert.equal(records.get('classrooms/2-1/students/01').review,null);
+  await service.resetStudentExam('2-1',1);assert.equal(records.get('classrooms/2-1/students/01').review,null);
 });
+
+test('waiting session can be directly closed with endSession and getSession fetches session snapshot',async()=>{
+  const {records,service}=setup();
+  await service.prepareSession('2-1');
+  const ready=await service.getSession('2-1');
+  assert.equal(ready.status,'waiting');
+  assert.ok(ready.attemptId);
+  await service.endSession('2-1',{attemptId:ready.attemptId,status:'waiting'});
+  const ended=await service.getSession('2-1');
+  assert.equal(ended.status,'ended');
+});
+
+test('bulk closing waiting rooms targets only waiting sessions and leaves in_progress intact',async()=>{
+  const {records,service}=setup();
+  await service.prepareSession('2-1');
+  records.set('classrooms/2-2',{classId:'2-2',status:'in_progress',attemptId:'round-2',deadlineMs:Date.now()+60000});
+  records.set('classrooms/2-3',{classId:'2-3',status:'ended',attemptId:'round-3'});
+
+  const classes=['2-1','2-2','2-3'];
+  const targets=[];
+  for(const cId of classes){
+    const s=await service.getSession(cId);
+    if(s&&s.status==='waiting'&&s.attemptId)targets.push({classId:cId,session:s});
+  }
+  assert.equal(targets.length,1);
+  assert.equal(targets[0].classId,'2-1');
+
+  for(const t of targets){
+    await service.endSession(t.classId,{attemptId:t.session.attemptId,status:'waiting'});
+  }
+
+  assert.equal((await service.getSession('2-1')).status,'ended');
+  assert.equal((await service.getSession('2-2')).status,'in_progress');
+  assert.equal((await service.getSession('2-3')).status,'ended');
+});
+
+test('student can leave waiting room and free seat for another student, but cannot leave after exam starts',async()=>{
+  const {records,service}=setup();
+  await service.prepareSession('2-1');
+  const student1=await service.joinWaitingRoom('2-1',5,'실수학생');
+  assert.equal(records.has('classrooms/2-1/students/05'),true);
+
+  await service.leaveWaitingRoom('2-1',5);
+  assert.equal(records.has('classrooms/2-1/students/05'),false);
+
+  const student2=await service.joinWaitingRoom('2-1',5,'진짜학생');
+  assert.equal(student2.name,'진짜학생');
+  assert.equal(records.has('classrooms/2-1/students/05'),true);
+
+  await service.startSession('2-1');
+  records.get('classrooms/2-1/students/05').status='in_progress';
+  await assert.rejects(service.leaveWaitingRoom('2-1',5),/평가가 이미 시작되었거나/);
+});
+
+test('student answers include blocks and connections that can be mapped for teacher canvas rendering', async () => {
+  const {records, service} = setup();
+  await service.prepareSession('2-1');
+  await service.joinWaitingRoom('2-1', 7, '순서도학생');
+  await service.startSession('2-1');
+  const blocks = [
+    { id: 'b1', shape: 'terminal', text: '시작', x: 100, y: 50 },
+    { id: 'b2', shape: 'proc', text: '환기 팬 가동', x: 100, y: 150 },
+    { id: 'b3', shape: 'terminal', text: '끝', x: 100, y: 250 }
+  ];
+  const connections = [
+    { id: 'c1', from: 'b1', to: 'b2', fromPort: 'bottom', toPort: 'top' },
+    { id: 'c2', from: 'b2', to: 'b3', fromPort: 'bottom', toPort: 'top' }
+  ];
+  await service.updateStudentProgress('2-1', 7, { part1: 5, part2: 3, part3: 1 }, {
+    part1: { p1_q1: 0 },
+    part2: { p2_q1: '순차' },
+    part3: { blocks, connections, questionVersion: 3 }
+  });
+
+  const student = records.get('classrooms/2-1/students/07');
+  assert.equal(student.answers.part3.blocks.length, 3);
+  assert.equal(student.answers.part3.connections.length, 2);
+  assert.equal(student.answers.part3.blocks[0].shape, 'terminal');
+  assert.equal(student.answers.part3.blocks[1].text, '환기 팬 가동');
+});
+
+test('sortBlocksByExecution orders blocks by execution flow, handles branching and loops safely', () => {
+  const { sortBlocksByExecution } = require('../js/core/classroom.js');
+
+  // Case 1: Branching with early created '종료' block (like teacher screenshot)
+  const blocks = [
+    { id: 'start', shape: 'terminal', text: '시작', y: 30 },
+    { id: 'b_input', shape: 'io', text: '현재시간 입력', y: 110 },
+    { id: 'b_end', shape: 'terminal', text: '종료', y: 480 },
+    { id: 'b_dec', shape: 'decision', text: '12시 이전?', y: 200 },
+    { id: 'b_study', shape: 'process', text: '공부한다', y: 320 },
+    { id: 'b_play', shape: 'process', text: '논다', y: 320 }
+  ];
+  const connections = [
+    { from: 'start', to: 'b_input' },
+    { from: 'b_input', to: 'b_dec' },
+    { from: 'b_dec', to: 'b_study', fromPort: 'yes' },
+    { from: 'b_dec', to: 'b_play', fromPort: 'no' },
+    { from: 'b_study', to: 'b_end' },
+    { from: 'b_play', to: 'b_end' }
+  ];
+
+  const sorted = sortBlocksByExecution(blocks, connections);
+  const texts = sorted.map(b => b.text);
+  assert.deepEqual(texts, ['시작', '현재시간 입력', '12시 이전?', '공부한다', '논다', '종료']);
+
+  // Case 2: Repetition / Loopback (cycle-safe, no infinite loop)
+  const loopBlocks = [
+    { id: 's', shape: 'terminal', text: '시작', y: 0 },
+    { id: 'measure', shape: 'io', text: '기온 측정', y: 100 },
+    { id: 'cond', shape: 'decision', text: '기온 > 28?', y: 200 },
+    { id: 'cool', shape: 'process', text: '냉방기 가동', y: 300 },
+    { id: 'e', shape: 'terminal', text: '종료', y: 400 },
+    { id: 'orphan', shape: 'process', text: '연결 안 된 메모', y: 500 }
+  ];
+  const loopConns = [
+    { from: 's', to: 'measure' },
+    { from: 'measure', to: 'cond' },
+    { from: 'cond', to: 'cool', fromPort: 'yes' },
+    { from: 'cool', to: 'measure' }, // cycle / loopback
+    { from: 'cond', to: 'e', fromPort: 'no' }
+  ];
+
+  const sortedLoop = sortBlocksByExecution(loopBlocks, loopConns);
+  const loopTexts = sortedLoop.map(b => b.text);
+  assert.equal(loopTexts[0], '시작');
+  assert.equal(loopTexts[1], '기온 측정');
+  assert.equal(loopTexts[2], '기온 > 28?');
+  assert.equal(loopTexts[3], '냉방기 가동');
+  assert.equal(loopTexts[4], '종료');
+  assert.equal(loopTexts[5], '연결 안 된 메모');
+});
+
+test('question bank: assignQuestions extracts exact difficulty distributions deterministically', () => {
+  const { EVAL_QUESTION_BANK } = require('../js/data/eval-question-bank.js');
+  const { assignQuestions, evaluationQuestions } = require('../js/data/eval-questions.js');
+  const { gradeEvaluation } = require('../js/core/flow-validation.js');
+
+  // Verify total question bank size
+  assert.equal(EVAL_QUESTION_BANK.part1.length, 30, 'Part 1 bank must have 30 questions');
+  assert.equal(EVAL_QUESTION_BANK.part2.length, 18, 'Part 2 bank must have 18 questions');
+
+  // Assign questions for student 1
+  const student1Key = 'attempt_20260914_2-1_05';
+  const assigned1 = assignQuestions(student1Key, EVAL_QUESTION_BANK);
+
+  assert.equal(assigned1.part1.length, 10, 'Part 1 must assign exactly 10 questions');
+  assert.equal(assigned1.part2.length, 6, 'Part 2 must assign exactly 6 questions');
+
+  // Check Part 1 breakdown: 4 easy (3 concept, 1 applied), 4 medium, 2 hard
+  const p1Questions = assigned1.part1.map(id => EVAL_QUESTION_BANK.part1.find(q => q.id === id));
+  assert.equal(p1Questions.filter(q => q.difficulty === 'easy').length, 4);
+  assert.equal(p1Questions.filter(q => q.difficulty === 'easy' && q.subType === 'concept').length, 3);
+  assert.equal(p1Questions.filter(q => q.difficulty === 'easy' && q.subType === 'applied').length, 1);
+  assert.equal(p1Questions.filter(q => q.difficulty === 'medium').length, 4);
+  assert.equal(p1Questions.filter(q => q.difficulty === 'hard').length, 2);
+
+  // Check Part 2 breakdown: 2 easy, 2 medium, 2 hard (1 trace, 1 scenario)
+  const p2Questions = assigned1.part2.map(id => EVAL_QUESTION_BANK.part2.find(q => q.id === id));
+  assert.equal(p2Questions.filter(q => q.difficulty === 'easy').length, 2);
+  assert.equal(p2Questions.filter(q => q.difficulty === 'medium').length, 2);
+  assert.equal(p2Questions.filter(q => q.difficulty === 'hard').length, 2);
+  assert.equal(p2Questions.filter(q => q.difficulty === 'hard' && q.subType === 'trace').length, 1);
+  assert.equal(p2Questions.filter(q => q.difficulty === 'hard' && q.subType === 'scenario').length, 1);
+
+  // Determinism test: same studentKey must produce identical assignment
+  const assigned1Repeat = assignQuestions(student1Key, EVAL_QUESTION_BANK);
+  assert.deepEqual(assigned1, assigned1Repeat, 'Same studentKey must produce identical assignment');
+
+  // Variation test: different studentKey should produce different set of questions
+  const student2Key = 'attempt_20260914_2-1_06';
+  const assigned2 = assignQuestions(student2Key, EVAL_QUESTION_BANK);
+  assert.notDeepEqual(assigned1.part1, assigned2.part1, 'Different students should get different Part 1 questions');
+
+  // Resolution and grading test:
+  const resolved = evaluationQuestions({ assignedQuestions: assigned1 });
+  assert.equal(resolved.part1.length, 10);
+  assert.equal(resolved.part2.length, 6);
+
+  // Prepare full correct answers for assigned questions
+  const answers = {
+    assignedQuestions: assigned1,
+    part1: {},
+    part2: {},
+    part3: { questionVersion: 3 }
+  };
+  resolved.part1.forEach(q => {
+    answers.part1[q.id] = q.correctAnswer;
+  });
+  resolved.part2.forEach(q => {
+    answers.part2[q.id] = q.answers[0]; // first valid alternative answer
+  });
+
+  const graded = gradeEvaluation(answers, 3);
+  assert.equal(graded.scores.part1, 30, 'All correct Part 1 must score 30 points');
+  assert.equal(graded.scores.part2, 30, 'All correct Part 2 must score 30 points');
+  assert.equal(graded.scores.objectiveTotal, 60, 'Total auto-graded score must be 60 points');
+  assert.equal(graded.scores.pendingReview, true, 'Part 3 must remain pendingReview for teacher grading');
+});
+
+
+

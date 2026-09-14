@@ -47,6 +47,14 @@ class EvalService {
     this.emit(classId);
     this.channel?.postMessage({ type: 'update', classId, ...data });
   }
+  async getSession(classId) {
+    const db = this.getDb();
+    if (db) {
+      const doc = await db.collection('classrooms').doc(classId).get();
+      return doc.exists ? doc.data() : this.defaultSession(classId);
+    }
+    return this.read('EVAL_SESSION_' + classId, this.defaultSession(classId));
+  }
   listenSession(classId, callback, onError = error => alert(error.message)) {
     const db = this.getDb();
     if (db) return db.collection('classrooms').doc(classId).onSnapshot({includeMetadataChanges:true}, doc => callback(doc.exists ? doc.data() : this.defaultSession(classId), doc.metadata), onError);
@@ -147,6 +155,10 @@ class EvalService {
         }
         student.attemptId=sessionData.attemptId;
         student.answers.part3.questionVersion=sessionData.questionVersion||1;
+        const assignFn = typeof assignQuestions === 'function' ? assignQuestions : (typeof window !== 'undefined' ? window.assignQuestions : null);
+        if ((sessionData.questionVersion >= 4) && assignFn && !student.answers.assignedQuestions) {
+          student.answers.assignedQuestions = assignFn(`${student.attemptId}_${classId}_${studentNum}`);
+        }
         transaction.set(ref, student);
         return student;
       }).catch(error => {
@@ -162,7 +174,34 @@ class EvalService {
       throw Error(`현재 ${classId}반은 수행평가가 열려 있지 않습니다. 선생님께서 대기실을 연 후 입장해 주세요.`);
     }
     student.answers.part3.questionVersion=session.questionVersion||1;student.attemptId=session.attemptId||'';
+    const assignFn = typeof assignQuestions === 'function' ? assignQuestions : (typeof window !== 'undefined' ? window.assignQuestions : null);
+    if ((session.questionVersion >= 4) && assignFn && !student.answers.assignedQuestions) {
+      student.answers.assignedQuestions = assignFn(`${student.attemptId}_${classId}_${studentNum}`);
+    }
     this.mergeLocalStudent(classId, student); this.notify(classId, {students:[student]}); return student;
+  }
+  async leaveWaitingRoom(classId, studentNum) {
+    const docId = this.identity(classId, studentNum);
+    const user = await window.authService.student();
+    const db = this.getDb();
+    if (db) {
+      const ref = db.collection('classrooms').doc(classId).collection('students').doc(docId);
+      await db.runTransaction(async tx => {
+        const doc = await tx.get(ref);
+        if (!doc.exists) return;
+        if (doc.data().ownerUid !== user.uid) throw new Error('본인의 대기 기록만 취소할 수 있습니다.');
+        if (doc.data().status !== 'waiting') throw new Error('평가가 이미 시작되었거나 제출된 상태에서는 대기실을 나갈 수 없습니다.');
+        tx.delete(ref);
+      }).catch(error => {
+        if (error.code === 'permission-denied') throw new Error('대기실 퇴장 권한 오류: 이미 세션이 시작되었거나 변경되었습니다.');
+        throw error;
+      });
+      return;
+    }
+    const key = 'EVAL_STUDENTS_' + classId;
+    const list = this.read(key, []).filter(item => item.numStr !== docId);
+    this.write(key, list);
+    this.notify(classId, { replaceStudents: true, students: list });
   }
   async updateStudentProgress(classId, studentNum, progress, answers) {
     const docId = this.identity(classId, studentNum);
@@ -262,7 +301,7 @@ class EvalService {
     if(!['proposal','confirmed'].includes(kind))throw Error('검토 종류를 확인해 주세요.');
     const criteria=validateAssessmentCriteria(details.criteria);
     const update=(student,session)=>{
-      if(session?.questionVersion!==3||student?.status!=='submitted'||student.attemptId!==session.attemptId||sourceKey!==assessmentSourceKey(student.answers?.part3))throw Error('답안이나 회차가 변경되었습니다. 답안을 다시 열어 검토해 주세요.');
+      if(![3, 4].includes(session?.questionVersion)||student?.status!=='submitted'||student.attemptId!==session.attemptId||sourceKey!==assessmentSourceKey(student.answers?.part3))throw Error('답안이나 회차가 변경되었습니다. 답안을 다시 열어 검토해 주세요.');
       if(kind==='proposal'&&details.attemptId!==student.attemptId)throw Error('이전 회차의 AI 결과입니다.');
       return {...student.review,[kind]:{criteria,sourceKey,attemptId:student.attemptId,reviewerUid:user.uid,createdAt:new Date().toISOString(),rubricVersion:'open-design-v1',...(kind==='proposal'?{model:String(details.model||''),uncertainties:(details.uncertainties||[]).slice(0,5)}:{})}};
     };

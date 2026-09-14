@@ -113,13 +113,25 @@ function inspectAssessmentFlow(part3 = {}) {
 function gradeEvaluation(answers = {}, questionVersion=answers?.part3?.questionVersion) {
   if (!answers || typeof answers !== 'object') answers = {};
   let part1=0,part2=0;
-  evaluationQuestions(answers,questionVersion).part1.forEach(q=>{if(answers.part1?.[q.id]===q.correctAnswer)part1+=q.points;});
-  evaluationQuestions(answers,questionVersion).part2.forEach(q=>{
+  const questions = (typeof evaluationQuestions === 'function')
+    ? evaluationQuestions(answers, questionVersion)
+    : ((typeof require !== 'undefined') ? require('../data/eval-questions.js').evaluationQuestions(answers, questionVersion) : { part1: [], part2: [] });
+
+  questions.part1.forEach(q=>{if(answers.part1?.[q.id]===q.correctAnswer)part1+=q.points;});
+  questions.part2.forEach(q=>{
     const raw=answers.part2?.[q.id];
     const value=(typeof raw==='string'?raw:'').toLowerCase().replace(/\s/g,'');
     if(q.answers.some(answer=>answer.toLowerCase().replace(/\s/g,'')===value))part2+=q.points;
   });
-  if(questionVersion===3)return {scores:{part1,part2,part3:null,objectiveTotal:part1+part2,total:null,teacherOverride:null,pendingReview:true},feedback:{part2:'문항 기준으로 계산',part3:'자유 설계 답안은 교사 검토 후 점수가 확정됩니다.'}};
-    const inspection=inspectAssessmentFlow(answers.part3||{}), part3=inspection.score;
+  if(questionVersion>=3)return {scores:{part1,part2,part3:null,objectiveTotal:part1+part2,total:null,teacherOverride:null,pendingReview:true},feedback:{part2:'문항 기준으로 계산',part3:'자유 설계 답안은 교사 검토 후 점수가 확정됩니다.'}};
+  const inspection=inspectAssessmentFlow(answers.part3||{}), part3=inspection.score;
   return {scores:{part1,part2,part3,total:part1+part2+part3,teacherOverride:null},feedback:{part2:'문항 기준으로 계산',part3:inspection.passed?'지정된 검사 입력 통과. 교사 최종 검토 대상.':'실행 결과 확인 및 교사 검토 필요.'}};
+}
+
+if (typeof module !== 'undefined') {
+  module.exports = {
+    validateFlowGraph,
+    inspectAssessmentFlow,
+    gradeEvaluation
+  };
 }
