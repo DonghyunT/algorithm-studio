@@ -432,7 +432,7 @@ class StudentEvalApp {
             <span class="text-xs font-black px-3 py-1 bg-indigo-50 text-indigo-700 rounded-lg border border-indigo-100">${i+1}번 문제</span>
             <span class="text-xs font-black text-slate-400 font-mono">${q.points}점</span>
           </div>
-          <p class="text-xs sm:text-sm font-bold text-slate-800 leading-relaxed">${q.desc}</p>
+          <p class="text-xs sm:text-sm font-bold text-slate-800 leading-relaxed whitespace-pre-line">${q.desc}</p>
           <div class="eval-question-options space-y-2 pt-1">
             ${q.options.map((opt, optIdx) => `
               <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition text-xs sm:text-sm font-medium">
@@ -449,13 +449,13 @@ class StudentEvalApp {
     const p2Box = document.getElementById('eval-part2-list');
     if (p2Box) {
       p2Box.innerHTML = questions.part2.map((q,i) => `
-        <div class="p-5 bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-3.5">
+        <div class="eval-question-card p-5 bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-3.5">
           <div class="flex items-center justify-between">
             <span class="text-xs font-black px-3 py-1 bg-amber-50 text-amber-800 rounded-lg border border-amber-200">${i+1}번 문제</span>
             <span class="text-xs font-black text-slate-400 font-mono">${q.points}점</span>
           </div>
-          <p class="text-xs sm:text-sm font-bold text-slate-800 leading-relaxed">${q.desc}</p>
-          <div class="flex items-center gap-2 max-w-md">
+          <p class="text-xs sm:text-sm font-bold text-slate-800 leading-relaxed whitespace-pre-line">${q.desc}</p>
+          <div class="flex items-center gap-2 max-w-md mt-auto pt-2">
             <input type="text" id="${q.id}_input" value="${escapeHtml(this.answers.part2[q.id] || '')}" onfocus="this.scrollIntoView({behavior:'smooth',block:'center'})" oninput="window.studentEvalApp.onInputPart2('${q.id}', this.value)" class="flex-1 text-xs sm:text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:border-indigo-500 focus:bg-white font-bold text-slate-800" placeholder="${q.placeholder}">
             <span class="text-xs font-bold text-slate-400">단답형</span>
           </div>

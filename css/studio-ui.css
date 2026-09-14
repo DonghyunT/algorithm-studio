@@ -258,7 +258,7 @@ body.studio-mode #entry-trash-zone { bottom:14px; }
 .eval-part-footer { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:14px; margin-top:24px; padding:20px 0; border-top:1px solid var(--ui-line); }
 .eval-part-footer > div { flex:1; font-size:13px; color:var(--ui-muted); text-align:center; }
 .eval-part-footer small { display:block; font-size:12px; margin-top:4px; }
-.eval-question-card { display:flex; flex-direction:column; gap:14px; }
+.eval-question-card { display:flex; flex-direction:column; gap:14px; justify-content:space-between; }
 .eval-question-options { margin-top:auto; }
 .eval-question-options label { min-height:46px; }
 .eval-question-options input { flex-shrink:0; }
