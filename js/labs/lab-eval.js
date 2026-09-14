@@ -343,7 +343,7 @@ class StudentEvalApp {
         `<div>${index<2?`${questions[part].length}문항 중 ${count}문항 응답`:'작성한 내용을 확인하고 제출하세요.'}${index<2&&count<questions[part].length?'<small>풀지 않은 문제는 나중에 돌아와 풀 수 있어요.</small>':''}</div>`+
         (index<2?`<button type="button" onclick="studentEvalApp.switchPart('part${index+2}',true)">다음: ${index===0?'단답형':'순서도'}</button>`:'<button type="button" data-eval-submit onclick="studentEvalApp.submitExam(false)">최종 제출</button>');
     }
-    document.querySelectorAll('[data-eval-submit]').forEach(b=>{b.disabled=!this.visitedPart3||this.isSubmitting||this.isSubmitted;b.title=this.visitedPart3?'최종 제출':'Part 3을 확인한 뒤 제출할 수 있어요.';});
+    document.querySelectorAll('[data-eval-submit]').forEach(b=>{b.disabled=this.isSubmitting||this.isSubmitted;b.title=this.visitedPart3?'최종 제출':'Part 3을 확인한 뒤 제출할 수 있어요.';});
     document.querySelectorAll('#eval-part1-list input,#eval-part2-list input').forEach(input=>{input.disabled=this.isSubmitting||this.isSubmitted||this.sessionStatus==='ended';});
   }
 
@@ -539,7 +539,11 @@ class StudentEvalApp {
   // 5. 최종 제출 처리
   async submitExam(isAuto = false) {
     if (this.isSubmitted || this.isSubmitting) return;
-    if(!isAuto&&!this.visitedPart3){alert('Part 3을 확인한 뒤 제출해 주세요. 미완성 답안도 제출할 수 있습니다.');return;}
+    if(!isAuto&&!this.visitedPart3){
+      alert('Part 3(알고리즘 설계) 문제를 확인한 뒤 제출해 주세요.\n문제를 다 풀지 못했더라도 제출할 수 있습니다.');
+      this.switchPart('part3',true);
+      return;
+    }
     window.assessmentWorkspace?.capture();
     if (!isAuto && !confirm("정말로 수행평가 답안을 최종 제출하시겠습니까?\n제출 후에는 교사의 재시험 승인이 있어야 답안을 다시 작성할 수 있습니다.")) {
       return;

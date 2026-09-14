@@ -1,7 +1,7 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),crypto=require('node:crypto');
 function setup(){
  const records=new Map(),copy=value=>JSON.parse(JSON.stringify(value));let fail=false;
- function ref(path){return {path,id:path.split('/').pop(),collection:name=>({doc:id=>ref(path+'/'+name+'/'+id)})};}
+ function ref(path){return {path,id:path.split('/').pop(),collection:name=>({doc:id=>ref(path+'/'+name+'/'+id)}),get:async()=>({exists:records.has(path),id:path.split('/').pop(),ref:ref(path),data:()=>copy(records.get(path)||{})})};}
  const db={collection:name=>({doc:id=>ref(name+'/'+id)}),runTransaction:async task=>{
    const writes=[];
    const result=await task({get:async doc=>({exists:records.has(doc.path),id:doc.id,ref:doc,data:()=>copy(records.get(doc.path)||{})}),set:(doc,value)=>writes.push(['set',doc.path,copy(value)]),update:(doc,value)=>writes.push(['update',doc.path,copy(value)]),delete:doc=>writes.push(['delete',doc.path])});
@@ -62,5 +62,40 @@ test('teacher review is bound to the submitted answer; failures and resets do no
  setFail(true);await assert.rejects(service.savePart3Review('2-1',1,source,{criteria},'confirmed'));assert.equal(records.get('classrooms/2-1/students/01').review,undefined);setFail(false);
  await service.savePart3Review('2-1',1,source,{criteria,attemptId:s.attemptId,uncertainties:[]},'proposal');assert.equal(records.get('classrooms/2-1/students/01').review.confirmed,undefined);
  await service.savePart3Review('2-1',1,source,{criteria},'confirmed');assert.equal(records.get('classrooms/2-1/students/01').review.confirmed.reviewerUid,'teacher');
- await service.resetStudentExam('2-1',1);assert.equal(records.get('classrooms/2-1/students/01').review,null);
+  await service.resetStudentExam('2-1',1);assert.equal(records.get('classrooms/2-1/students/01').review,null);
+});
+
+test('waiting session can be directly closed with endSession and getSession fetches session snapshot',async()=>{
+  const {records,service}=setup();
+  await service.prepareSession('2-1');
+  const ready=await service.getSession('2-1');
+  assert.equal(ready.status,'waiting');
+  assert.ok(ready.attemptId);
+  await service.endSession('2-1',{attemptId:ready.attemptId,status:'waiting'});
+  const ended=await service.getSession('2-1');
+  assert.equal(ended.status,'ended');
+});
+
+test('bulk closing waiting rooms targets only waiting sessions and leaves in_progress intact',async()=>{
+  const {records,service}=setup();
+  await service.prepareSession('2-1');
+  records.set('classrooms/2-2',{classId:'2-2',status:'in_progress',attemptId:'round-2',deadlineMs:Date.now()+60000});
+  records.set('classrooms/2-3',{classId:'2-3',status:'ended',attemptId:'round-3'});
+
+  const classes=['2-1','2-2','2-3'];
+  const targets=[];
+  for(const cId of classes){
+    const s=await service.getSession(cId);
+    if(s&&s.status==='waiting'&&s.attemptId)targets.push({classId:cId,session:s});
+  }
+  assert.equal(targets.length,1);
+  assert.equal(targets[0].classId,'2-1');
+
+  for(const t of targets){
+    await service.endSession(t.classId,{attemptId:t.session.attemptId,status:'waiting'});
+  }
+
+  assert.equal((await service.getSession('2-1')).status,'ended');
+  assert.equal((await service.getSession('2-2')).status,'in_progress');
+  assert.equal((await service.getSession('2-3')).status,'ended');
 });

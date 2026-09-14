@@ -47,6 +47,14 @@ class EvalService {
     this.emit(classId);
     this.channel?.postMessage({ type: 'update', classId, ...data });
   }
+  async getSession(classId) {
+    const db = this.getDb();
+    if (db) {
+      const doc = await db.collection('classrooms').doc(classId).get();
+      return doc.exists ? doc.data() : this.defaultSession(classId);
+    }
+    return this.read('EVAL_SESSION_' + classId, this.defaultSession(classId));
+  }
   listenSession(classId, callback, onError = error => alert(error.message)) {
     const db = this.getDb();
     if (db) return db.collection('classrooms').doc(classId).onSnapshot({includeMetadataChanges:true}, doc => callback(doc.exists ? doc.data() : this.defaultSession(classId), doc.metadata), onError);

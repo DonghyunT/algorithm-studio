@@ -299,8 +299,114 @@ function renderTeacherSessionControl() {
     button.dataset.action = model.action;
     button.setAttribute('aria-busy',String(teacherSessionPending));
   }
+  const closeWaitingBtn = document.getElementById('teacher-session-close-waiting');
+  if (closeWaitingBtn) {
+    const showCloseWaiting = model.state === 'waiting';
+    closeWaitingBtn.classList.toggle('hidden', !showCloseWaiting);
+    closeWaitingBtn.disabled = teacherSessionPending;
+  }
   const select = document.getElementById('classroom-class-select');
   if (select) select.disabled = teacherSessionPending;
+}
+
+async function handleCloseWaitingRoom() {
+  if (teacherSessionPending) return;
+  const model = teacherSessionState();
+  if (model.state !== 'waiting') return;
+  const classId = getClassIdFromSelected(), generation = liveDashboardGeneration;
+  const expected = {attemptId:currentLiveSession?.attemptId ?? null, status:currentLiveSession?.status ?? 'waiting'};
+  if (!confirm(`[${currentSelectedClass}] 대기실을 닫으시겠습니까?\n아직 시작하지 않은 학생들의 입장이 차단되고 '대기실 닫힘' 상태로 변경됩니다.`)) return;
+
+  teacherSessionPending = true;
+  teacherSessionPendingLabel = '대기실 닫는 중…';
+  setTeacherSessionFeedback(''); renderTeacherSessionControl();
+  try {
+    const session = {...currentLiveSession, ...await window.evalService.endSession(classId, expected)};
+    if (generation === liveDashboardGeneration) {
+      currentLiveSession = session;
+      setTeacherSessionFeedback('대기실을 닫았습니다. 학생 입장이 차단되었습니다.');
+    }
+  } catch(error) {
+    if (generation === liveDashboardGeneration) setTeacherSessionFeedback('처리하지 못했습니다. '+error.message);
+  } finally {
+    teacherSessionPending = false;
+    renderTeacherSessionControl();
+  }
+}
+
+async function handleCloseAllWaitingRooms() {
+  if (teacherSessionPending) return;
+  const btn = document.getElementById('classroom-close-all-btn');
+
+  // 1단계 확인 질문
+  const step1 = confirm(
+    "⚠️ 담당 학급 중 '입장 대기' 상태인 모든 대기실을 일괄 닫으시겠습니까?\n\n" +
+    "※ 이미 평가가 진행 중(시험 중)인 학급은 안전하게 보호되며 닫히지 않습니다.\n" +
+    "※ 계속하시려면 [확인]을 눌러주세요."
+  );
+  if (!step1) return;
+
+  if (btn) {
+    btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
+  }
+
+  try {
+    const allowedClasses = getAllowedClassNames();
+    const waitingTargets = [];
+
+    // 각 학급의 세션 상태 조회
+    for (const className of allowedClasses) {
+      const match = className.match(/(\d+)학년\s*(\d+)반/);
+      const cId = match ? `${match[1]}-${match[2]}` : null;
+      if (!cId) continue;
+      try {
+        const session = await window.evalService.getSession(cId);
+        if (session && session.status === 'waiting' && session.attemptId) {
+          waitingTargets.push({ className, classId: cId, session });
+        }
+      } catch (err) {
+        console.warn(`[${className}] 세션 조회 실패:`, err);
+      }
+    }
+
+    if (!waitingTargets.length) {
+      alert("현재 '입장 대기' 상태인 학급이 없습니다.\n모든 학급의 대기실이 이미 닫혀 있거나 진행 중입니다.");
+      return;
+    }
+
+    // 2단계 확인 질문 (실제 닫힐 대상 학급 목록 확인)
+    const targetNames = waitingTargets.map(t => t.className).join(', ');
+    const step2 = confirm(
+      `다음 ${waitingTargets.length}개 학급의 대기실을 닫습니다:\n` +
+      `[ ${targetNames} ]\n\n` +
+      `정말 진행하시겠습니까? 학생 입장이 즉시 차단됩니다.`
+    );
+    if (!step2) return;
+
+    let closedCount = 0;
+    for (const target of waitingTargets) {
+      try {
+        await window.evalService.endSession(target.classId, {
+          attemptId: target.session.attemptId,
+          status: 'waiting'
+        });
+        closedCount++;
+      } catch (err) {
+        console.error(`[${target.className}] 대기실 닫기 실패:`, err);
+      }
+    }
+
+    alert(`✅ 총 ${closedCount}개 학급의 대기실을 안전하게 닫았습니다.\n[ ${targetNames} ]`);
+    initLiveEvalDashboard();
+  } catch (error) {
+    alert("대기실 일괄 닫기 중 오류가 발생했습니다: " + error.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.removeAttribute('aria-busy');
+    }
+  }
 }
 
 async function handleTeacherSessionAction() {
