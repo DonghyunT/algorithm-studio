@@ -249,7 +249,7 @@ function clearUnavailableTeacherData() {
   stopLiveEvalDashboard();
   currentLiveStudents=[];currentLiveSession=null;liveSessionError=true;
   renderLiveGrid([]);closeLiveStudentModal();
-  ['classroom-live-modal-title','classroom-live-modal-p1','classroom-live-modal-p2','classroom-live-modal-p3'].forEach(id=>{const el=document.getElementById(id);if(el)el.replaceChildren();});
+  ['classroom-live-modal-title','classroom-live-modal-summary','classroom-live-modal-p1','classroom-live-modal-p2','classroom-live-modal-p3'].forEach(id=>{const el=document.getElementById(id);if(el)el.replaceChildren();});
   const score=document.getElementById('classroom-live-override-score');if(score)score.value='';
   const label=document.getElementById('classroom-connection-status');if(label)label.textContent='자료 표시 중단 · 연결과 담당 학급 권한을 확인해 주세요';
   setTeacherSessionFeedback('학생 자료를 표시할 수 없어 화면을 비웠습니다. 연결을 확인하고, 담당 반이 바뀌었다면 다시 로그인해 주세요.');
@@ -378,14 +378,15 @@ function renderLiveGrid(students = []) {
       } else if (s.status === 'in_progress') {
         statusBg = "bg-blue-50/80 border-blue-400 text-blue-900";
         const pCount = (Number(s.progress?.part1) || 0) + (Number(s.progress?.part2) || 0);
-        statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-600 text-white font-bold animate-pulse">풀이중 (${pCount}문항)</span>`;
+        const currentObjScore = (s.scores?.part1 || 0) + (s.scores?.part2 || 0);
+        statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-600 text-white font-bold animate-pulse">풀이중 (${pCount}문항 · ${currentObjScore}점)</span>`;
       } else if (s.status === 'submitted') {
         statusBg = "bg-emerald-50 border-emerald-400 text-emerald-950 shadow-xs";
         const finalScore = (s.scores?.teacherOverride !== null && s.scores?.teacherOverride !== undefined)
           ? s.scores.teacherOverride
           : (s.scores?.total || 0);
         statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-600 text-white font-bold">제출완료</span>`;
-        scoreDisplay = `<span class="text-sm font-black text-emerald-700">${s.scores?.pendingReview?'채점 대기':finalScore+'점'}</span>`;
+        scoreDisplay = `<span class="text-sm font-black text-emerald-700">${s.scores?.pendingReview ? '소계 ' + ((s.scores?.part1 || 0) + (s.scores?.part2 || 0)) + '점 (검토대기)' : finalScore + '점'}</span>`;
       }
     }
 
@@ -428,39 +429,106 @@ function openLiveStudentModal(studentNum) {
   const titleEl = document.getElementById('classroom-live-modal-title');
   if (titleEl) titleEl.textContent = `${currentSelectedClass} ${s.num}번 ${s.name} 학생 답안 검토`;
 
+  const summaryEl = document.getElementById('classroom-live-modal-summary');
   const p1El = document.getElementById('classroom-live-modal-p1');
   const p2El = document.getElementById('classroom-live-modal-p2');
   const p3El = document.getElementById('classroom-live-modal-p3');
   const scoreInp = document.getElementById('classroom-live-override-score');
 
-  if (p1El) {
-    const studentP1 = s.answers?.part1 || {};
-    let p1Html = '';
-    (window.EVAL_QUESTIONS?.part1 || []).forEach(q => {
-      const studentAnsIdx = studentP1[q.id];
-      const isCorrect = studentAnsIdx === q.correctAnswer;
-      const ansText = studentAnsIdx !== undefined && q.options ? q.options[studentAnsIdx] : "미응답";
-      const badge = isCorrect 
-        ? '<span class="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold ml-2">정답</span>' 
-        : `<span class="text-[10px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded font-bold ml-2">오답 (정답: ${q.options ? q.options[q.correctAnswer] : ''})</span>`;
-      p1Html += `<div class="mb-1.5"><div class="font-bold text-slate-800">${q.title}</div><div class="text-slate-600 pl-3 border-l-2 border-slate-200 ml-1 mt-0.5 text-[11px]">👉 ${ansText} ${badge}</div></div>`;
-    });
-    p1El.innerHTML = p1Html || "답안 데이터가 없습니다.";
-  }
+  const questions = typeof window.evaluationQuestions === 'function'
+    ? window.evaluationQuestions(s.answers, s.questionVersion)
+    : (window.EVAL_QUESTIONS || (typeof EVAL_QUESTIONS !== 'undefined' ? EVAL_QUESTIONS : { part1: [], part2: [] }));
 
-  if (p2El) {
-    const studentP2 = s.answers?.part2 || {};
-    let p2Html = '';
-    (window.EVAL_QUESTIONS?.part2 || []).forEach(q => {
-      const studentAnsText = studentP2[q.id] || "미응답";
-      const cleanedAns = studentAnsText.trim().replace(/\s+/g, '');
-      const isCorrect = q.answers && q.answers.some(ans => ans.trim().replace(/\s+/g, '') === cleanedAns);
-      const badge = isCorrect 
-        ? '<span class="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold ml-2">정답</span>' 
-        : `<span class="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold ml-2">확인필요 (정답 예시: ${q.answers ? q.answers[0] : ''})</span>`;
-      p2Html += `<div class="mb-1.5"><div class="font-bold text-slate-800">${q.title}</div><div class="text-slate-600 pl-3 border-l-2 border-slate-200 ml-1 mt-0.5 text-[11px]">👉 ${studentAnsText} ${badge}</div></div>`;
-    });
-    p2El.innerHTML = p2Html || "답안 데이터가 없습니다.";
+  const studentP1 = s.answers?.part1 || {};
+  let p1Html = '';
+  let p1CorrectCount = 0;
+  let p1Score = 0;
+  (questions.part1 || []).forEach((q, idx) => {
+    const studentAnsIdx = studentP1[q.id];
+    const hasAnswered = studentAnsIdx !== undefined && studentAnsIdx !== null;
+    const isCorrect = hasAnswered && studentAnsIdx === q.correctAnswer;
+    if (isCorrect) {
+      p1CorrectCount++;
+      p1Score += (q.points || 3);
+    }
+    const ansText = hasAnswered && q.options ? q.options[studentAnsIdx] : "미응답";
+    const badge = !hasAnswered
+      ? '<span class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-bold ml-2">미응답 (0점)</span>'
+      : isCorrect 
+        ? `<span class="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold ml-2">정답 (+${q.points || 3}점)</span>` 
+        : `<span class="text-[10px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded font-bold ml-2">오답 (0점 / 정답: ${q.options ? escapeHtml(q.options[q.correctAnswer]) : ''})</span>`;
+    p1Html += `
+      <div class="p-2.5 bg-slate-50/80 border border-slate-200/80 rounded-xl space-y-1">
+        <div class="flex items-center justify-between">
+          <span class="font-black text-slate-800 text-xs">${idx + 1}. ${escapeHtml(q.title || '')}</span>
+          ${badge}
+        </div>
+        <div class="text-[11px] text-slate-500 leading-tight">${escapeHtml(q.desc || '')}</div>
+        <div class="text-xs text-slate-700 font-medium pl-2.5 border-l-2 ${isCorrect ? 'border-emerald-400' : (hasAnswered ? 'border-rose-400' : 'border-slate-300')} mt-1.5">
+          학생 선택: <strong class="${isCorrect ? 'text-emerald-700 font-black' : (hasAnswered ? 'text-rose-700 font-black' : 'text-slate-400')}">${escapeHtml(ansText)}</strong>
+        </div>
+      </div>
+    `;
+  });
+  if (p1El) p1El.innerHTML = p1Html || '<div class="text-slate-400 p-2 italic">답안 데이터가 없습니다.</div>';
+
+  const studentP2 = s.answers?.part2 || {};
+  let p2Html = '';
+  let p2CorrectCount = 0;
+  let p2Score = 0;
+  (questions.part2 || []).forEach((q, idx) => {
+    const studentAnsText = (studentP2[q.id] || '').trim();
+    const hasAnswered = studentAnsText.length > 0;
+    const cleanedAns = studentAnsText.toLowerCase().replace(/\s+/g, '');
+    const isCorrect = hasAnswered && q.answers && q.answers.some(ans => ans.toLowerCase().replace(/\s+/g, '') === cleanedAns);
+    if (isCorrect) {
+      p2CorrectCount++;
+      p2Score += (q.points || 5);
+    }
+    const badge = !hasAnswered
+      ? '<span class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-bold ml-2">미응답 (0점)</span>'
+      : isCorrect 
+        ? `<span class="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold ml-2">정답 (+${q.points || 5}점)</span>` 
+        : `<span class="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold ml-2">오답/확인필요 (0점 / 정답 예: ${q.answers ? escapeHtml(q.answers[0]) : ''})</span>`;
+    p2Html += `
+      <div class="p-2.5 bg-slate-50/80 border border-slate-200/80 rounded-xl space-y-1">
+        <div class="flex items-center justify-between">
+          <span class="font-black text-slate-800 text-xs">${idx + 1}. ${escapeHtml(q.title || '')}</span>
+          ${badge}
+        </div>
+        <div class="text-[11px] text-slate-500 leading-tight">${escapeHtml(q.desc || '')}</div>
+        <div class="text-xs text-slate-700 font-medium pl-2.5 border-l-2 ${isCorrect ? 'border-emerald-400' : (hasAnswered ? 'border-amber-400' : 'border-slate-300')} mt-1.5">
+          학생 입력: <strong class="${isCorrect ? 'text-emerald-700 font-black' : (hasAnswered ? 'text-amber-800 font-black' : 'text-slate-400')}">${hasAnswered ? escapeHtml(studentAnsText) : '미응답'}</strong>
+        </div>
+      </div>
+    `;
+  });
+  if (p2El) p2El.innerHTML = p2Html || '<div class="text-slate-400 p-2 italic">답안 데이터가 없습니다.</div>';
+
+  if (summaryEl) {
+    summaryEl.innerHTML = `
+      <div class="p-3 bg-indigo-50/90 border border-indigo-200 rounded-2xl">
+        <div class="text-[11px] font-bold text-indigo-700 flex items-center justify-between">
+          <span>Part 1. 객관식 (10문항)</span>
+          <span class="text-indigo-600 font-black">${p1CorrectCount}/10개</span>
+        </div>
+        <div class="text-base font-black text-indigo-950 mt-1">${p1Score} / 30점</div>
+      </div>
+      <div class="p-3 bg-amber-50/90 border border-amber-200 rounded-2xl">
+        <div class="text-[11px] font-bold text-amber-800 flex items-center justify-between">
+          <span>Part 2. 단답형 (6문항)</span>
+          <span class="text-amber-700 font-black">${p2CorrectCount}/6개</span>
+        </div>
+        <div class="text-base font-black text-amber-950 mt-1">${p2Score} / 30점</div>
+      </div>
+      <div class="p-3 bg-slate-100/90 border border-slate-200 rounded-2xl">
+        <div class="text-[11px] font-bold text-slate-600 flex items-center justify-between">
+          <span>객관·단답 자동채점 소계</span>
+          <span class="text-slate-500 font-bold">${p1CorrectCount + p2CorrectCount}/16문항</span>
+        </div>
+        <div class="text-base font-black text-slate-900 mt-1">${p1Score + p2Score} / 60점</div>
+      </div>
+    `;
   }
 
   if (p3El) {

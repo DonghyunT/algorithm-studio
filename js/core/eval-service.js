@@ -29,7 +29,7 @@ class EvalService {
     if (!/^2-(?:[1-9]|10|11)$/.test(classId) || !Number.isInteger(Number(num)) || Number(num) < 1 || Number(num) > 27) throw new Error('학급과 번호를 확인해 주세요.');
     return String(Number(num)).padStart(2, '0');
   }
-  defaultSession(classId) { return { classId, questionVersion:3, status: 'waiting', durationMinutes: 30, startTime: null, maxStudents: 27 }; }
+  defaultSession(classId) { return { classId, questionVersion:3, status: 'ended', durationMinutes: 30, startTime: null, maxStudents: 27 }; }
   mergeLocalStudent(classId, student) {
     const key = 'EVAL_STUDENTS_' + classId;
     const list = this.read(key, []);
@@ -53,7 +53,7 @@ class EvalService {
     return this.demoListen(classId, () => callback(this.read('EVAL_SESSION_' + classId, this.defaultSession(classId))));
   }
   checkSessionExpectation(session, expected) {
-    if (expected && ((session?.attemptId ?? null) !== expected.attemptId || (session?.status ?? 'waiting') !== expected.status)) throw Error('다른 화면에서 평가 상태가 변경되었습니다. 현재 상태를 확인한 뒤 다시 눌러 주세요.');
+    if (expected && ((session?.attemptId ?? null) !== expected.attemptId || (session?.status ?? 'ended') !== expected.status)) throw Error('다른 화면에서 평가 상태가 변경되었습니다. 현재 상태를 확인한 뒤 다시 눌러 주세요.');
   }
   async startSession(classId, durationMinutes = 30, expected) {
     await window.authService.teacher({classId});
@@ -82,7 +82,7 @@ class EvalService {
   async prepareSession(classId, expected) {
     await window.authService.teacher({classId});this.identity(classId,1);
     const db=this.getDb(), archivedAt=new Date().toISOString(), archiveId=crypto.randomUUID();
-    const fresh={...this.defaultSession(classId),schemaVersion:2,attemptId:crypto.randomUUID(),preparedAt:archivedAt};
+    const fresh={...this.defaultSession(classId),schemaVersion:2,status:'waiting',attemptId:crypto.randomUUID(),preparedAt:archivedAt};
     if(db){
       const ref=db.collection('classrooms').doc(classId);
       await db.runTransaction(async tx=>{
@@ -113,14 +113,14 @@ class EvalService {
       await db.runTransaction(async tx=>{
         const old=await tx.get(ref);
         this.checkSessionExpectation(old.exists?old.data():null, expected);
-        if(!old.exists || old.data().status!=='in_progress')throw Error('진행 중인 평가만 종료할 수 있습니다.');
+        if(!old.exists || !['in_progress','waiting'].includes(old.data().status))throw Error('진행 중이거나 대기 중인 평가만 종료할 수 있습니다.');
         tx.update(ref,payload);
       });
     }
     else {
       const old=this.read('EVAL_SESSION_' + classId, {});
       this.checkSessionExpectation(old, expected);
-      if(old.status!=='in_progress')throw Error('진행 중인 평가만 종료할 수 있습니다.');
+      if(!['in_progress','waiting'].includes(old.status))throw Error('진행 중이거나 대기 중인 평가만 종료할 수 있습니다.');
       this.write('EVAL_SESSION_' + classId, { ...old, ...payload });
       this.notify(classId, { session: payload });
     }
@@ -141,9 +141,12 @@ class EvalService {
           return existing.data();
         }
         const session=await transaction.get(db.collection('classrooms').doc(classId));
-        if(!session.exists || !['waiting','in_progress'].includes(session.data().status))throw Error('선생님께서 새 평가를 준비한 후 입장해 주세요.');
-        student.attemptId=session.data().attemptId;
-        student.answers.part3.questionVersion=session.data().questionVersion||1;
+        const sessionData = session.exists ? session.data() : null;
+        if(!sessionData || !['waiting','in_progress'].includes(sessionData.status) || !sessionData.attemptId) {
+          throw Error(`현재 ${classId}반은 수행평가가 열려 있지 않습니다. 선생님께서 대기실을 연 후 입장해 주세요.`);
+        }
+        student.attemptId=sessionData.attemptId;
+        student.answers.part3.questionVersion=sessionData.questionVersion||1;
         transaction.set(ref, student);
         return student;
       }).catch(error => {
@@ -155,6 +158,9 @@ class EvalService {
     const existing = this.read('EVAL_STUDENTS_' + classId, []).find(item => item.numStr === docId);
     if (existing) return existing;
     const session=this.read('EVAL_SESSION_'+classId,this.defaultSession(classId));
+    if(!['waiting','in_progress'].includes(session?.status) || !session?.attemptId) {
+      throw Error(`현재 ${classId}반은 수행평가가 열려 있지 않습니다. 선생님께서 대기실을 연 후 입장해 주세요.`);
+    }
     student.answers.part3.questionVersion=session.questionVersion||1;student.attemptId=session.attemptId||'';
     this.mergeLocalStudent(classId, student); this.notify(classId, {students:[student]}); return student;
   }

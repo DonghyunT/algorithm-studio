@@ -84,6 +84,35 @@ class StudentEvalApp {
     this.showScreen(this.isSubmitted ? 'result' : isAssessmentLocked() ? 'exam' : 'lobby');
   }
 
+  checkSelectedClassStatus() {
+    const classSel = document.getElementById('eval-st-class');
+    const statusBadge = document.getElementById('eval-lobby-class-status');
+    if (!classSel || !statusBadge || !window.evalService) return;
+    const classId = classSel.value;
+    statusBadge.textContent = "확인 중…";
+    statusBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500";
+    if (this.lobbySessionUnsub) {
+      this.lobbySessionUnsub();
+      this.lobbySessionUnsub = null;
+    }
+    this.lobbySessionUnsub = window.evalService.listenSession(classId, (session) => {
+      const isOpen = session && ['waiting', 'in_progress'].includes(session.status) && !!session.attemptId;
+      if (session?.status === 'in_progress' && session.attemptId) {
+        statusBadge.textContent = "평가 진행 중";
+        statusBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800";
+      } else if (isOpen) {
+        statusBadge.textContent = "대기실 열림 (입장 가능)";
+        statusBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800";
+      } else {
+        statusBadge.textContent = "대기실 닫힘 (선생님 준비 대기)";
+        statusBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800";
+      }
+    }, () => {
+      statusBadge.textContent = "상태 확인 불가";
+      statusBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500";
+    });
+  }
+
   // 풀페이지 내부 서브 화면 전환 (lobby | exam | result)
   showScreen(screenName) {
     if(isAssessmentLocked() && this.joined && screenName==='lobby')screenName='exam';
@@ -97,13 +126,21 @@ class StudentEvalApp {
     if (examEl) examEl.classList.add('hidden');
     if (resultEl) resultEl.classList.add('hidden');
 
-    if (screenName === 'lobby' && lobbyEl) lobbyEl.classList.remove('hidden');
+    if (screenName === 'lobby' && lobbyEl) {
+      lobbyEl.classList.remove('hidden');
+      this.checkSelectedClassStatus();
+    } else {
+      this.lobbySessionUnsub?.();
+      this.lobbySessionUnsub = null;
+    }
     if (screenName === 'exam' && examEl) examEl.classList.remove('hidden');
     if (screenName === 'result' && resultEl) resultEl.classList.remove('hidden');
   }
 
   // 2. 대기실 입장 버튼 클릭
   async enterWaitingRoom() {
+    this.lobbySessionUnsub?.();
+    this.lobbySessionUnsub = null;
     const classSel = document.getElementById('eval-st-class');
     const numInp = document.getElementById('eval-st-num');
     const nameInp = document.getElementById('eval-st-name');
