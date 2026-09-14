@@ -145,3 +145,56 @@ test('student answers include blocks and connections that can be mapped for teac
   assert.equal(student.answers.part3.blocks[1].text, '환기 팬 가동');
 });
 
+test('sortBlocksByExecution orders blocks by execution flow, handles branching and loops safely', () => {
+  const { sortBlocksByExecution } = require('../js/core/classroom.js');
+
+  // Case 1: Branching with early created '종료' block (like teacher screenshot)
+  const blocks = [
+    { id: 'start', shape: 'terminal', text: '시작', y: 30 },
+    { id: 'b_input', shape: 'io', text: '현재시간 입력', y: 110 },
+    { id: 'b_end', shape: 'terminal', text: '종료', y: 480 },
+    { id: 'b_dec', shape: 'decision', text: '12시 이전?', y: 200 },
+    { id: 'b_study', shape: 'process', text: '공부한다', y: 320 },
+    { id: 'b_play', shape: 'process', text: '논다', y: 320 }
+  ];
+  const connections = [
+    { from: 'start', to: 'b_input' },
+    { from: 'b_input', to: 'b_dec' },
+    { from: 'b_dec', to: 'b_study', fromPort: 'yes' },
+    { from: 'b_dec', to: 'b_play', fromPort: 'no' },
+    { from: 'b_study', to: 'b_end' },
+    { from: 'b_play', to: 'b_end' }
+  ];
+
+  const sorted = sortBlocksByExecution(blocks, connections);
+  const texts = sorted.map(b => b.text);
+  assert.deepEqual(texts, ['시작', '현재시간 입력', '12시 이전?', '공부한다', '논다', '종료']);
+
+  // Case 2: Repetition / Loopback (cycle-safe, no infinite loop)
+  const loopBlocks = [
+    { id: 's', shape: 'terminal', text: '시작', y: 0 },
+    { id: 'measure', shape: 'io', text: '기온 측정', y: 100 },
+    { id: 'cond', shape: 'decision', text: '기온 > 28?', y: 200 },
+    { id: 'cool', shape: 'process', text: '냉방기 가동', y: 300 },
+    { id: 'e', shape: 'terminal', text: '종료', y: 400 },
+    { id: 'orphan', shape: 'process', text: '연결 안 된 메모', y: 500 }
+  ];
+  const loopConns = [
+    { from: 's', to: 'measure' },
+    { from: 'measure', to: 'cond' },
+    { from: 'cond', to: 'cool', fromPort: 'yes' },
+    { from: 'cool', to: 'measure' }, // cycle / loopback
+    { from: 'cond', to: 'e', fromPort: 'no' }
+  ];
+
+  const sortedLoop = sortBlocksByExecution(loopBlocks, loopConns);
+  const loopTexts = sortedLoop.map(b => b.text);
+  assert.equal(loopTexts[0], '시작');
+  assert.equal(loopTexts[1], '기온 측정');
+  assert.equal(loopTexts[2], '기온 > 28?');
+  assert.equal(loopTexts[3], '냉방기 가동');
+  assert.equal(loopTexts[4], '종료');
+  assert.equal(loopTexts[5], '연결 안 된 메모');
+});
+
+

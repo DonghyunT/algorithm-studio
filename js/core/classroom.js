@@ -557,6 +557,115 @@ function handleTeacherExportCSV() {
 }
 
 /**
+ * 순서도 블록을 실행 흐름(시작 ➔ 다음 블록 ➔ ... ➔ 종료) 순서대로 정렬
+ * - 시작 블록('eblk_start' 또는 단말 '시작' 또는 진입 차수 0)에서 출발
+ * - 사이클(반복 루프백) 발생 시 무한 루프에 빠지지 않도록 visited Set 방어
+ * - 판단(decision) 블록 분기 시 [예] 경로를 우선 탐색 후 [아니오] 경로 탐색
+ * - 종료(terminal '끝'/'종료') 블록은 실행 흐름의 가장 마지막에 배치
+ * - 연결되지 않은 고립 블록도 누락 없이 Y축 순으로 마지막에 추가
+ */
+function sortBlocksByExecution(blocks = [], connections = []) {
+  if (!Array.isArray(blocks) || blocks.length === 0) return [];
+  if (!Array.isArray(connections)) connections = [];
+
+  const blockMap = new Map();
+  blocks.forEach(b => { if (b && b.id) blockMap.set(b.id, b); });
+
+  const adj = new Map();
+  const inDegree = new Map();
+  blocks.forEach(b => {
+    adj.set(b.id, []);
+    inDegree.set(b.id, 0);
+  });
+
+  connections.forEach(c => {
+    if (c && c.from && c.to && blockMap.has(c.from) && blockMap.has(c.to)) {
+      adj.get(c.from).push(c);
+      inDegree.set(c.to, (inDegree.get(c.to) || 0) + 1);
+    }
+  });
+
+  // 분기 우선순위: 'yes'(예) 우선, 'no'(아니오) 나중, 그 외 Y 좌표 순
+  adj.forEach(conns => {
+    conns.sort((a, b) => {
+      if (a.fromPort === 'yes' && b.fromPort !== 'yes') return -1;
+      if (b.fromPort === 'yes' && a.fromPort !== 'yes') return 1;
+      if (a.fromPort === 'no' && b.fromPort !== 'no') return 1;
+      if (b.fromPort === 'no' && a.fromPort !== 'no') return -1;
+      const targetA = blockMap.get(a.to);
+      const targetB = blockMap.get(b.to);
+      return (Number(targetA?.y) || 0) - (Number(targetB?.y) || 0);
+    });
+  });
+
+  // 시작 블록 탐색 (우선순위: eblk_start ➔ 단말 '시작' ➔ 진입 차수 0 ➔ Y 최소)
+  let startBlock = blocks.find(b => b.id === 'eblk_start');
+  if (!startBlock) {
+    startBlock = blocks.find(b => b.shape === 'terminal' && /시작|start/i.test(b.text || ''));
+  }
+  if (!startBlock) {
+    const zeroIn = blocks.filter(b => (inDegree.get(b.id) || 0) === 0);
+    if (zeroIn.length > 0) {
+      zeroIn.sort((a, b) => (Number(a.y) || 0) - (Number(b.y) || 0));
+      startBlock = zeroIn[0];
+    } else {
+      startBlock = [...blocks].sort((a, b) => (Number(a.y) || 0) - (Number(b.y) || 0))[0];
+    }
+  }
+
+  const isTerminalEnd = (b) => {
+    if (!b) return false;
+    const txt = (b.text || '').trim();
+    return b.shape === 'terminal' && (txt.includes('끝') || txt.includes('종료') || /end/i.test(txt) || (startBlock && b.id !== startBlock.id));
+  };
+
+  const ordered = [];
+  const endBlocks = [];
+  const visited = new Set();
+  const queue = [startBlock.id];
+  visited.add(startBlock.id);
+
+  while (queue.length > 0) {
+    const currId = queue.shift();
+    const currBlock = blockMap.get(currId);
+    if (!currBlock) continue;
+
+    if (isTerminalEnd(currBlock)) {
+      if (!endBlocks.some(eb => eb.id === currBlock.id)) {
+        endBlocks.push(currBlock);
+      }
+    } else {
+      ordered.push(currBlock);
+    }
+
+    const outConns = adj.get(currId) || [];
+    for (const conn of outConns) {
+      const nextId = conn.to;
+      if (!visited.has(nextId)) {
+        visited.add(nextId);
+        queue.push(nextId);
+      }
+    }
+  }
+
+  // 종료 블록들을 탐색 경로 맨 뒤에 배치
+  endBlocks.forEach(eb => {
+    if (!ordered.includes(eb)) {
+      ordered.push(eb);
+    }
+  });
+
+  // 미방문 고립 블록들도 누락 없이 Y 좌표순으로 맨 뒤에 추가
+  const unvisited = blocks.filter(b => !visited.has(b.id));
+  if (unvisited.length > 0) {
+    unvisited.sort((a, b) => (Number(a.y) || 0) - (Number(b.y) || 0));
+    ordered.push(...unvisited);
+  }
+
+  return ordered;
+}
+
+/**
  * 교사용 학생 순서도 다이어그램 Canvas 2D 고해상도 미니어처 렌더링 엔진
  * - 순수 HTML5 Canvas API 사용 (외부 캡처 라이브러리 Zero)
  * - 엔트리 표준 4대 기호 색상 완벽 일치 (단말 🟣, 자료 🟢, 판단 🟠, 처리 🔵)
@@ -814,7 +923,20 @@ function openFlowchartModalPreview() {
   if (title) {
     title.textContent = `${currentSelectedClass} ${currentModalStudent.num}번 ${currentModalStudent.name} 학생 순서도 다이어그램`;
   }
-  drawFlowchartPreview(canvas, currentModalStudent.answers?.part3?.blocks, currentModalStudent.answers?.part3?.connections);
+
+  // 다이어그램 크기에 맞춘 캔버스 높이 동적 확장 (세로로 긴 순서도 가독성 확보)
+  const blocks = currentModalStudent.answers?.part3?.blocks || [];
+  let minY = Infinity, maxY = -Infinity;
+  blocks.forEach(b => {
+    const bh = b.shape === 'decision' ? 120 : 60;
+    const by = Number(b.y) || 0;
+    if (by < minY) minY = by;
+    if (by + bh > maxY) maxY = by + bh;
+  });
+  const contentH = Math.max(maxY - minY, 120);
+  canvas.height = Math.max(650, Math.min(1400, Math.round(contentH + 120)));
+
+  drawFlowchartPreview(canvas, blocks, currentModalStudent.answers?.part3?.connections);
   lightbox.classList.remove('hidden');
 }
 
@@ -963,11 +1085,13 @@ function openLiveStudentModal(studentNum) {
     });
     blockMap['eblk_start'] = '시작';
 
-    let blocksHtml = (Array.isArray(graph.blocks) ? graph.blocks : []).filter(Boolean).map(b => {
+    const sortedBlocks = sortBlocksByExecution(graph.blocks, graph.connections);
+
+    let blocksHtml = sortedBlocks.filter(Boolean).map((b, idx) => {
       const meta = shapeMeta[b.shape] || { label: b.shape, cls: 'bg-slate-50 text-slate-700 border-slate-200' };
       const txt = (b.text || '').trim() || '내용 없음';
       return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border ${meta.cls} text-xs font-bold mr-1.5 mb-1.5 shadow-2xs">
-        <span class="text-[10px] px-1.5 py-0.5 rounded bg-white/80 font-mono">${meta.label}</span>
+        <span class="text-[10px] px-1.5 py-0.5 rounded bg-white/80 font-mono">${idx + 1}. ${meta.label}</span>
         <span>${escapeHtml(txt)}</span>
       </span>`;
     }).join('');
@@ -1013,7 +1137,7 @@ function openLiveStudentModal(studentNum) {
           </div>
         </div>
         <div class="mb-1.5 text-xs font-bold text-slate-700 flex items-center justify-between">
-          <span>배치된 블록 목록 (${(graph.blocks || []).length}개):</span>
+          <span>실행 순서별 블록 (${(graph.blocks || []).length}개):</span>
         </div>
         <div class="flex flex-wrap items-center mb-2">${blocksHtml || '<div class="text-slate-400 italic text-xs">배치된 블록 없음</div>'}</div>
         ${connsHtml ? `
@@ -1097,3 +1221,15 @@ function renderAssignmentsTable() {
 function exportClassroomCSV() { alert('단원별 과제 취합은 아직 연결되지 않았습니다. 수행평가 성적은 실시간 관제실의 CSV 버튼을 사용해 주세요.'); }
 function closeStudentDetailModal() { document.getElementById('classroom-detail-modal')?.classList.add('hidden'); }
 function copyPadletFormat() { alert('단원별 과제 취합은 아직 연결되지 않았습니다.'); }
+
+if (typeof window !== 'undefined') {
+  window.sortBlocksByExecution = sortBlocksByExecution;
+  window.drawFlowchartPreview = drawFlowchartPreview;
+}
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    sortBlocksByExecution,
+    drawFlowchartPreview
+  };
+}
+
