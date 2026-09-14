@@ -99,3 +99,22 @@ test('bulk closing waiting rooms targets only waiting sessions and leaves in_pro
   assert.equal((await service.getSession('2-2')).status,'in_progress');
   assert.equal((await service.getSession('2-3')).status,'ended');
 });
+
+test('student can leave waiting room and free seat for another student, but cannot leave after exam starts',async()=>{
+  const {records,service}=setup();
+  await service.prepareSession('2-1');
+  const student1=await service.joinWaitingRoom('2-1',5,'실수학생');
+  assert.equal(records.has('classrooms/2-1/students/05'),true);
+
+  await service.leaveWaitingRoom('2-1',5);
+  assert.equal(records.has('classrooms/2-1/students/05'),false);
+
+  const student2=await service.joinWaitingRoom('2-1',5,'진짜학생');
+  assert.equal(student2.name,'진짜학생');
+  assert.equal(records.has('classrooms/2-1/students/05'),true);
+
+  await service.startSession('2-1');
+  records.get('classrooms/2-1/students/05').status='in_progress';
+  await assert.rejects(service.leaveWaitingRoom('2-1',5),/평가가 이미 시작되었거나/);
+});
+

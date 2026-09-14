@@ -235,6 +235,40 @@ class StudentEvalApp {
     if(this.isSubmitted) { this.calculateScores(); this.renderResult(); }
   }
 
+  // 2-1. 대기실 나가기 (번호·이름 오입력 수정용)
+  async leaveWaitingRoom() {
+    if (!this.joined || this.isSubmitted || this.sessionStatus !== 'waiting') return;
+    if (!confirm('대기실에서 나가시겠습니까?\n번호와 이름을 다시 입력하여 재입장할 수 있습니다.')) return;
+
+    const classId = this.currentClass;
+    const studentNum = this.studentNum;
+
+    try {
+      if (window.evalService && classId && studentNum) {
+        await window.evalService.leaveWaitingRoom(classId, studentNum);
+      }
+    } catch (error) {
+      console.warn('대기실 퇴장 기록 정리 중 알림:', error);
+    }
+
+    this.sessionUnsub?.(); this.studentUnsub?.();
+    this.sessionUnsub = null; this.studentUnsub = null;
+    this.joined = false;
+    this.ownerUid = null;
+    sessionStorage.removeItem(this.draftKey());
+    sessionStorage.removeItem('ALGO_ACTIVE_EXAM');
+
+    const waitArea = document.getElementById('eval-lobby-waiting-area');
+    const formArea = document.getElementById('eval-lobby-form-area');
+    if (waitArea) waitArea.classList.add('hidden');
+    if (formArea) formArea.classList.remove('hidden');
+
+    const numInp = document.getElementById('eval-st-num');
+    if (numInp) numInp.focus();
+
+    this.checkSelectedClassStatus();
+  }
+
   // 3. 시험장 진입 및 타이머 가동
   startExam(sessionData) {
     if (this.sessionStatus === 'in_progress') return;

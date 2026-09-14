@@ -172,6 +172,29 @@ class EvalService {
     student.answers.part3.questionVersion=session.questionVersion||1;student.attemptId=session.attemptId||'';
     this.mergeLocalStudent(classId, student); this.notify(classId, {students:[student]}); return student;
   }
+  async leaveWaitingRoom(classId, studentNum) {
+    const docId = this.identity(classId, studentNum);
+    const user = await window.authService.student();
+    const db = this.getDb();
+    if (db) {
+      const ref = db.collection('classrooms').doc(classId).collection('students').doc(docId);
+      await db.runTransaction(async tx => {
+        const doc = await tx.get(ref);
+        if (!doc.exists) return;
+        if (doc.data().ownerUid !== user.uid) throw new Error('본인의 대기 기록만 취소할 수 있습니다.');
+        if (doc.data().status !== 'waiting') throw new Error('평가가 이미 시작되었거나 제출된 상태에서는 대기실을 나갈 수 없습니다.');
+        tx.delete(ref);
+      }).catch(error => {
+        if (error.code === 'permission-denied') throw new Error('대기실 퇴장 권한 오류: 이미 세션이 시작되었거나 변경되었습니다.');
+        throw error;
+      });
+      return;
+    }
+    const key = 'EVAL_STUDENTS_' + classId;
+    const list = this.read(key, []).filter(item => item.numStr !== docId);
+    this.write(key, list);
+    this.notify(classId, { replaceStudents: true, students: list });
+  }
   async updateStudentProgress(classId, studentNum, progress, answers) {
     const docId = this.identity(classId, studentNum);
     const payload = { status: 'in_progress', progress, updatedAt: new Date().toISOString() };
