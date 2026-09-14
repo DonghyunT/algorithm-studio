@@ -7,7 +7,7 @@ async function provision(){
  const ids=new Set((existing.documents||[]).map(d=>d.name.split('/').pop()));
  for(let n=1;n<=11;n++){
    const classId='2-'+n;if(ids.has(classId))continue;
-   writes.push({update:{name:name('classrooms/'+classId),fields:fields({classId,schemaVersion:2,schoolYear:2026,status:'waiting',durationMinutes:30,maxStudents:27,attemptId:crypto.randomUUID(),preparedAt:date})},currentDocument:{exists:false}});
+   writes.push({update:{name:name('classrooms/'+classId),fields:fields({classId,schemaVersion:2,schoolYear:2026,status:'ended',durationMinutes:30,maxStudents:27,attemptId:'',preparedAt:date})},currentDocument:{exists:false}});
  }
  if(process.argv.includes('--apply')&&writes.length)await request(root+':commit',{method:'POST',body:{writes}});
  console.log(JSON.stringify({applied:process.argv.includes('--apply'),newClassrooms:writes.length,existingPreserved:ids.size}));
