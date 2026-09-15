@@ -13,8 +13,8 @@
 | 배포 기록 | c48e232 Firestore 규칙 게시, c73e8c4 Vercel API 반영 |
 | 현재 평가 | 기본 새 회차는 V3. 기존 회차·답안·성적 보존 |
 | V4 | 기반 코드·규칙 배포 완료. 실제 문항·환경 변수·회차 선택 UI·실사용 검증은 준비 전 |
-| 이번 승인 범위 | V4 보안·유지보수 방향 문서화. 이번 문서 변경의 main 병합·배포 승인은 별도 확인. V4 구현·활성화는 후속 작업 |
-| 진행 중 문서 작업 | codex/v4-security-maintenance-docs. main 병합 전에는 이 브랜치의 PR·원격 상태를 확인 |
+| 이번 승인 범위 | V4 방향 문서와 AGENTS 공통 원칙 보완, 검토 후 main 병합·연결된 자동 배포 확인 승인. V4 구현·활성화는 후속 작업 |
+| 이번 문서 검토 기록 | [PR #2](https://github.com/DonghyunT/algorithm-studio/pull/2). 병합 여부는 PR에서 확인하며, 완료 후 최신 main에서 이어감 |
 
 - 저장소: [DonghyunT/algorithm-studio](https://github.com/DonghyunT/algorithm-studio)
 - 운영 웹: [정보 알고리즘 스튜디오](https://algorithm-studio-ten.vercel.app/)
@@ -133,4 +133,4 @@ node tests/browser.cjs
 
 ## 다음 에이전트에게 전달할 문장
 
-> AGENTS.md, INTENT.md, PRD.md, docs/HANDOFF.md를 읽고 작업을 이어가 주세요. 먼저 기존 작업을 보존하고 최신 main을 받은 뒤 새 작업 브랜치를 만들어 주세요. V3은 현재 운영이고 V4는 기반만 배포된 상태입니다. 진행 중 문서 브랜치의 반영 여부도 확인해 주세요. 완료된 기반을 재구축하거나 재배포하지 말고 V4 계획 8~11절의 회차 재현·비공개 보관 설계와 다음 문항 품질 작업 범위를 먼저 확인해 주세요.
+> AGENTS.md, INTENT.md, PRD.md, docs/HANDOFF.md를 읽고 작업을 이어가 주세요. 먼저 기존 작업을 보존하고 최신 main을 받은 뒤 새 작업 브랜치를 만들어 주세요. V3은 현재 운영이고 V4는 기반만 배포된 상태입니다. PR #2의 main 반영 여부도 확인해 주세요. 완료된 기반을 재구축하거나 재배포하지 말고 V4 계획 8~11절의 회차 재현·비공개 보관 설계와 다음 문항 품질 작업 범위를 먼저 확인해 주세요.
