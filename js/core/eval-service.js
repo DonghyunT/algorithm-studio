@@ -150,7 +150,7 @@ class EvalService {
         if (existing.exists) {
           const existingData = existing.data();
           if (existingData.ownerUid !== user.uid) throw new Error('이 번호는 다른 응시 기록에 연결되어 있습니다. 선생님께 확인해 주세요.');
-          if (sessionData && (sessionData.questionVersion >= 3) && assignFn && !existingData.answers?.assignedQuestions) {
+          if (sessionData && sessionData.questionVersion === 3 && assignFn && !existingData.answers?.assignedQuestions) {
             existingData.answers = existingData.answers || {};
             existingData.answers.assignedQuestions = assignFn(`${existingData.attemptId || sessionData.attemptId}_${classId}_${studentNum}`);
             transaction.update(ref, { 'answers.assignedQuestions': existingData.answers.assignedQuestions });
@@ -162,7 +162,7 @@ class EvalService {
         }
         student.attemptId=sessionData.attemptId;
         student.answers.part3.questionVersion=sessionData.questionVersion||1;
-        if ((sessionData.questionVersion >= 3) && assignFn && !student.answers.assignedQuestions) {
+        if (sessionData.questionVersion === 3 && assignFn && !student.answers.assignedQuestions) {
           student.answers.assignedQuestions = assignFn(`${student.attemptId}_${classId}_${studentNum}`);
         }
         transaction.set(ref, student);
@@ -177,7 +177,7 @@ class EvalService {
     if (existing) {
       const session=this.read('EVAL_SESSION_'+classId,this.defaultSession(classId));
       const assignFn = typeof assignQuestions === 'function' ? assignQuestions : (typeof window !== 'undefined' ? window.assignQuestions : null);
-      if (session && (session.questionVersion >= 3) && assignFn && !existing.answers?.assignedQuestions) {
+      if (session && session.questionVersion === 3 && assignFn && !existing.answers?.assignedQuestions) {
         existing.answers = existing.answers || {};
         existing.answers.assignedQuestions = assignFn(`${existing.attemptId || session.attemptId}_${classId}_${studentNum}`);
         this.mergeLocalStudent(classId, existing);
@@ -190,7 +190,7 @@ class EvalService {
     }
     student.answers.part3.questionVersion=session.questionVersion||1;student.attemptId=session.attemptId||'';
     const assignFn = typeof assignQuestions === 'function' ? assignQuestions : (typeof window !== 'undefined' ? window.assignQuestions : null);
-    if ((session.questionVersion >= 3) && assignFn && !student.answers.assignedQuestions) {
+    if (session.questionVersion === 3 && assignFn && !student.answers.assignedQuestions) {
       student.answers.assignedQuestions = assignFn(`${student.attemptId}_${classId}_${studentNum}`);
     }
     this.mergeLocalStudent(classId, student); this.notify(classId, {students:[student]}); return student;
@@ -257,11 +257,13 @@ class EvalService {
   listenStudents(classId, callback, onError = error => alert(error.message)) {
     const grade = (students,version) => callback(students.sort((a,b)=>a.num-b.num).map(student => {
       // The teacher-controlled round selects the rubric, never a student-supplied version.
-      const calculated = typeof gradeEvaluation === 'function' ? gradeEvaluation(student.answers || {},version) : { scores: {} };
+      const calculated = version === 4
+        ? {scores:{part1:null,part2:null,part3:null,objectiveTotal:null,total:null,teacherOverride:student.scores?.teacherOverride ?? null,pendingReview:true,serverGraded:true},feedback:{part1:'서버 채점 대기',part2:'서버 채점 대기',part3:'교사 검토 대기'}}
+        : (typeof gradeEvaluation === 'function' ? gradeEvaluation(student.answers || {},version) : { scores: {} });
       if(version===3){
         calculated.scores=applyConfirmedAssessmentReview(calculated.scores,student);
       }
-      return {...student, questionVersion:version,scores:{...calculated.scores, teacherOverride:version===3?null:student.scores?.teacherOverride ?? null}, feedback:calculated.feedback || {}};
+      return {...student, questionVersion:version,scores:{...calculated.scores, teacherOverride:[3,4].includes(version)?null:student.scores?.teacherOverride ?? null}, feedback:calculated.feedback || {}};
     }));
     const db = this.getDb();
     if (db) {
@@ -333,7 +335,8 @@ class EvalService {
     const rows=[['학급','번호','이름','응시상태','객관식/30','단답형/30','순서도/40','자동채점 총점','교사 조정','최종 점수','제출시각']];
     [...studentList].sort((a,b)=>a.num-b.num).forEach(student=>{
       const score=student.scores||{};
-      rows.push([classId,student.num,student.name,student.status,score.part1||0,score.part2||0,score.pendingReview?'채점 대기':score.part3??0,score.pendingReview?'채점 대기':score.total??0,score.teacherOverride??'',score.pendingReview?'채점 대기':score.teacherOverride??score.total??0,student.submittedAt||'']);
+      const serverPending=score.serverGraded === true;
+      rows.push([classId,student.num,student.name,student.status,serverPending?'서버 채점 확인':score.part1||0,serverPending?'서버 채점 확인':score.part2||0,score.pendingReview?'채점 대기':score.part3??0,score.pendingReview?'채점 대기':score.total??0,score.teacherOverride??'',score.pendingReview?'채점 대기':score.teacherOverride??score.total??0,student.submittedAt||'']);
     });
     const blob=new Blob(['\uFEFF'+rows.map(row=>row.map(cell).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'});
     const url=URL.createObjectURL(blob),link=document.createElement('a');

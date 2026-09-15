@@ -487,9 +487,14 @@ function renderLiveGrid(students = []) {
         statusBg = "bg-blue-50/80 border-blue-400 text-blue-900";
         const pCount = (Number(s.progress?.part1) || 0) + (Number(s.progress?.part2) || 0);
         const currentObjScore = (s.scores?.part1 || 0) + (s.scores?.part2 || 0);
-        if (isScoreBlindMode) {
+        if (s.scores?.serverGraded) {
+          statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-600 text-white font-bold animate-pulse">풀이중 (${pCount}문항)</span>`;
+          scoreDisplay = `<span class="text-xs text-slate-400 font-medium">서버 채점 예정</span>`;
+        } else if (isScoreBlindMode) {
           statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-600 text-white font-bold animate-pulse">풀이중 (${pCount}/16문항)</span>`;
           scoreDisplay = `<span class="text-xs text-slate-400 font-medium">풀이 진행 중</span>`;
+        } else if (s.scores?.serverGraded) {
+          scoreDisplay = `<span class="text-sm font-black text-emerald-700">서버 채점 확인 필요</span>`;
         } else {
           statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-600 text-white font-bold animate-pulse">풀이중 (${pCount}문항 · ${currentObjScore}점)</span>`;
           scoreDisplay = `<span class="text-xs text-slate-500 font-bold font-mono">${currentObjScore}점 (임시)</span>`;
@@ -945,6 +950,23 @@ function closeFlowchartModalPreview() {
   if (lightbox) lightbox.classList.add('hidden');
 }
 
+function renderSecureV4TeacherQuestions(container, questions, part) {
+  if (!container) return;
+  container.replaceChildren();
+  const rows = Array.isArray(questions) ? questions : [];
+  if (!rows.length) { container.textContent = '서버에서 문항 검토 내용을 받지 못했습니다.'; return; }
+  rows.forEach((question, index) => {
+    const card = document.createElement('section'); card.className = 'p-2.5 bg-slate-50/80 border border-slate-200/80 rounded-xl space-y-1';
+    const title = document.createElement('div'); title.className = 'font-black text-slate-800 text-xs'; title.textContent = `${index + 1}. ${question.title}`;
+    const desc = document.createElement('div'); desc.className = 'text-[11px] text-slate-500 leading-tight'; desc.textContent = question.desc;
+    const response = document.createElement('div'); response.className = 'text-xs text-slate-700 font-medium pl-2.5 border-l-2 border-slate-300 mt-1.5';
+    const answer = part === 'part1' && Number.isInteger(question.correctAnswer) ? question.options?.[question.correctAnswer] : (question.answers || []).join(' · ');
+    response.textContent = `학생 답: ${question.studentAnswer === '' || question.studentAnswer === null || question.studentAnswer === undefined ? '미응답' : question.studentAnswer} / 정답: ${answer || '없음'}`;
+    const note = document.createElement('div'); note.className = 'text-[11px] text-indigo-700 bg-indigo-50 rounded-lg px-2 py-1'; note.textContent = `출제 의도: ${question.teacherNote}`;
+    card.append(title, desc, response, note); container.appendChild(card);
+  });
+}
+
 // 학생 개별 답안 상세 팝업 및 점수 수동 조정 / 재시험 허용
 function openLiveStudentModal(studentNum) {
   const s = currentLiveStudents.find(item => item.num === studentNum);
@@ -962,9 +984,10 @@ function openLiveStudentModal(studentNum) {
   const p2El = document.getElementById('classroom-live-modal-p2');
   const p3El = document.getElementById('classroom-live-modal-p3');
   const scoreInp = document.getElementById('classroom-live-override-score');
+  const secureV4 = s.questionVersion === 4;
 
   let assigned = s.answers?.assignedQuestions || s.answers?.part3?.assignedQuestions;
-  if (!assigned && (s.questionVersion >= 3 || s.answers?.part3?.questionVersion >= 3)) {
+  if (!secureV4 && !assigned && (s.questionVersion >= 3 || s.answers?.part3?.questionVersion >= 3)) {
     const assignFn = typeof window.assignQuestions === 'function' ? window.assignQuestions : (typeof assignQuestions === 'function' ? assignQuestions : null);
     const session = typeof currentSelectedClass !== 'undefined' && window.evalService ? window.evalService.read('EVAL_SESSION_' + currentSelectedClass, null) : null;
     const attemptId = s.attemptId || session?.attemptId || 'demo';
@@ -973,9 +996,9 @@ function openLiveStudentModal(studentNum) {
       if (s.answers) s.answers.assignedQuestions = assigned;
     }
   }
-  const questions = typeof window.evaluationQuestions === 'function'
+  const questions = secureV4 ? {part1:[],part2:[]} : (typeof window.evaluationQuestions === 'function'
     ? window.evaluationQuestions(s.answers, s.questionVersion)
-    : (window.EVAL_QUESTIONS || (typeof EVAL_QUESTIONS !== 'undefined' ? EVAL_QUESTIONS : { part1: [], part2: [] }));
+    : (window.EVAL_QUESTIONS || (typeof EVAL_QUESTIONS !== 'undefined' ? EVAL_QUESTIONS : { part1: [], part2: [] })));
 
   const studentP1 = s.answers?.part1 || {};
   let p1Html = '';
@@ -1068,6 +1091,39 @@ function openLiveStudentModal(studentNum) {
       </div>
     `;
   }
+  if (secureV4) {
+    if (s.status !== 'submitted') {
+      if (p1El) p1El.textContent='V4 문항·정답·출제 의도는 학생이 제출한 뒤 교사 화면에서 확인할 수 있습니다.';
+      if (p2El) p2El.textContent='진행 중에는 정답이 보이지 않으며, 객관·단답 점수도 서버에서만 계산합니다.';
+      if (summaryEl) summaryEl.textContent='학생이 제출하면 V4 서버 채점 결과를 확인할 수 있습니다.';
+    } else {
+      if (p1El) p1El.textContent='V4 객관식 문항 검토 내용을 서버에서 확인하고 있습니다…';
+      if (p2El) p2El.textContent='V4 단답형 문항 검토 내용을 서버에서 확인하고 있습니다…';
+      if (summaryEl) {
+        summaryEl.textContent='V4 객관·단답 답안의 서버 채점 결과를 확인하고 있습니다…';
+      requestSecureEvaluationGrade(currentSelectedClass, s.numStr).then(result=>{
+        if (currentModalStudent !== s) return;
+        const score=result.score;
+        summaryEl.replaceChildren();
+        [['Part 1. 객관식',score.part1,30],['Part 2. 단답형',score.part2,30],['객관·단답 서버 채점 소계',score.objectiveTotal,60]].forEach(([label,value,max])=>{
+          const row=document.createElement('div');row.className='p-3 bg-slate-50 border border-slate-200 rounded-2xl';
+          const name=document.createElement('div');name.className='text-[11px] font-bold text-slate-600';name.textContent=label;
+          const resultText=document.createElement('div');resultText.className='text-base font-black text-slate-900 mt-1';resultText.textContent=`${value} / ${max}점`;
+          row.append(name,resultText);summaryEl.appendChild(row);
+        });
+      }).catch(error=>{if(currentModalStudent===s)summaryEl.textContent='V4 서버 채점 결과를 확인하지 못했습니다. '+error.message;});
+      }
+      requestSecureEvaluationReview(currentSelectedClass, s.numStr).then(result=>{
+        if (currentModalStudent !== s) return;
+        renderSecureV4TeacherQuestions(p1El, result.review?.part1, 'part1');
+        renderSecureV4TeacherQuestions(p2El, result.review?.part2, 'part2');
+      }).catch(error=>{
+        if (currentModalStudent !== s) return;
+        if (p1El) p1El.textContent='V4 문항 검토 내용을 확인하지 못했습니다. '+error.message;
+        if (p2El) p2El.textContent='V4 문항 검토 내용을 확인하지 못했습니다. '+error.message;
+      });
+    }
+  }
 
   if (p3El) {
     const graph = s.answers?.part3 || {};
@@ -1128,7 +1184,7 @@ function openLiveStudentModal(studentNum) {
       <div>
         <div class="font-bold text-slate-800 mb-2 border-b border-emerald-100 pb-1 flex justify-between items-center text-[12px]">
           <span>순서도 캔버스 구성</span>
-          <span class="text-[10px] font-normal bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full shadow-sm">${s.questionVersion === 3 ? '교사 수동 40점 배점' : `자동 계산: ${(s.scores?.part3 || 0)}/40점`}</span>
+          <span class="text-[10px] font-normal bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full shadow-sm">${[3,4].includes(s.questionVersion) ? '교사 수동 40점 배점' : `자동 계산: ${(s.scores?.part3 || 0)}/40점`}</span>
         </div>
         <!-- 캔버스 미니어처 뷰어 영역 -->
         <div class="my-3 bg-slate-50 border border-slate-200 rounded-2xl p-3 shadow-2xs">
@@ -1177,7 +1233,7 @@ function openLiveStudentModal(studentNum) {
     : (s.scores?.total || 0);
 
   if (scoreInp) scoreInp.value = currentScore;
-  document.getElementById('classroom-legacy-score').hidden=s.questionVersion===3;
+  document.getElementById('classroom-legacy-score').hidden=[3,4].includes(s.questionVersion);
   renderAssessmentReview(s,getClassIdFromSelected());
 
   // 교사 점수 수동 조정 저장 버튼

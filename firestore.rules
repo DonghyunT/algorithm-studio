@@ -58,7 +58,11 @@ service cloud.firestore {
           return request.resource.data.answers is map
             && request.resource.data.answers.keys().hasOnly(['part1', 'part2', 'part3', 'assignedQuestions', 'blurCount'])
             && request.resource.data.answers.part1 is map
-            && request.resource.data.answers.part2 is map;
+            && request.resource.data.answers.part2 is map
+            // V4 assignments are derived only by the server. This prevents a
+            // student client from persisting a public assignment alongside answers.
+            && (get(/databases/$(database)/documents/classrooms/$(classId)).data.questionVersion != 4
+              || !('assignedQuestions' in request.resource.data.answers));
         }
         function validProgress() {
           return request.resource.data.progress is map

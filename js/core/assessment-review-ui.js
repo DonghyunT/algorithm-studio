@@ -1,7 +1,7 @@
 let assessmentReviewViewToken=null;
 function renderAssessmentReview(student,classId){
   const box=document.getElementById('classroom-assessment-review'),token={};assessmentReviewViewToken=token;
-  box.replaceChildren();box.hidden=student.questionVersion!==3;if(box.hidden)return;
+  box.replaceChildren();box.hidden=![3,4].includes(student.questionVersion);if(box.hidden)return;
   const sourceKey=assessmentSourceKey(student.answers?.part3);
   const add=(tag,text,parent=box)=>{const el=document.createElement(tag);el.textContent=text;parent.appendChild(el);return el;};
   add('h3','Part 3 · AI 초벌 채점과 교사 확정');

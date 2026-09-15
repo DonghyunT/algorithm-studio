@@ -1,10 +1,12 @@
 # 다른 PC에서 개발 이어가기
 
-갱신: 2026-09-14. 코드 전달 기준은 GitHub `main`입니다. 운영 주소는 https://algorithm-studio-ten.vercel.app/ 이며 저장소는 https://github.com/DonghyunT/algorithm-studio 입니다.
+갱신: 2026-09-15. 코드 전달 기준은 GitHub `main`입니다. 운영 주소는 https://algorithm-studio-ten.vercel.app/ 이며 저장소는 https://github.com/DonghyunT/algorithm-studio 입니다.
 
 ## 지금 인수인계할 작업
 
-* **다음 예정 작업:** 수행평가 Part 3 Solar AI 초벌 채점 엔진 및 프롬프트 고도화 (자유 설계 4대 영역 [문제·조건 명확성, 알고리즘 논리성, 자연어-순서도 일치, 구조·동작 타당성] 각 10점 평가 정밀도 향상).
+* **현재 로컬 작업(2026-09-15, 운영 반영 전):** 운영 브랜치는 `codex/secure-assessment-integrity`입니다. V3 공개 문제은행은 보존하고, V4만 비공개 서버 문항 은행에서 학생별 문항을 전달·채점하도록 P0를 구현했습니다. 학생은 정답·유사 정답·배정 비밀값을 받지 않고, 제출 후 담당 교사만 서버 채점 결과와 문항·정답·출제 의도를 볼 수 있습니다. V4에는 아직 실제 문항·운영 환경 변수·회차 선택 화면을 넣지 않았고, 원격 푸시·main 병합·Vercel 배포·운영 Firestore 규칙 배포를 하지 않았습니다. 자세한 상태와 다음 단계는 [V4 계획](EVALUATION_V4_PLAN.md) 및 [V4 운영 설정](EVALUATION_V4_SETUP.md)을 먼저 확인합니다. 로컬 검사 `node tools/check.cjs`, `node --test tests/*.test.cjs`는 2026-09-15에 통과했습니다.
+
+* **다음 예정 작업:** V3 문항의 학습 목표·중복·애매성·난이도 진단표를 만들고, 문제 인식·분석 → 추상화 → 문제 분해 → 해결 절차의 순서화 → 알고리즘 설계·순서도 실행 흐름을 반영한 V4 문항 청사진과 교사 전용 검토 자료를 준비합니다. Part 3 Solar AI 초벌 채점 고도화는 이 문항 품질 작업과 충돌하지 않게 다음 우선순위에서 다시 검토합니다.
 * **최신 작업(2026-09-14, 문제은행 추출 버전 3 연동, blurCount 보안 규칙 허용 및 학생 제출 실패 해소):**
   1. **문제은행 미적용 및 학생 간 동일 문항 버그 원인 규명**:
      - 기존 `eval-service.js` 및 `lab-eval.js`에서 문제은행 추출 조건이 `questionVersion >= 4`로 하드코딩되어 있었으나, 현재 운영 세션 및 기본 세션 버전은 `questionVersion: 3`(Part 3 자유 설계)으로 동작함.

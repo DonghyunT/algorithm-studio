@@ -8,6 +8,9 @@ class StudentEvalApp {
     this.remainingSeconds = 1800; // 30분
     this.currentPart = "part1";
     this.isSubmitted = false;
+    this.secureQuestions = null;
+    this.secureQuestionAttemptId = null;
+    this.startingExam = false;
 
     // 답안 보관함
     this.answers = {
@@ -273,8 +276,25 @@ class StudentEvalApp {
   }
 
   // 3. 시험장 진입 및 타이머 가동
-  startExam(sessionData) {
-    if (this.sessionStatus === 'in_progress') return;
+  async startExam(sessionData) {
+    if (this.sessionStatus === 'in_progress' || this.startingExam) return;
+    const qVersion = (sessionData && sessionData.questionVersion) || this.answers?.part3?.questionVersion || 1;
+    this.startingExam = true;
+    if (qVersion === 4) {
+      try {
+        if (this.secureQuestionAttemptId !== sessionData?.attemptId) this.secureQuestions = null;
+        if (!this.secureQuestions) {
+          const result = await requestSecureEvaluationQuestions(this.currentClass, this.studentNum);
+          if (!result.questions || result.questions.version !== 4 || result.questions.part1?.length !== 10 || result.questions.part2?.length !== 6 || !result.attemptId || result.attemptId !== sessionData?.attemptId) throw Error('V4 문항 회차 또는 구성이 완전하지 않습니다.');
+          this.secureQuestions = result.questions;
+          this.secureQuestionAttemptId = result.attemptId;
+        }
+      } catch (error) {
+        this.startingExam = false;
+        alert(error.message + '\n평가 문항을 안전하게 불러올 수 없어 시작하지 않았습니다. 선생님께 알려 주세요.');
+        return;
+      }
+    }
     this.sessionStatus = 'in_progress';
     window.pendingAssessmentResume=false;this.rememberAssessment();
     switchUnit('eval');
@@ -315,9 +335,8 @@ class StudentEvalApp {
     }, 1000);
 
     // 문제은행 난이도별 문항 추출 보장 (버전 3 이상 또는 미배정 시 결정론적 추출)
-    const qVersion = (sessionData && sessionData.questionVersion) || this.answers?.part3?.questionVersion || 1;
     const assignFn = typeof assignQuestions === 'function' ? assignQuestions : (typeof window !== 'undefined' ? window.assignQuestions : null);
-    if ((qVersion >= 3) && assignFn && !this.answers.assignedQuestions) {
+    if (qVersion === 3 && assignFn && !this.answers.assignedQuestions) {
       this.answers.assignedQuestions = assignFn(`${this.attemptId || sessionData?.attemptId || 'demo'}_${this.currentClass}_${this.studentNum}`);
       this.saveDraft();
       this.syncStudentProgress();
@@ -342,6 +361,7 @@ class StudentEvalApp {
     this.renderPartQuestions();
     this.initPart3Canvas();
     this.switchPart(this.currentPart || 'part1');
+    this.startingExam = false;
   }
 
   showTabWarningNotice() {
@@ -409,7 +429,7 @@ class StudentEvalApp {
   }
 
   updatePartNavigation() {
-    const questions=evaluationQuestions(this.answers);
+    const questions=this.currentQuestions();
     for(const part of ['part1','part2','part3']) {
       const container=document.getElementById('eval-'+part+'-container');
       let footer=container.querySelector('.eval-part-footer');
@@ -426,7 +446,7 @@ class StudentEvalApp {
 
   // 문항 DOM 렌더링 (Part 1 10문항, Part 2 단답형 6문항)
   renderPartQuestions() {
-    const questions=evaluationQuestions(this.answers);
+    const questions=this.currentQuestions();
     // Part 1. 객관식 10문항
     const p1Box = document.getElementById('eval-part1-list');
     if (p1Box) {
@@ -478,6 +498,11 @@ class StudentEvalApp {
     if (this.isSubmitted || this.isSubmitting || this.sessionStatus === "ended") return;
     this.answers.part2[qId] = val;
     this.syncStudentProgress();
+  }
+  currentQuestions() {
+    const version=this.latestSession?.questionVersion||this.answers?.part3?.questionVersion;
+    if(version===4)return this.secureQuestions || {part1:[],part2:[]};
+    return evaluationQuestions(this.answers);
   }
 
   // ============================================================================
@@ -546,7 +571,7 @@ class StudentEvalApp {
     if(!Array.isArray(part.plan.steps))part.plan.steps=[];
     return part.plan;
   }
-  isFreeDesign(){return (this.latestSession?.questionVersion||this.answers.part3.questionVersion)===3;}
+  isFreeDesign(){return (this.latestSession?.questionVersion||this.answers.part3.questionVersion)>=3;}
   hasAssessmentPlan() {
     const plan=this.getAssessmentPlan();
     return !!(plan.current || plan.goal || plan.steps.some(step=>step.text?.trim()));
@@ -610,8 +635,12 @@ class StudentEvalApp {
         .catch(error=>{if(status)status.textContent='서버 저장 실패 · 이 창을 유지해 주세요';console.warn("서버 임시 저장 실패",error);});
     },500);
   }
-  // 4. 100% 완전 자동 채점 계산 (총점 100점)
-  calculateScores() { const result=gradeEvaluation(this.answers,this.latestSession?.questionVersion||this.answers.part3.questionVersion||1); result.scores=applyConfirmedAssessmentReview(result.scores,this.latestStudent);this.scores=result.scores; return result; }
+  // V4의 객관·단답 점수는 학생 브라우저가 계산하지 않는다. 교사만 서버 결과를 확인한다.
+  calculateScores() {
+    const version=this.latestSession?.questionVersion||this.answers.part3.questionVersion||1;
+    if(version===4){const result={scores:{part1:null,part2:null,part3:null,objectiveTotal:null,total:null,teacherOverride:null,pendingReview:true,serverGraded:true},feedback:{part1:'교사 서버 채점 대기',part2:'교사 서버 채점 대기',part3:'자유 설계 답안은 교사 검토 후 점수가 확정됩니다.'}};this.scores=result.scores;return result;}
+    const result=gradeEvaluation(this.answers,version); result.scores=applyConfirmedAssessmentReview(result.scores,this.latestStudent);this.scores=result.scores; return result;
+  }
 
   // 5. 최종 제출 처리
   async submitExam(isAuto = false) {
@@ -663,18 +692,18 @@ class StudentEvalApp {
     this.showScreen('result');
     const scoreTotalEl = document.getElementById('eval-result-total-score');
     const scoreBreakdownEl = document.getElementById('eval-result-breakdown');
-    if (scoreTotalEl) scoreTotalEl.textContent = this.scores.pendingReview?`${this.scores.objectiveTotal} / 60점`:`${this.scores.total}점`;
-    document.querySelector('.eval-review-status').textContent=this.scores.pendingReview?'Part 1·2 참고 점수 · Part 3 교사 채점 대기':this.isFreeDesign()?'교사 검토 완료':'교사 검토 전';
+    if (scoreTotalEl) scoreTotalEl.textContent = this.scores.serverGraded?'교사 서버 채점 대기':this.scores.pendingReview?`${this.scores.objectiveTotal} / 60점`:`${this.scores.total}점`;
+    document.querySelector('.eval-review-status').textContent=this.scores.serverGraded?'Part 1·2는 교사 서버 채점 후, Part 3은 교사 검토 후 확인됩니다.':this.scores.pendingReview?'Part 1·2 참고 점수 · Part 3 교사 채점 대기':this.isFreeDesign()?'교사 검토 완료':'교사 검토 전';
     if (scoreBreakdownEl) {
       scoreBreakdownEl.innerHTML = `
         <div class="grid grid-cols-3 gap-3 text-center">
           <div class="p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
             <div class="text-xs font-bold text-indigo-700">Part 1. 객관식 (10문항)</div>
-            <div class="text-xl font-black text-indigo-900 mt-1">${this.scores.part1} / 30점</div>
+            <div class="text-xl font-black text-indigo-900 mt-1">${this.scores.serverGraded?'채점 대기':this.scores.part1+' / 30점'}</div>
           </div>
           <div class="p-4 bg-amber-50 rounded-2xl border border-amber-100">
             <div class="text-xs font-bold text-amber-800">Part 2. 단답형 (6문항)</div>
-            <div class="text-xl font-black text-amber-900 mt-1">${this.scores.part2} / 30점</div>
+            <div class="text-xl font-black text-amber-900 mt-1">${this.scores.serverGraded?'채점 대기':this.scores.part2+' / 30점'}</div>
           </div>
           <div class="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
             <div class="text-xs font-bold text-emerald-800">Part 3. 순서도 조립</div>
