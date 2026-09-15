@@ -77,6 +77,7 @@ function createAssessmentContext() {
         disabled: false
       })
     },
+    URLSearchParams,
     window: {
       location: { search: '' },
       addEventListener: () => {}
@@ -100,13 +101,13 @@ function createAssessmentContext() {
   return context;
 }
 
-test('CBT layout: initializes with default index 1 and subStep 1', () => {
+test('CBT layout: initializes with default index 1, subStep 1, and isCbtMode true', () => {
   const ctx = createAssessmentContext();
   const StudentEvalApp = ctx.window.studentEvalApp.constructor;
   const app = new StudentEvalApp();
   assert.equal(app.currentQuestionIndex, 1);
   assert.equal(app.part3SubStep, 1);
-  assert.equal(app.isCbtMode, false);
+  assert.equal(app.isCbtMode, true);
 });
 
 test('CBT layout: draft preserves currentQuestionIndex, part3SubStep, and isCbtMode', () => {
@@ -119,7 +120,8 @@ test('CBT layout: draft preserves currentQuestionIndex, part3SubStep, and isCbtM
   app.ownerUid = 'test-uid';
   app.attemptId = 'att-1';
   app.studentName = '김학생';
-  app.isCbtMode = true;
+  app.isCbtMode = false;
+  app.userToggledMode = true;
   app.currentQuestionIndex = 14;
   app.part3SubStep = 2;
   app.answers.part1.p1_q1 = 2;
@@ -134,7 +136,7 @@ test('CBT layout: draft preserves currentQuestionIndex, part3SubStep, and isCbtM
   restoredApp.studentName = '김학생';
   restoredApp.restoreDraft({ attemptId: 'att-1', resetAt: null, answers: app.answers });
 
-  assert.equal(restoredApp.isCbtMode, true);
+  assert.equal(restoredApp.isCbtMode, false);
   assert.equal(restoredApp.currentQuestionIndex, 14);
   assert.equal(restoredApp.part3SubStep, 2);
   assert.equal(restoredApp.answers.part1.p1_q1, 2);
@@ -191,10 +193,10 @@ test('CBT layout: mode toggle switches cleanly between CBT and Classic', () => {
   const app = new StudentEvalApp();
   ctx.window.studentEvalApp = app;
 
-  assert.equal(app.isCbtMode, false);
-  app.toggleCbtMode();
   assert.equal(app.isCbtMode, true);
+  app.toggleCbtMode();
+  assert.equal(app.isCbtMode, false);
 
   app.toggleCbtMode();
-  assert.equal(app.isCbtMode, false);
+  assert.equal(app.isCbtMode, true);
 });

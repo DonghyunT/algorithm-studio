@@ -2056,11 +2056,11 @@
             </div>
           </div>
           <div class="flex items-center gap-3">
-            <button type="button" id="eval-view-mode-toggle" onclick="window.studentEvalApp.toggleCbtMode()" class="hidden sm:inline-flex text-[11px] font-bold px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition cursor-pointer items-center gap-1.5" title="CBT 1문항 모드와 기존 3단 탭 모드를 전환합니다.">
-              <i class="fa-solid fa-desktop text-indigo-400"></i> <span id="eval-view-mode-text">CBT 모드</span>
+            <button type="button" id="eval-view-mode-toggle" onclick="window.studentEvalApp.toggleCbtMode()" class="inline-flex text-[11px] sm:text-xs font-bold px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition cursor-pointer items-center gap-1.5" title="CBT 1문항 집중 모드와 기존 3단 탭 모드를 전환합니다.">
+              <i class="fa-solid fa-layer-group text-indigo-400"></i> <span id="eval-view-mode-text">클래식 탭 모드</span>
             </button>
-            <div class="flex items-center gap-2 bg-slate-800 px-4 py-1.5 rounded-2xl border border-slate-700 shadow-inner">
-              <span class="text-xs text-slate-400 font-bold">남은 시간:</span>
+            <div class="flex items-center gap-2 bg-slate-800 px-3.5 py-1.5 rounded-2xl border border-slate-700 shadow-inner">
+              <span class="px-2 py-0.5 rounded-md bg-white text-slate-900 text-[11px] font-black select-none">남은시간</span>
               <span id="eval-exam-timer" class="text-base sm:text-lg font-black font-mono text-amber-300">30:00</span>
             </div>
             <button type="button" data-eval-submit onclick="window.studentEvalApp.submitExam(false)" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs sm:text-sm font-black transition shadow-md shadow-emerald-600/30 cursor-pointer flex items-center gap-1.5">
@@ -2070,9 +2070,9 @@
         </div>
 
         <!-- ============================================================== -->
-        <!-- 📝 신규 국가수준 CBT 단일 문항 집중형 인터페이스 (V4 기본 및 CBT 모드) -->
+        <!-- 📝 신규 국가수준 CBT 단일 문항 집중형 인터페이스 (기본 모드) -->
         <!-- ============================================================== -->
-        <div id="eval-cbt-container" class="cbt-container flex flex-col md:flex-row gap-4 hidden">
+        <div id="eval-cbt-container" class="cbt-container flex flex-col md:flex-row gap-4">
           <!-- 좌측 OMR 문항 네비게이션 팔레트 -->
           <aside id="eval-cbt-sidebar" class="w-full md:w-56 bg-white rounded-3xl border border-slate-200 shadow-xs p-4 flex flex-col justify-between shrink-0">
             <div class="space-y-4">
@@ -2086,47 +2086,44 @@
 
               <!-- Part 1 그룹 (객관식 1~10) -->
               <div>
-                <div class="text-[11px] font-bold text-slate-500 mb-1.5 flex items-center justify-between">
-                  <span>Part 1. 객관식</span>
-                  <span class="text-[10px] text-slate-400">10문항 (30점)</span>
+                <div id="eval-cbt-mod-part1" class="w-full py-1.5 px-3 rounded-xl text-xs text-center mb-2 cbt-module-active transition select-none">
+                  Part 1. 객관식 (10문항)
                 </div>
                 <div id="eval-cbt-palette-part1" class="grid grid-cols-5 gap-1.5"></div>
               </div>
 
               <!-- Part 2 그룹 (단답형 11~16) -->
               <div>
-                <div class="text-[11px] font-bold text-slate-500 mb-1.5 flex items-center justify-between">
-                  <span>Part 2. 단답형</span>
-                  <span class="text-[10px] text-slate-400">6문항 (30점)</span>
+                <div id="eval-cbt-mod-part2" class="w-full py-1.5 px-3 rounded-xl text-xs text-center mb-2 cbt-module-inactive transition select-none">
+                  Part 2. 단답형 (6문항)
                 </div>
                 <div id="eval-cbt-palette-part2" class="grid grid-cols-6 gap-1"></div>
               </div>
 
               <!-- Part 3 그룹 (알고리즘 설계 17) -->
               <div>
-                <div class="text-[11px] font-bold text-slate-500 mb-1.5 flex items-center justify-between">
-                  <span>Part 3. 알고리즘 설계</span>
-                  <span class="text-[10px] text-slate-400">40점</span>
+                <div id="eval-cbt-mod-part3" class="w-full py-1.5 px-3 rounded-xl text-xs text-center mb-2 cbt-module-inactive transition select-none">
+                  Part 3. 알고리즘 설계 (40점)
                 </div>
                 <div id="eval-cbt-palette-part3"></div>
               </div>
             </div>
 
-            <!-- 하단 OMR 범례 -->
-            <div class="pt-3 border-t border-slate-100 mt-4 text-[11px] text-slate-500 space-y-1.5 bg-slate-50/80 p-2.5 rounded-2xl">
+            <!-- 하단 OMR 범례 (KERIS 국가수준 CBT 표준 범례) -->
+            <div class="pt-3 border-t border-slate-100 mt-4 text-xs text-slate-700 bg-slate-50/80 p-2.5 rounded-2xl space-y-1.5">
               <div class="flex items-center gap-2">
-                <span class="w-4 h-4 rounded border border-slate-300 bg-white inline-block shrink-0"></span>
-                <span>안 푼 문항</span>
+                <span class="w-4 h-4 rounded inline-block shrink-0" style="background-color:#c6c7c8;border:1px solid #b0b4b8"></span>
+                <span class="text-[11px] font-medium text-slate-700">안 푼 문항</span>
               </div>
               <div class="flex items-center gap-2">
-                <span class="w-4 h-4 rounded bg-indigo-600 inline-block shrink-0"></span>
-                <span class="font-bold text-indigo-700">현재 문항</span>
+                <span class="w-4 h-4 rounded inline-block shrink-0" style="background-color:#0d6efd;border:1px solid #0b5ed7"></span>
+                <span class="text-[11px] font-bold text-blue-700">현재 문항</span>
               </div>
               <div class="flex items-center gap-2">
-                <span class="w-4 h-4 rounded bg-slate-700 inline-block shrink-0"></span>
-                <span>푼 문항</span>
+                <span class="w-4 h-4 rounded inline-block shrink-0" style="background-color:#676767;border:1px solid #525252"></span>
+                <span class="text-[11px] font-medium text-slate-700">푼 문항</span>
               </div>
-              <div class="text-[10px] text-slate-400 pt-0.5">※ 번호를 눌러 바로 이동할 수 있어요.</div>
+              <div class="text-[10px] text-slate-400 pt-0.5 border-t border-slate-200">클릭: 해당 문항으로 이동</div>
             </div>
           </aside>
 
@@ -2141,7 +2138,9 @@
                 </div>
                 <span id="eval-cbt-points-badge" class="text-xs font-black text-slate-400 font-mono">3점</span>
               </div>
-              <h3 id="eval-cbt-prompt" class="text-sm sm:text-base font-bold text-slate-800 leading-relaxed whitespace-pre-line"></h3>
+              <div id="eval-cbt-prompt-container" class="space-y-1">
+                <h3 id="eval-cbt-prompt" class="text-sm sm:text-base font-bold text-slate-800 leading-relaxed whitespace-pre-line"></h3>
+              </div>
             </div>
 
             <!-- 중앙 문제 풀이 바디 (문항 유형에 따라 동적 전환) -->
@@ -2224,69 +2223,74 @@
               </div>
 
               <button type="button" id="eval-cbt-next-btn" onclick="window.studentEvalApp.nextCbtQuestion()" class="px-4 sm:px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs sm:text-sm transition shadow-xs flex items-center gap-1.5 cursor-pointer">
-                <span id="eval-cbt-next-text">다음 문항</span> <i class="fa-solid fa-chevron-right text-xs"></i>
+                <span id="eval-cbt-next-text">제출하고 이동하기</span> <i class="fa-solid fa-arrow-right text-xs"></i>
               </button>
             </div>
           </section>
         </div>
 
-        <!-- 3단 탭 네비게이션 알약 바 (클래식 모드) -->
-        <div class="exam-part-tabs flex items-center gap-2 border-b border-slate-200 pb-3">
-          <button type="button" id="eval-tab-btn-part1" onclick="window.studentEvalApp.switchPart('part1')" class="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black bg-indigo-600 text-white shadow-xs transition cursor-pointer flex items-center gap-1.5">
-            <span>Part 1. 객관식 10문항 (30점)</span>
-          </button>
-          <button type="button" id="eval-tab-btn-part2" onclick="window.studentEvalApp.switchPart('part2')" class="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer flex items-center gap-1.5">
-            <span>Part 2. 단답형 6문항 (30점)</span>
-          </button>
-          <button type="button" id="eval-tab-btn-part3" onclick="window.studentEvalApp.switchPart('part3')" class="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer flex items-center gap-1.5">
-            <span>Part 3. 알고리즘 설계 (40점)</span>
-          </button>
-        </div>
-
-        <!-- Part 1 문항 컨테이너 (10문항) -->
-        <div id="eval-part1-container" class="space-y-4">
-          <div class="p-4 bg-indigo-50/70 border border-indigo-100 rounded-2xl text-xs font-bold text-indigo-900 flex items-center justify-between">
-            <span>💡 문제의 조건과 알고리즘 5대 조건을 꼼꼼히 읽고 가장 알맞은 번호를 고르세요. (각 3점, 총 30점)</span>
-            <span class="font-mono">10문항 전체</span>
+        <!-- ============================================================== -->
+        <!-- 🗂️ 기존 클래식 3단 탭 뷰 (선택 시 전환 가능) -->
+        <!-- ============================================================== -->
+        <div id="eval-classic-container" class="space-y-4 hidden">
+          <!-- 3단 탭 네비게이션 알약 바 (클래식 모드) -->
+          <div class="exam-part-tabs flex items-center gap-2 border-b border-slate-200 pb-3">
+            <button type="button" id="eval-tab-btn-part1" onclick="window.studentEvalApp.switchPart('part1')" class="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black bg-indigo-600 text-white shadow-xs transition cursor-pointer flex items-center gap-1.5">
+              <span>Part 1. 객관식 10문항 (30점)</span>
+            </button>
+            <button type="button" id="eval-tab-btn-part2" onclick="window.studentEvalApp.switchPart('part2')" class="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer flex items-center gap-1.5">
+              <span>Part 2. 단답형 6문항 (30점)</span>
+            </button>
+            <button type="button" id="eval-tab-btn-part3" onclick="window.studentEvalApp.switchPart('part3')" class="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer flex items-center gap-1.5">
+              <span>Part 3. 알고리즘 설계 (40점)</span>
+            </button>
           </div>
-          <div id="eval-part1-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
-        </div>
 
-        <!-- Part 2 문항 컨테이너 (6단답형) -->
-        <div id="eval-part2-container" class="space-y-4 hidden">
-          <div class="p-4 bg-amber-50/70 border border-amber-100 rounded-2xl text-xs font-bold text-amber-900 flex items-center justify-between">
-            <span>✏️ 알고리즘 핵심 개념과 제어 구조에 대한 단답형 문제입니다. 알맞은 용어나 실행 결과를 적어주세요. (각 5점, 총 30점)</span>
-            <span class="font-mono">6문항 전체</span>
+          <!-- Part 1 문항 컨테이너 (10문항) -->
+          <div id="eval-part1-container" class="space-y-4">
+            <div class="p-4 bg-indigo-50/70 border border-indigo-100 rounded-2xl text-xs font-bold text-indigo-900 flex items-center justify-between">
+              <span>💡 문제의 조건과 알고리즘 5대 조건을 꼼꼼히 읽고 가장 알맞은 번호를 고르세요. (각 3점, 총 30점)</span>
+              <span class="font-mono">10문항 전체</span>
+            </div>
+            <div id="eval-part1-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
           </div>
-          <div id="eval-part2-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
-        </div>
 
-        <!-- Part 3 순서도 나만의 백지 조립 캔버스 스튜디오 (40점) -->
-        <div id="eval-part3-container" class="hidden">
-          <div id="eval-free-design" hidden></div>
-          <div class="eval-task-chooser">
-            <span>설계할 문제</span><div id="eval-part3-theme-selector" aria-label="수행평가 문제 선택"></div>
+          <!-- Part 2 문항 컨테이너 (6단답형) -->
+          <div id="eval-part2-container" class="space-y-4 hidden">
+            <div class="p-4 bg-amber-50/70 border border-amber-100 rounded-2xl text-xs font-bold text-amber-900 flex items-center justify-between">
+              <span>✏️ 알고리즘 핵심 개념과 제어 구조에 대한 단답형 문제입니다. 알맞은 용어나 실행 결과를 적어주세요. (각 5점, 총 30점)</span>
+              <span class="font-mono">6문항 전체</span>
+            </div>
+            <div id="eval-part2-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
           </div>
-          <details class="eval-task-brief" open>
-            <summary>문제 안내 · 접기/펼치기</summary><p id="eval-task-situation"></p>
-            <dl><dt>주어지는 정보</dt><dd id="eval-task-input"></dd><dt>요구되는 결과</dt><dd id="eval-task-requirement"></dd></dl>
-          </details>
-          <div id="eval-shared-workspace"></div>
-          <div id="eval-plan-guide" class="eval-plan-fields" hidden>
-            <details open><summary>나의 처방전 · 작성 안내</summary>
-              <div class="eval-prescription-body">
-              <label for="eval-plan-current">현재 상태</label><textarea id="eval-plan-current" rows="2" maxlength="500" placeholder="지금 어떤 상황인가요?" oninput="studentEvalApp.setAssessmentPlanField('current',this.value)"></textarea>
-              <label for="eval-plan-goal">목표 상태</label><textarea id="eval-plan-goal" rows="2" maxlength="500" placeholder="무엇이 달라지면 해결된 걸까요?" oninput="studentEvalApp.setAssessmentPlanField('goal',this.value)"></textarea>
-              <div id="eval-condition-editor" hidden>
-                <label for="eval-plan-conditions">지켜야 할 조건</label><textarea id="eval-plan-conditions" rows="3" maxlength="1000" placeholder="시간·횟수·사용할 수 있는 자원처럼 지켜야 할 조건을 한 줄씩 적어 보세요." oninput="studentEvalApp.setAssessmentPlanField('conditions',this.value)"></textarea>
-                <button type="button" id="eval-suggest-conditions" onclick="studentEvalApp.suggestConditions()">조건 아이디어 받기</button>
-                <p id="eval-condition-status" role="status">직접 적어도 되고, 제안받은 조건을 고쳐서 사용해도 됩니다.</p>
-                <div id="eval-condition-candidates"></div>
-                <p class="eval-support-text">평가 기준: 문제·조건의 명확성, 자연어 알고리즘의 논리성, 자연어와 순서도의 일치, 순서도 구조·동작의 타당성 (각 10점)</p>
-              </div>
-              <p class="eval-support-text">필요한 순차·선택·반복 카드를 골라 짧게 적어 보세요. 세 종류를 모두 쓸 필요는 없어요.</p>
-              </div>
+
+          <!-- Part 3 순서도 나만의 백지 조립 캔버스 스튜디오 (40점) -->
+          <div id="eval-part3-container" class="hidden">
+            <div id="eval-free-design" hidden></div>
+            <div class="eval-task-chooser">
+              <span>설계할 문제</span><div id="eval-part3-theme-selector" aria-label="수행평가 문제 선택"></div>
+            </div>
+            <details class="eval-task-brief" open>
+              <summary>문제 안내 · 접기/펼치기</summary><p id="eval-task-situation"></p>
+              <dl><dt>주어지는 정보</dt><dd id="eval-task-input"></dd><dt>요구되는 결과</dt><dd id="eval-task-requirement"></dd></dl>
             </details>
+            <div id="eval-shared-workspace"></div>
+            <div id="eval-plan-guide" class="eval-plan-fields" hidden>
+              <details open><summary>나의 처방전 · 작성 안내</summary>
+                <div class="eval-prescription-body">
+                <label for="eval-plan-current">현재 상태</label><textarea id="eval-plan-current" rows="2" maxlength="500" placeholder="지금 어떤 상황인가요?" oninput="studentEvalApp.setAssessmentPlanField('current',this.value)"></textarea>
+                <label for="eval-plan-goal">목표 상태</label><textarea id="eval-plan-goal" rows="2" maxlength="500" placeholder="무엇이 달라지면 해결된 걸까요?" oninput="studentEvalApp.setAssessmentPlanField('goal',this.value)"></textarea>
+                <div id="eval-condition-editor" hidden>
+                  <label for="eval-plan-conditions">지켜야 할 조건</label><textarea id="eval-plan-conditions" rows="3" maxlength="1000" placeholder="시간·횟수·사용할 수 있는 자원처럼 지켜야 할 조건을 한 줄씩 적어 보세요." oninput="studentEvalApp.setAssessmentPlanField('conditions',this.value)"></textarea>
+                  <button type="button" id="eval-suggest-conditions" onclick="studentEvalApp.suggestConditions()">조건 아이디어 받기</button>
+                  <p id="eval-condition-status" role="status">직접 적어도 되고, 제안받은 조건을 고쳐서 사용해도 됩니다.</p>
+                  <div id="eval-condition-candidates"></div>
+                  <p class="eval-support-text">평가 기준: 문제·조건의 명확성, 자연어 알고리즘의 논리성, 자연어와 순서도의 일치, 순서도 구조·동작의 타당성 (각 10점)</p>
+                </div>
+                <p class="eval-support-text">필요한 순차·선택·반복 카드를 골라 짧게 적어 보세요. 세 종류를 모두 쓸 필요는 없어요.</p>
+                </div>
+              </details>
+            </div>
           </div>
         </div>
       </div>

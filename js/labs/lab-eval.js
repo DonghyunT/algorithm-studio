@@ -7,7 +7,8 @@ class StudentEvalApp {
     this.timerInterval = null;
     this.remainingSeconds = 1800; // 30분
     this.currentPart = "part1";
-    this.isCbtMode = false;
+    this.isCbtMode = true;
+    this.userToggledMode = false;
     this.currentQuestionIndex = 1;
     this.part3SubStep = 1;
     this.isSubmitted = false;
@@ -66,7 +67,7 @@ class StudentEvalApp {
   draftKey() { return "ALGO_EXAM_DRAFT_"+(this.ownerUid||'')+"_"+this.currentClass+"_"+this.studentNum+"_"+(this.attemptId||'demo'); }
   saveDraft() {
     if (!this.joined || window.isSessionClosing) return;
-    try { sessionStorage.setItem(this.draftKey(), JSON.stringify({answers:this.answers,deadlineMs:this.deadlineMs,studentName:this.studentName,lastResetAt:this.lastResetAt,isSubmitted:this.isSubmitted,visitedPart3:this.visitedPart3,currentPart:this.currentPart,currentQuestionIndex:this.currentQuestionIndex,part3SubStep:this.part3SubStep,isCbtMode:this.isCbtMode})); } catch(error) { console.warn("임시 저장 실패",error); }
+    try { sessionStorage.setItem(this.draftKey(), JSON.stringify({answers:this.answers,deadlineMs:this.deadlineMs,studentName:this.studentName,lastResetAt:this.lastResetAt,isSubmitted:this.isSubmitted,visitedPart3:this.visitedPart3,currentPart:this.currentPart,currentQuestionIndex:this.currentQuestionIndex,part3SubStep:this.part3SubStep,isCbtMode:this.isCbtMode,userToggledMode:!!this.userToggledMode})); } catch(error) { console.warn("임시 저장 실패",error); }
   }
   restoreDraft(student) {
     this.latestStudent=student;
@@ -77,7 +78,21 @@ class StudentEvalApp {
     else if(validDraft) {
       this.answers=draft.answers;
       this.deadlineMs=draft.deadlineMs;
-      if (typeof draft.isCbtMode === 'boolean') this.isCbtMode = draft.isCbtMode;
+      const urlParams = typeof window !== 'undefined' && typeof URLSearchParams !== 'undefined' ? new URLSearchParams(window.location?.search || '') : null;
+      const forceClassic = urlParams && urlParams.get('classic') === '1';
+      const forceCbt = urlParams && urlParams.get('cbt') === '1';
+      if (forceClassic) {
+        this.isCbtMode = false;
+        this.userToggledMode = true;
+      } else if (forceCbt) {
+        this.isCbtMode = true;
+        this.userToggledMode = true;
+      } else if (typeof draft.isCbtMode === 'boolean' && draft.userToggledMode) {
+        this.isCbtMode = draft.isCbtMode;
+        this.userToggledMode = true;
+      } else {
+        this.isCbtMode = true;
+      }
       if (Number.isInteger(draft.currentQuestionIndex) && draft.currentQuestionIndex >= 1 && draft.currentQuestionIndex <= 17) {
         this.currentQuestionIndex = draft.currentQuestionIndex;
       }
@@ -373,8 +388,16 @@ class StudentEvalApp {
     // 문항 렌더링 & 순서도 백지 초기화
     this.renderPartQuestions();
     this.initPart3Canvas();
-    const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-    if (qVersion === 4 || (urlParams && urlParams.get('cbt') === '1') || window.forceCbtMode) {
+    const urlParams = typeof window !== 'undefined' && typeof URLSearchParams !== 'undefined' ? new URLSearchParams(window.location?.search || '') : null;
+    const forceClassic = urlParams && urlParams.get('classic') === '1';
+    const forceCbt = urlParams && urlParams.get('cbt') === '1';
+    if (forceClassic) {
+      this.isCbtMode = false;
+      this.userToggledMode = true;
+    } else if (forceCbt || window.forceCbtMode) {
+      this.isCbtMode = true;
+      this.userToggledMode = true;
+    } else if (!this.userToggledMode) {
       this.isCbtMode = true;
     }
     this.applyViewMode();
@@ -535,6 +558,7 @@ class StudentEvalApp {
 
   applyViewMode() {
     const cbtContainer = document.getElementById('eval-cbt-container');
+    const classicContainer = document.getElementById('eval-classic-container');
     const tabs = document.querySelector('.exam-part-tabs');
     const p1 = document.getElementById('eval-part1-container');
     const p2 = document.getElementById('eval-part2-container');
@@ -543,6 +567,7 @@ class StudentEvalApp {
 
     if (this.isCbtMode) {
       if (cbtContainer) cbtContainer.classList.remove('hidden');
+      if (classicContainer) classicContainer.classList.add('hidden');
       if (tabs) tabs.classList.add('hidden');
       if (p1) p1.classList.add('hidden');
       if (p2) p2.classList.add('hidden');
@@ -550,6 +575,7 @@ class StudentEvalApp {
       if (modeBtnText) modeBtnText.textContent = "클래식 탭 모드";
     } else {
       if (cbtContainer) cbtContainer.classList.add('hidden');
+      if (classicContainer) classicContainer.classList.remove('hidden');
       if (tabs) tabs.classList.remove('hidden');
       if (modeBtnText) modeBtnText.textContent = "CBT 1문항 모드";
       const sharedWs = document.getElementById('eval-shared-workspace');
@@ -566,6 +592,7 @@ class StudentEvalApp {
 
   toggleCbtMode() {
     this.isCbtMode = !this.isCbtMode;
+    this.userToggledMode = true;
     this.applyViewMode();
     if (this.isCbtMode) {
       if (this.currentPart === 'part1' && this.currentQuestionIndex > 10) this.currentQuestionIndex = 1;
@@ -686,6 +713,15 @@ class StudentEvalApp {
     const p3Container = document.getElementById('eval-cbt-palette-part3');
     const ratioEl = document.getElementById('eval-cbt-answered-ratio');
 
+    const mod1 = document.getElementById('eval-cbt-mod-part1');
+    const mod2 = document.getElementById('eval-cbt-mod-part2');
+    const mod3 = document.getElementById('eval-cbt-mod-part3');
+    const current = this.currentQuestionIndex;
+
+    if (mod1) mod1.className = `w-full py-1.5 px-3 rounded-xl text-xs text-center mb-2 transition select-none ${current <= 10 ? 'cbt-module-active' : 'cbt-module-inactive'}`;
+    if (mod2) mod2.className = `w-full py-1.5 px-3 rounded-xl text-xs text-center mb-2 transition select-none ${current >= 11 && current <= 16 ? 'cbt-module-active' : 'cbt-module-inactive'}`;
+    if (mod3) mod3.className = `w-full py-1.5 px-3 rounded-xl text-xs text-center mb-2 transition select-none ${current === 17 ? 'cbt-module-active' : 'cbt-module-inactive'}`;
+
     let p1Answered = 0;
     let p2Answered = 0;
     let p3Answered = (this.answers.part3.blocks?.length > 1) || this.hasAssessmentPlan();
@@ -717,11 +753,11 @@ class StudentEvalApp {
     // Part 3 (17)
     if (p3Container) {
       const isCurrent = (this.currentQuestionIndex === 17);
-      const stateClass = isCurrent ? 'bg-indigo-600 text-white font-black ring-2 ring-indigo-400' : (p3Answered ? 'bg-slate-700 text-white font-bold' : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 font-bold');
+      const stateClass = isCurrent ? 'cbt-omr-current' : (p3Answered ? 'cbt-omr-answered' : 'cbt-omr-unanswered');
       p3Container.innerHTML = `
         <button type="button" onclick="window.studentEvalApp.goToCbtQuestion(17)" class="w-full py-2.5 px-3 rounded-xl text-xs transition flex items-center justify-between cursor-pointer ${stateClass}" title="17번 알고리즘 설계 및 순서도 (40점)">
           <span>17. 알고리즘 설계</span>
-          <span class="text-[10px] font-mono opacity-80">40점</span>
+          <span class="text-[10px] font-mono opacity-90">40점</span>
         </button>
       `;
     }
@@ -739,11 +775,14 @@ class StudentEvalApp {
     const partBadge = document.getElementById('eval-cbt-part-badge');
     const qnumBadge = document.getElementById('eval-cbt-qnum-badge');
     const pointsBadge = document.getElementById('eval-cbt-points-badge');
+    const promptContainer = document.getElementById('eval-cbt-prompt-container');
     const promptEl = document.getElementById('eval-cbt-prompt');
 
     const optionsArea = document.getElementById('eval-cbt-options');
     const shortArea = document.getElementById('eval-cbt-short-answer');
     const part3Area = document.getElementById('eval-cbt-part3-area');
+
+    const svgBadge = `<svg class="flex-shrink-0 rounded-lg shadow-xs" width="34" height="34" xmlns="http://www.w3.org/2000/svg" role="img" focusable="false"><rect width="100%" height="100%" rx="8" fill="#0d6efd"></rect><text x="50%" y="50%" text-anchor="middle" alignment-baseline="middle" fill="#fff" dy=".1em" font-weight="bold" font-size="15">${idx}</text></svg>`;
 
     if (idx >= 1 && idx <= 10) {
       const q = questions.part1 && questions.part1[idx - 1];
@@ -752,6 +791,17 @@ class StudentEvalApp {
       if (qnumBadge) qnumBadge.textContent = `${idx}번 문제`;
       if (pointsBadge) pointsBadge.textContent = `${q.points || 3}점`;
       if (promptEl) promptEl.textContent = q.desc;
+      if (promptContainer) {
+        promptContainer.innerHTML = `
+          <div class="flex items-start gap-3">
+            ${svgBadge}
+            <div class="flex-1 text-sm sm:text-base font-bold text-slate-900 leading-relaxed">
+              ${safeEsc(q.desc)}
+              <span class="text-slate-500 font-normal text-xs block sm:inline mt-1 sm:mt-0 sm:ml-2">(※ 정답을 선택한 후, "<span class="text-rose-600 font-bold">제출하고 이동하기</span>" 버튼을 클릭하세요.)</span>
+            </div>
+          </div>
+        `;
+      }
 
       if (optionsArea) {
         optionsArea.classList.remove('hidden');
@@ -759,9 +809,9 @@ class StudentEvalApp {
           const isSelected = this.answers.part1[q.id] === optIdx;
           const numSymbol = ['①', '②', '③', '④', '⑤'][optIdx] || `${optIdx + 1}.`;
           return `
-            <label class="cbt-option-card flex items-center gap-3.5 p-3.5 sm:p-4 rounded-2xl border ${isSelected ? 'selected border-indigo-600 bg-indigo-50/70' : 'border-slate-200 bg-white hover:bg-slate-50'} cursor-pointer">
-              <input type="radio" name="cbt_${q.id}" value="${optIdx}" ${isSelected ? 'checked' : ''} ${canEdit ? '' : 'disabled'} onchange="window.studentEvalApp.onSelectCbtPart1('${q.id}', ${optIdx})" class="w-4 h-4 text-indigo-600 focus:ring-indigo-500">
-              <span class="text-indigo-700 font-black text-sm select-none">${numSymbol}</span>
+            <label class="cbt-option-card flex items-center gap-3.5 p-3.5 sm:p-4 rounded-2xl border ${isSelected ? 'selected' : 'border-slate-200 bg-white hover:bg-slate-50'} cursor-pointer select-none">
+              <input type="radio" name="cbt_${q.id}" value="${optIdx}" ${isSelected ? 'checked' : ''} ${canEdit ? '' : 'disabled'} onchange="window.studentEvalApp.onSelectCbtPart1('${q.id}', ${optIdx})" class="w-4 h-4 text-blue-600 focus:ring-blue-500">
+              <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${isSelected ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'}">${numSymbol}</span>
               <span class="text-xs sm:text-sm font-bold text-slate-800 leading-snug">${safeEsc(opt)}</span>
             </label>
           `;
@@ -776,6 +826,17 @@ class StudentEvalApp {
       if (qnumBadge) qnumBadge.textContent = `${idx}번 문제 (${idx - 10}번)`;
       if (pointsBadge) pointsBadge.textContent = `${q.points || 5}점`;
       if (promptEl) promptEl.textContent = q.desc;
+      if (promptContainer) {
+        promptContainer.innerHTML = `
+          <div class="flex items-start gap-3">
+            ${svgBadge}
+            <div class="flex-1 text-sm sm:text-base font-bold text-slate-900 leading-relaxed">
+              ${safeEsc(q.desc)}
+              <span class="text-slate-500 font-normal text-xs block sm:inline mt-1 sm:mt-0 sm:ml-2">(※ 정답을 입력한 후, "<span class="text-rose-600 font-bold">제출하고 이동하기</span>" 버튼을 클릭하세요.)</span>
+            </div>
+          </div>
+        `;
+      }
 
       if (shortArea) {
         shortArea.classList.remove('hidden');
@@ -786,7 +847,7 @@ class StudentEvalApp {
               <span>알고리즘 핵심 개념이나 제어 구조에 알맞은 답안을 적어주세요.</span>
             </div>
             <div class="flex items-center gap-3">
-              <input type="text" id="cbt_inp_${q.id}" value="${safeEsc(this.answers.part2[q.id] || '')}" ${canEdit ? '' : 'disabled'} oninput="window.studentEvalApp.onInputCbtPart2('${q.id}', this.value)" class="flex-1 text-sm sm:text-base px-4 py-3 bg-slate-50 border border-slate-300 rounded-2xl focus:outline-none focus:border-indigo-500 focus:bg-white font-bold text-slate-800 transition shadow-inner" placeholder="${q.placeholder || '답안을 입력하세요'}">
+              <input type="text" id="cbt_inp_${q.id}" value="${safeEsc(this.answers.part2[q.id] || '')}" ${canEdit ? '' : 'disabled'} oninput="window.studentEvalApp.onInputCbtPart2('${q.id}', this.value)" class="flex-1 text-sm sm:text-base px-4 py-3 bg-slate-50 border border-slate-300 rounded-2xl focus:outline-none focus:border-blue-500 focus:bg-white font-bold text-slate-800 transition shadow-inner" placeholder="${q.placeholder || '답안을 입력하세요'}">
               <span class="text-xs font-bold text-slate-400 shrink-0">단답형</span>
             </div>
           </div>
@@ -798,7 +859,19 @@ class StudentEvalApp {
       if (partBadge) { partBadge.textContent = 'Part 3. 알고리즘 설계'; partBadge.className = 'text-xs font-black px-3 py-1 bg-emerald-50 text-emerald-800 rounded-xl border border-emerald-200'; }
       if (qnumBadge) qnumBadge.textContent = `17번 문제`;
       if (pointsBadge) pointsBadge.textContent = `40점`;
-      if (promptEl) promptEl.textContent = '문제 상황을 분석하여 나만의 처방전을 작성하고, 순서도를 완성하여 실행 결과를 검증하세요.';
+      const promptText = '문제 상황을 분석하여 나만의 처방전을 작성하고, 순서도를 완성하여 실행 결과를 검증하세요.';
+      if (promptEl) promptEl.textContent = promptText;
+      if (promptContainer) {
+        promptContainer.innerHTML = `
+          <div class="flex items-start gap-3">
+            ${svgBadge}
+            <div class="flex-1 text-sm sm:text-base font-bold text-slate-900 leading-relaxed">
+              ${safeEsc(promptText)}
+              <span class="text-slate-500 font-normal text-xs block sm:inline mt-1 sm:mt-0 sm:ml-2">(※ 처방전과 순서도를 작성한 후, "<span class="text-rose-600 font-bold">제출하고 이동하기</span>" 버튼을 클릭하세요.)</span>
+            </div>
+          </div>
+        `;
+      }
 
       if (optionsArea) optionsArea.classList.add('hidden');
       if (shortArea) shortArea.classList.add('hidden');
@@ -838,14 +911,11 @@ class StudentEvalApp {
     }
 
     if (nextBtn && nextText) {
-      if (idx < 16) {
-        nextText.textContent = '다음 문항';
-        nextBtn.className = 'px-4 sm:px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs sm:text-sm transition shadow-xs flex items-center gap-1.5 cursor-pointer';
-      } else if (idx === 16) {
-        nextText.textContent = '17번 알고리즘 설계로 이동';
+      if (idx < 17) {
+        nextText.textContent = '제출하고 이동하기';
         nextBtn.className = 'px-4 sm:px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs sm:text-sm transition shadow-xs flex items-center gap-1.5 cursor-pointer';
       } else if (idx === 17 && this.part3SubStep === 1) {
-        nextText.textContent = '2단계: 순서도 조립하기';
+        nextText.textContent = '2단계: 순서도 조립으로 이동';
         nextBtn.className = 'px-4 sm:px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs sm:text-sm transition shadow-xs flex items-center gap-1.5 cursor-pointer';
       } else if (idx === 17 && this.part3SubStep === 2) {
         nextText.textContent = '최종 제출 검토';
