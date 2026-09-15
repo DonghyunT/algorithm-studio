@@ -7,13 +7,13 @@
 | 구분 | 인수인계 기준 |
 |---|---|
 | 현재 운영 브랜치 | main |
-| 이번 문서 작업 브랜치 | codex/handoff-20260915 — 병합 전에는 이 브랜치로 받습니다. |
+| 인수인계 전달 기준 | 최신 main. 완료된 문서를 통합하고 다음 작업은 최신 main에서 새 브랜치로 시작합니다. |
 | 작업 시작 기준 | c73e8c4 — 실제 GitHub main과 로컬 일치 확인, 미커밋 변경 없음 |
 | 최신 제품 코드 | 7c4f1ec — V4 비공개 서버 문항 배정·채점 기반 |
 | 배포 기록 | c48e232 Firestore 규칙 게시, c73e8c4 Vercel API 반영 |
 | 현재 평가 | 기본 새 회차는 V3. 기존 회차·답안·성적 보존 |
 | V4 | 기반 코드·규칙 배포 완료. 실제 문항·환경 변수·회차 선택 UI·실사용 검증은 준비 전 |
-| 이번 승인 범위 | 문서·전달 준비와 영향이 작은 정리. V4 구현·활성화는 후속 작업 |
+| 이번 승인 범위 | 문서·전달 준비 및 main 통합·푸시와 연결된 자동 배포 확인. V4 구현·활성화는 후속 작업 |
 
 - 저장소: [DonghyunT/algorithm-studio](https://github.com/DonghyunT/algorithm-studio)
 - 운영 웹: [정보 알고리즘 스튜디오](https://algorithm-studio-ten.vercel.app/)
@@ -25,22 +25,22 @@
 1. [AGENTS](../AGENTS.md) → [INTENT](../INTENT.md) → [PRD](../PRD.md) → 이 문서를 읽습니다.
 2. [V4 계획](EVALUATION_V4_PLAN.md)과 [V4 운영 설정](EVALUATION_V4_SETUP.md)에서 기반 배포와 활성화를 구분합니다.
 3. 다음 예정 작업은 V3 문항의 학습 목표·중복·애매성·난이도 진단표와 V4 문항 청사진입니다. 실제 V4 문항·정답 자료 생성 전에 **교사 전용 보관 위치와 PC 간 전달 방법**을 합의합니다. 공개 Git에 정답을 넣지 않습니다.
-4. 문항 검토 뒤 환경 변수·회차 선택 UI·학생/교사 흐름·실제 권한 검증을 진행합니다. 이번 인수인계는 V4 활성화·병합·배포 승인이 아닙니다.
+4. 문항 검토 뒤 환경 변수·회차 선택 UI·학생/교사 흐름·실제 권한 검증을 진행합니다. 이번 문서의 main 통합 승인은 V4 구현·활성화의 병합·배포 승인으로 확대하지 않습니다.
 5. Part 3 Solar 초벌 채점 품질 개선은 후속 우선순위입니다. 30분·30/30/40점·학생 작성 부담·교사 최종 확정 원칙을 임의 변경하지 않습니다.
 
 ## 3. 다른 PC에서 받기
 
-Git과 Node.js 24를 사용합니다. 저장소 폴더·사용자 이름은 달라도 됩니다.
+Git과 Node.js 24를 사용합니다. 저장소 폴더·사용자 이름은 달라도 됩니다. 완료된 작업은 main으로 통합하고 다른 PC는 최신 main에서 새 작업 브랜치를 만듭니다.
 
 처음 받는 PC:
 
 ~~~powershell
 git clone https://github.com/DonghyunT/algorithm-studio.git
 cd algorithm-studio
-git switch --track origin/codex/handoff-20260915
+git switch main
 ~~~
 
-이미 저장소가 있는 PC:
+이미 저장소가 있는 PC는 먼저 확인합니다:
 
 ~~~powershell
 git status
@@ -49,18 +49,24 @@ git log -n 5 --oneline
 git fetch origin
 ~~~
 
-수정 파일이 있으면 기존 작업을 먼저 보존하고, 강제 초기화·전환하지 않습니다. 이번 브랜치가 로컬에 없다면 위의 switch --track 명령을 사용하고, 이미 있다면:
+수정 파일이나 아직 push하지 않은 커밋이 있으면 기존 작업을 먼저 보존합니다. 깨끗한 상태에서:
 
 ~~~powershell
-git switch codex/handoff-20260915
-git pull --ff-only origin codex/handoff-20260915
+git switch main
+git pull --ff-only origin main
 git status
 git log -n 5 --oneline
 ~~~
 
-원격 브랜치가 없다면 아직 push되지 않았거나 이미 정리되었는지 확인합니다. 운영 브랜치와의 차이는 **git log --oneline origin/main..HEAD**로 확인합니다. 이번 문서가 main에 병합된 뒤에는 **git switch main**, **git pull --ff-only origin main**으로 받습니다. 새로운 구현은 받은 기준에서 목적별 codex/… 브랜치를 만듭니다.
+fast-forward 불가 오류는 로컬과 원격 이력이 갈라졌다는 뜻입니다. 강제 초기화·강제 push로 해결하지 말고 미반영 작업부터 확인합니다. 문서를 읽고 새 작업의 목적을 정한 뒤 브랜치를 만듭니다. 아래 이름은 예시이며 실제 작업에 맞춰 정합니다:
 
-clone/fetch/pull은 소스·문서만 가져오며 Firebase 자료를 복사하거나 배포하지 않습니다. **main push는 Vercel 운영 자동 배포와 연결**되어 있어 별도 병합 승인이 필요합니다. 작업 브랜치 Preview도 운영 Firebase와 자동 분리되는 것은 아닙니다.
+~~~powershell
+git switch -c codex/next-task
+~~~
+
+**기본 협업 순서:** 최신 main 받기 → 작업별 브랜치 → 수정·검증 → PR(변경 검토 기록) → 선생님 승인 후 main 병합 → 자동 배포 확인. 완료된 브랜치는 병합 여부와 다른 작업의 사용 여부를 확인한 뒤 정리할 수 있습니다. 아직 진행 중인 작업만 해당 브랜치로 인수인계합니다.
+
+clone/fetch/pull은 소스·문서만 가져오며 Firebase 자료를 복사하거나 배포하지 않습니다. main push는 Vercel 운영 자동 배포와 연결됩니다. 작업 브랜치 Preview도 운영 Firebase와 자동 분리되는 것은 아닙니다. 일반적인 협업 흐름의 참고: [GitHub flow 공식 안내](https://docs.github.com/en/get-started/using-github/github-flow), 2026-09-15 확인.
 
 ## 4. 로컬 실행과 필요한 검사
 
@@ -124,4 +130,4 @@ node tests/browser.cjs
 
 ## 다음 에이전트에게 전달할 문장
 
-> AGENTS.md, INTENT.md, PRD.md, docs/HANDOFF.md를 읽고 작업을 이어가 주세요. 먼저 Git 로컬·원격 상태와 인수인계 브랜치를 확인해 주세요. V3은 현재 운영이고 V4는 기반만 배포된 상태입니다. 완료된 일을 재배포하지 말고 V4 비공개 문항의 보관·전달 방법과 다음 문항 품질 작업 범위를 먼저 확인해 주세요.
+> AGENTS.md, INTENT.md, PRD.md, docs/HANDOFF.md를 읽고 작업을 이어가 주세요. 먼저 기존 작업을 보존하고 최신 main을 받은 뒤 새 작업 브랜치를 만들어 주세요. V3은 현재 운영이고 V4는 기반만 배포된 상태입니다. 완료된 일을 재배포하지 말고 V4 비공개 문항의 보관·전달 방법과 다음 문항 품질 작업 범위를 먼저 확인해 주세요.

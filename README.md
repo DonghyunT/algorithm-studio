@@ -56,7 +56,7 @@
 
 ## 문서와 인수인계
 
-새 PC의 Git 받기·Node.js 24·기본 시연·검사 명령은 [인수인계](docs/HANDOFF.md)에 모았습니다. 이번 문서 작업은 `codex/handoff-20260915` 브랜치이며 main 병합 전에는 해당 브랜치를 받습니다. 과거 기록은 [인수인계 보존본](docs/HANDOFF_HISTORY_2026-09-15.md)입니다.
+새 PC의 Git 받기·Node.js 24·기본 시연·검사 명령은 [인수인계](docs/HANDOFF.md)에 모았습니다. 완료된 작업은 `main`에 통합하며, 다른 PC에서는 최신 `main`을 받은 뒤 목적별 새 작업 브랜치를 만듭니다. 과거 기록은 [인수인계 보존본](docs/HANDOFF_HISTORY_2026-09-15.md)입니다.
 
 ### 로컬에서 실제 AI와 임시 교사 체험
 
