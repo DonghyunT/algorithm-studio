@@ -7,7 +7,8 @@
 1. `donghyun-algo`의 기본 Firestore Native Standard DB(`asia-northeast3`)를 Firebase CLI로 확인했습니다.
 2. Windows 시스템 신뢰 인증서를 사용하는 Node 실행으로 TLS 검증을 유지했습니다. `firebase deploy --only firestore:rules --dry-run`에서 규칙 컴파일을 확인한 뒤, 동일한 `firestore.rules`를 실제 게시했습니다.
 3. V4에서는 학생이 `answers.assignedQuestions`를 저장할 수 없으며, 정답·유사 정답·배정 비밀값은 Firestore에 저장하지 않습니다. 기존 V3의 `assignedQuestions`, 화면 이탈 횟수(`blurCount`) 및 제출 흐름은 유지합니다.
-4. 코드의 Vercel 반영, 실제 V4 문항 은행 환경 변수 등록, V4 회차 선택과 실사용 권한 검증은 이 기록 시점에 아직 완료가 아닙니다. 운영 데이터·학생 답안은 생성·수정·삭제하지 않았습니다.
+4. 제품 `7c4f1ec`과 배포 기록 `c48e232`을 main에 fast-forward 병합하고 GitHub에 푸시했습니다. 기존 운영 주소 `https://algorithm-studio-ten.vercel.app/api/evaluation`는 2026-09-15 KST에 `405 POST 요청만 사용할 수 있습니다.`를 반환해 새 서버 API가 Vercel Production에 반영된 것을 확인했습니다.
+5. 실제 V4 문항 은행 환경 변수 등록, V4 회차 선택과 실사용 권한 검증은 아직 완료가 아닙니다. 운영 데이터·학생 답안은 생성·수정·삭제하지 않았습니다.
 
 ## 2026-09-14 문제은행 추출 버전 3 연동, blurCount 보안 규칙 허용 및 학생 제출 실패 해소 운영 배포
 
