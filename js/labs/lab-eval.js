@@ -7,6 +7,9 @@ class StudentEvalApp {
     this.timerInterval = null;
     this.remainingSeconds = 1800; // 30분
     this.currentPart = "part1";
+    this.isCbtMode = false;
+    this.currentQuestionIndex = 1;
+    this.part3SubStep = 1;
     this.isSubmitted = false;
     this.secureQuestions = null;
     this.secureQuestionAttemptId = null;
@@ -63,7 +66,7 @@ class StudentEvalApp {
   draftKey() { return "ALGO_EXAM_DRAFT_"+(this.ownerUid||'')+"_"+this.currentClass+"_"+this.studentNum+"_"+(this.attemptId||'demo'); }
   saveDraft() {
     if (!this.joined || window.isSessionClosing) return;
-    try { sessionStorage.setItem(this.draftKey(), JSON.stringify({answers:this.answers,deadlineMs:this.deadlineMs,studentName:this.studentName,lastResetAt:this.lastResetAt,isSubmitted:this.isSubmitted,visitedPart3:this.visitedPart3,currentPart:this.currentPart})); } catch(error) { console.warn("임시 저장 실패",error); }
+    try { sessionStorage.setItem(this.draftKey(), JSON.stringify({answers:this.answers,deadlineMs:this.deadlineMs,studentName:this.studentName,lastResetAt:this.lastResetAt,isSubmitted:this.isSubmitted,visitedPart3:this.visitedPart3,currentPart:this.currentPart,currentQuestionIndex:this.currentQuestionIndex,part3SubStep:this.part3SubStep,isCbtMode:this.isCbtMode})); } catch(error) { console.warn("임시 저장 실패",error); }
   }
   restoreDraft(student) {
     this.latestStudent=student;
@@ -71,7 +74,17 @@ class StudentEvalApp {
     let draft=null; try { draft=JSON.parse(sessionStorage.getItem(this.draftKey())); } catch {}
     const validDraft=draft && draft.studentName===this.studentName && draft.lastResetAt===(student?.resetAt||null);
     if (student?.status==="submitted") { this.answers=student.answers; this.isSubmitted=true; }
-    else if(validDraft) { this.answers=draft.answers; this.deadlineMs=draft.deadlineMs; }
+    else if(validDraft) {
+      this.answers=draft.answers;
+      this.deadlineMs=draft.deadlineMs;
+      if (typeof draft.isCbtMode === 'boolean') this.isCbtMode = draft.isCbtMode;
+      if (Number.isInteger(draft.currentQuestionIndex) && draft.currentQuestionIndex >= 1 && draft.currentQuestionIndex <= 17) {
+        this.currentQuestionIndex = draft.currentQuestionIndex;
+      }
+      if (draft.part3SubStep === 1 || draft.part3SubStep === 2) {
+        this.part3SubStep = draft.part3SubStep;
+      }
+    }
     else if(student?.answers) this.answers=student.answers;
     if (student?.answers?.assignedQuestions && !this.answers?.assignedQuestions) {
       this.answers.assignedQuestions = student.answers.assignedQuestions;
@@ -222,7 +235,7 @@ class StudentEvalApp {
           alert("🔔 선생님께서 재시험을 허용하셨습니다!\n답안이 초기화되며 시험 화면으로 복귀합니다.");
           this.isSubmitted = false;
           this.sessionStatus = 'waiting';
-          window.assessmentWorkspace?.leave();this.visitedPart3=false;this.currentPart='part1';delete this.answers.part3.visited;
+          window.assessmentWorkspace?.leave();this.visitedPart3=false;this.currentPart='part1';this.currentQuestionIndex=1;this.part3SubStep=1;delete this.answers.part3.visited;
           this.answers.part1 = {};
           this.answers.part2 = {};
           this.answers.part3.blocks = [];
@@ -360,7 +373,16 @@ class StudentEvalApp {
     // 문항 렌더링 & 순서도 백지 초기화
     this.renderPartQuestions();
     this.initPart3Canvas();
-    this.switchPart(this.currentPart || 'part1');
+    const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+    if (qVersion === 4 || (urlParams && urlParams.get('cbt') === '1') || window.forceCbtMode) {
+      this.isCbtMode = true;
+    }
+    this.applyViewMode();
+    if (this.isCbtMode) {
+      this.goToCbtQuestion(this.currentQuestionIndex || 1);
+    } else {
+      this.switchPart(this.currentPart || 'part1');
+    }
     this.startingExam = false;
   }
 
@@ -432,8 +454,10 @@ class StudentEvalApp {
     const questions=this.currentQuestions();
     for(const part of ['part1','part2','part3']) {
       const container=document.getElementById('eval-'+part+'-container');
-      let footer=container.querySelector('.eval-part-footer');
-      if(!footer){footer=document.createElement('nav');footer.className='eval-part-footer';footer.setAttribute('aria-label',part+' 하단 이동');container.appendChild(footer);}
+      if(!container) continue;
+      let footer=container.querySelector ? container.querySelector('.eval-part-footer') : null;
+      if(!footer && container.appendChild){footer=document.createElement('nav');footer.className='eval-part-footer';footer.setAttribute('aria-label',part+' 하단 이동');container.appendChild(footer);}
+      if(!footer) continue;
       const index=['part1','part2','part3'].indexOf(part);
       const count=part==='part3'?0:questions[part].filter(q=>part==='part1'?Number.isInteger(this.answers.part1[q.id]):String(this.answers.part2[q.id]||'').trim()).length;
       footer.innerHTML=(index?`<button type="button" onclick="studentEvalApp.switchPart('part${index}',true)">이전: ${index===1?'객관식':'단답형'}</button>`:'')+
@@ -503,6 +527,344 @@ class StudentEvalApp {
     const version=this.latestSession?.questionVersion||this.answers?.part3?.questionVersion;
     if(version===4)return this.secureQuestions || {part1:[],part2:[]};
     return evaluationQuestions(this.answers);
+  }
+
+  // ============================================================================
+  // 📝 국가수준 CBT 단일 문항 집중형 엔진 (V4 표준 & 디벗/데스크탑 최적화)
+  // ============================================================================
+
+  applyViewMode() {
+    const cbtContainer = document.getElementById('eval-cbt-container');
+    const tabs = document.querySelector('.exam-part-tabs');
+    const p1 = document.getElementById('eval-part1-container');
+    const p2 = document.getElementById('eval-part2-container');
+    const p3 = document.getElementById('eval-part3-container');
+    const modeBtnText = document.getElementById('eval-view-mode-text');
+
+    if (this.isCbtMode) {
+      if (cbtContainer) cbtContainer.classList.remove('hidden');
+      if (tabs) tabs.classList.add('hidden');
+      if (p1) p1.classList.add('hidden');
+      if (p2) p2.classList.add('hidden');
+      if (p3) p3.classList.add('hidden');
+      if (modeBtnText) modeBtnText.textContent = "클래식 탭 모드";
+    } else {
+      if (cbtContainer) cbtContainer.classList.add('hidden');
+      if (tabs) tabs.classList.remove('hidden');
+      if (modeBtnText) modeBtnText.textContent = "CBT 1문항 모드";
+      const sharedWs = document.getElementById('eval-shared-workspace');
+      const planGuide = document.getElementById('eval-plan-guide');
+      const p3Container = document.getElementById('eval-part3-container');
+      if (sharedWs && p3Container && !p3Container.contains(sharedWs)) {
+        p3Container.appendChild(sharedWs);
+      }
+      if (planGuide && p3Container && !p3Container.contains(planGuide)) {
+        p3Container.appendChild(planGuide);
+      }
+    }
+  }
+
+  toggleCbtMode() {
+    this.isCbtMode = !this.isCbtMode;
+    this.applyViewMode();
+    if (this.isCbtMode) {
+      if (this.currentPart === 'part1' && this.currentQuestionIndex > 10) this.currentQuestionIndex = 1;
+      else if (this.currentPart === 'part2' && (this.currentQuestionIndex < 11 || this.currentQuestionIndex > 16)) this.currentQuestionIndex = 11;
+      else if (this.currentPart === 'part3') this.currentQuestionIndex = 17;
+      this.goToCbtQuestion(this.currentQuestionIndex || 1);
+    } else {
+      if (this.currentQuestionIndex <= 10) this.switchPart('part1');
+      else if (this.currentQuestionIndex <= 16) this.switchPart('part2');
+      else this.switchPart('part3');
+    }
+    this.saveDraft();
+  }
+
+  goToCbtQuestion(qIndex) {
+    if (!Number.isInteger(qIndex) || qIndex < 1 || qIndex > 17) return;
+    const prevIndex = this.currentQuestionIndex;
+    this.currentQuestionIndex = qIndex;
+
+    if (prevIndex === 17 && qIndex !== 17) {
+      if (window.assessmentWorkspace?.active) {
+        window.assessmentWorkspace.leave();
+      }
+    }
+
+    if (qIndex <= 10) {
+      this.currentPart = 'part1';
+    } else if (qIndex <= 16) {
+      this.currentPart = 'part2';
+    } else {
+      this.currentPart = 'part3';
+      this.visitedPart3 = true;
+      this.answers.part3.visited = true;
+    }
+
+    this.renderCbtSidebar();
+    this.renderCbtQuestion();
+    this.updateCbtFooter();
+    this.updatePartNavigation();
+    this.saveDraft();
+  }
+
+  nextCbtQuestion() {
+    if (this.currentQuestionIndex < 17) {
+      this.goToCbtQuestion(this.currentQuestionIndex + 1);
+    } else if (this.currentQuestionIndex === 17 && this.part3SubStep === 1) {
+      this.switchPart3SubStep(2);
+    } else if (this.currentQuestionIndex === 17 && this.part3SubStep === 2) {
+      this.submitExam(false);
+    }
+  }
+
+  prevCbtQuestion() {
+    if (this.currentQuestionIndex === 17 && this.part3SubStep === 2) {
+      this.switchPart3SubStep(1);
+    } else if (this.currentQuestionIndex > 1) {
+      this.goToCbtQuestion(this.currentQuestionIndex - 1);
+    }
+  }
+
+  switchPart3SubStep(step) {
+    if (step !== 1 && step !== 2) return;
+    this.part3SubStep = step;
+
+    const tab1 = document.getElementById('eval-cbt-step1-tab');
+    const tab2 = document.getElementById('eval-cbt-step2-tab');
+    const view1 = document.getElementById('eval-cbt-step1-view');
+    const view2 = document.getElementById('eval-cbt-step2-view');
+
+    if (step === 1) {
+      if (tab1) { tab1.className = 'px-4 py-2 rounded-xl text-xs font-black bg-indigo-600 text-white transition cursor-pointer flex items-center gap-1.5'; }
+      if (tab2) { tab2.className = 'px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer flex items-center gap-1.5'; }
+      if (view1) view1.classList.remove('hidden');
+      if (view2) view2.classList.add('hidden');
+
+      const host = document.getElementById('eval-cbt-prescription-host');
+      const guide = document.getElementById('eval-plan-guide');
+      if (host && guide && !host.contains(guide)) {
+        host.appendChild(guide);
+      }
+      if (guide) guide.hidden = false;
+      this.renderAssessmentPlan();
+    } else {
+      if (tab1) { tab1.className = 'px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer flex items-center gap-1.5'; }
+      if (tab2) { tab2.className = 'px-4 py-2 rounded-xl text-xs font-black bg-indigo-600 text-white transition cursor-pointer flex items-center gap-1.5'; }
+      if (view1) view1.classList.add('hidden');
+      if (view2) view2.classList.remove('hidden');
+
+      const plan = this.getAssessmentPlan();
+      const summaryEl = document.getElementById('eval-cbt-plan-summary');
+      const safeEsc = typeof escapeHtml === 'function' ? escapeHtml : (str => String(str || ''));
+      if (summaryEl) {
+        summaryEl.innerHTML = `
+          <div><strong class="text-indigo-900">현재 상태:</strong> <span class="font-medium text-slate-800">${safeEsc(plan.current || '(아직 작성하지 않음)')}</span></div>
+          <div><strong class="text-indigo-900">목표 상태:</strong> <span class="font-medium text-slate-800">${safeEsc(plan.goal || '(아직 작성하지 않음)')}</span></div>
+          ${plan.conditions ? `<div><strong class="text-indigo-900">지켜야 할 조건:</strong> <span class="font-medium text-slate-800 whitespace-pre-line">${safeEsc(plan.conditions)}</span></div>` : ''}
+        `;
+      }
+
+      const wsHost = document.getElementById('eval-cbt-workspace-host');
+      const sharedWs = document.getElementById('eval-shared-workspace');
+      if (wsHost && sharedWs && !wsHost.contains(sharedWs)) {
+        wsHost.appendChild(sharedWs);
+      }
+      this.renderAssessmentPlan();
+      if (!window.assessmentWorkspace?.active) {
+        window.assessmentWorkspace?.enter(this);
+      }
+    }
+    this.updateCbtFooter();
+    this.saveDraft();
+  }
+
+  renderCbtSidebar() {
+    const questions = this.currentQuestions();
+    const p1Container = document.getElementById('eval-cbt-palette-part1');
+    const p2Container = document.getElementById('eval-cbt-palette-part2');
+    const p3Container = document.getElementById('eval-cbt-palette-part3');
+    const ratioEl = document.getElementById('eval-cbt-answered-ratio');
+
+    let p1Answered = 0;
+    let p2Answered = 0;
+    let p3Answered = (this.answers.part3.blocks?.length > 1) || this.hasAssessmentPlan();
+
+    // Part 1 (1~10)
+    if (p1Container && questions.part1) {
+      p1Container.innerHTML = questions.part1.map((q, idx) => {
+        const qNum = idx + 1;
+        const isCurrent = (this.currentQuestionIndex === qNum);
+        const answered = Number.isInteger(this.answers.part1[q.id]);
+        if (answered) p1Answered++;
+        const stateClass = isCurrent ? 'cbt-omr-current' : (answered ? 'cbt-omr-answered' : 'cbt-omr-unanswered');
+        return `<button type="button" onclick="window.studentEvalApp.goToCbtQuestion(${qNum})" class="cbt-omr-tile ${stateClass} cursor-pointer" title="${qNum}번 객관식">${qNum}</button>`;
+      }).join('');
+    }
+
+    // Part 2 (11~16)
+    if (p2Container && questions.part2) {
+      p2Container.innerHTML = questions.part2.map((q, idx) => {
+        const qNum = idx + 11;
+        const isCurrent = (this.currentQuestionIndex === qNum);
+        const answered = String(this.answers.part2[q.id] || '').trim().length > 0;
+        if (answered) p2Answered++;
+        const stateClass = isCurrent ? 'cbt-omr-current' : (answered ? 'cbt-omr-answered' : 'cbt-omr-unanswered');
+        return `<button type="button" onclick="window.studentEvalApp.goToCbtQuestion(${qNum})" class="cbt-omr-tile ${stateClass} cursor-pointer" title="${qNum}번 단답형 (${idx + 1}번)">${qNum}</button>`;
+      }).join('');
+    }
+
+    // Part 3 (17)
+    if (p3Container) {
+      const isCurrent = (this.currentQuestionIndex === 17);
+      const stateClass = isCurrent ? 'bg-indigo-600 text-white font-black ring-2 ring-indigo-400' : (p3Answered ? 'bg-slate-700 text-white font-bold' : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 font-bold');
+      p3Container.innerHTML = `
+        <button type="button" onclick="window.studentEvalApp.goToCbtQuestion(17)" class="w-full py-2.5 px-3 rounded-xl text-xs transition flex items-center justify-between cursor-pointer ${stateClass}" title="17번 알고리즘 설계 및 순서도 (40점)">
+          <span>17. 알고리즘 설계</span>
+          <span class="text-[10px] font-mono opacity-80">40점</span>
+        </button>
+      `;
+    }
+
+    const totalAnswered = p1Answered + p2Answered + (p3Answered ? 1 : 0);
+    if (ratioEl) ratioEl.textContent = `${totalAnswered} / 17`;
+  }
+
+  renderCbtQuestion() {
+    const questions = this.currentQuestions();
+    const idx = this.currentQuestionIndex;
+    const canEdit = this.canEditPlan();
+    const safeEsc = typeof escapeHtml === 'function' ? escapeHtml : (str => String(str || ''));
+
+    const partBadge = document.getElementById('eval-cbt-part-badge');
+    const qnumBadge = document.getElementById('eval-cbt-qnum-badge');
+    const pointsBadge = document.getElementById('eval-cbt-points-badge');
+    const promptEl = document.getElementById('eval-cbt-prompt');
+
+    const optionsArea = document.getElementById('eval-cbt-options');
+    const shortArea = document.getElementById('eval-cbt-short-answer');
+    const part3Area = document.getElementById('eval-cbt-part3-area');
+
+    if (idx >= 1 && idx <= 10) {
+      const q = questions.part1 && questions.part1[idx - 1];
+      if (!q) return;
+      if (partBadge) { partBadge.textContent = 'Part 1. 객관식'; partBadge.className = 'text-xs font-black px-3 py-1 bg-indigo-50 text-indigo-700 rounded-xl border border-indigo-100'; }
+      if (qnumBadge) qnumBadge.textContent = `${idx}번 문제`;
+      if (pointsBadge) pointsBadge.textContent = `${q.points || 3}점`;
+      if (promptEl) promptEl.textContent = q.desc;
+
+      if (optionsArea) {
+        optionsArea.classList.remove('hidden');
+        optionsArea.innerHTML = q.options.map((opt, optIdx) => {
+          const isSelected = this.answers.part1[q.id] === optIdx;
+          const numSymbol = ['①', '②', '③', '④', '⑤'][optIdx] || `${optIdx + 1}.`;
+          return `
+            <label class="cbt-option-card flex items-center gap-3.5 p-3.5 sm:p-4 rounded-2xl border ${isSelected ? 'selected border-indigo-600 bg-indigo-50/70' : 'border-slate-200 bg-white hover:bg-slate-50'} cursor-pointer">
+              <input type="radio" name="cbt_${q.id}" value="${optIdx}" ${isSelected ? 'checked' : ''} ${canEdit ? '' : 'disabled'} onchange="window.studentEvalApp.onSelectCbtPart1('${q.id}', ${optIdx})" class="w-4 h-4 text-indigo-600 focus:ring-indigo-500">
+              <span class="text-indigo-700 font-black text-sm select-none">${numSymbol}</span>
+              <span class="text-xs sm:text-sm font-bold text-slate-800 leading-snug">${safeEsc(opt)}</span>
+            </label>
+          `;
+        }).join('');
+      }
+      if (shortArea) shortArea.classList.add('hidden');
+      if (part3Area) part3Area.classList.add('hidden');
+    } else if (idx >= 11 && idx <= 16) {
+      const q = questions.part2 && questions.part2[idx - 11];
+      if (!q) return;
+      if (partBadge) { partBadge.textContent = 'Part 2. 단답형'; partBadge.className = 'text-xs font-black px-3 py-1 bg-amber-50 text-amber-800 rounded-xl border border-amber-200'; }
+      if (qnumBadge) qnumBadge.textContent = `${idx}번 문제 (${idx - 10}번)`;
+      if (pointsBadge) pointsBadge.textContent = `${q.points || 5}점`;
+      if (promptEl) promptEl.textContent = q.desc;
+
+      if (shortArea) {
+        shortArea.classList.remove('hidden');
+        shortArea.innerHTML = `
+          <div class="space-y-3">
+            <div class="p-3.5 bg-amber-50 rounded-2xl border border-amber-200 text-xs text-amber-800 font-bold flex items-center gap-2">
+              <i class="fa-solid fa-pen-clip text-amber-600"></i>
+              <span>알고리즘 핵심 개념이나 제어 구조에 알맞은 답안을 적어주세요.</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <input type="text" id="cbt_inp_${q.id}" value="${safeEsc(this.answers.part2[q.id] || '')}" ${canEdit ? '' : 'disabled'} oninput="window.studentEvalApp.onInputCbtPart2('${q.id}', this.value)" class="flex-1 text-sm sm:text-base px-4 py-3 bg-slate-50 border border-slate-300 rounded-2xl focus:outline-none focus:border-indigo-500 focus:bg-white font-bold text-slate-800 transition shadow-inner" placeholder="${q.placeholder || '답안을 입력하세요'}">
+              <span class="text-xs font-bold text-slate-400 shrink-0">단답형</span>
+            </div>
+          </div>
+        `;
+      }
+      if (optionsArea) optionsArea.classList.add('hidden');
+      if (part3Area) part3Area.classList.add('hidden');
+    } else if (idx === 17) {
+      if (partBadge) { partBadge.textContent = 'Part 3. 알고리즘 설계'; partBadge.className = 'text-xs font-black px-3 py-1 bg-emerald-50 text-emerald-800 rounded-xl border border-emerald-200'; }
+      if (qnumBadge) qnumBadge.textContent = `17번 문제`;
+      if (pointsBadge) pointsBadge.textContent = `40점`;
+      if (promptEl) promptEl.textContent = '문제 상황을 분석하여 나만의 처방전을 작성하고, 순서도를 완성하여 실행 결과를 검증하세요.';
+
+      if (optionsArea) optionsArea.classList.add('hidden');
+      if (shortArea) shortArea.classList.add('hidden');
+      if (part3Area) {
+        part3Area.classList.remove('hidden');
+        const theme = EVAL_QUESTIONS.part3Themes.find(item => item.id === this.answers.part3.selectedThemeId);
+        const sitEl = document.getElementById('eval-cbt-situation');
+        const inpEl = document.getElementById('eval-cbt-input');
+        const reqEl = document.getElementById('eval-cbt-requirement');
+        if (sitEl) sitEl.textContent = theme?.situation || (this.isFreeDesign() ? '우리 주변의 생활 속 문제를 분석하여 알고리즘으로 해결해 보세요.' : '');
+        if (inpEl) inpEl.textContent = theme?.input || (this.isFreeDesign() ? '문제 해결에 필요한 초기 자료 및 조건' : '');
+        if (reqEl) reqEl.textContent = theme?.requirement || (this.isFreeDesign() ? '문제를 해결한 최종 결과 상태' : '');
+        this.switchPart3SubStep(this.part3SubStep || 1);
+      }
+    }
+  }
+
+  updateCbtFooter() {
+    const questions = this.currentQuestions();
+    const idx = this.currentQuestionIndex;
+    const prevBtn = document.getElementById('eval-cbt-prev-btn');
+    const nextBtn = document.getElementById('eval-cbt-next-btn');
+    const nextText = document.getElementById('eval-cbt-next-text');
+    const progressText = document.getElementById('eval-cbt-progress-text');
+
+    let p1Count = questions.part1 ? questions.part1.filter(q => Number.isInteger(this.answers.part1[q.id])).length : 0;
+    let p2Count = questions.part2 ? questions.part2.filter(q => String(this.answers.part2[q.id] || '').trim()).length : 0;
+    let p3Count = ((this.answers.part3.blocks?.length > 1) || this.hasAssessmentPlan()) ? 1 : 0;
+    let totalCount = p1Count + p2Count + p3Count;
+
+    if (progressText) {
+      progressText.textContent = `17문항 중 ${totalCount}문항 응답 완료`;
+    }
+
+    if (prevBtn) {
+      prevBtn.disabled = (idx === 1 && this.part3SubStep === 1);
+    }
+
+    if (nextBtn && nextText) {
+      if (idx < 16) {
+        nextText.textContent = '다음 문항';
+        nextBtn.className = 'px-4 sm:px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs sm:text-sm transition shadow-xs flex items-center gap-1.5 cursor-pointer';
+      } else if (idx === 16) {
+        nextText.textContent = '17번 알고리즘 설계로 이동';
+        nextBtn.className = 'px-4 sm:px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs sm:text-sm transition shadow-xs flex items-center gap-1.5 cursor-pointer';
+      } else if (idx === 17 && this.part3SubStep === 1) {
+        nextText.textContent = '2단계: 순서도 조립하기';
+        nextBtn.className = 'px-4 sm:px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs sm:text-sm transition shadow-xs flex items-center gap-1.5 cursor-pointer';
+      } else if (idx === 17 && this.part3SubStep === 2) {
+        nextText.textContent = '최종 제출 검토';
+        nextBtn.className = 'px-4 sm:px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs sm:text-sm transition shadow-xs flex items-center gap-1.5 cursor-pointer';
+      }
+    }
+  }
+
+  onSelectCbtPart1(qId, val) {
+    this.onSelectPart1(qId, val);
+    this.renderCbtSidebar();
+    this.renderCbtQuestion();
+    this.updateCbtFooter();
+  }
+
+  onInputCbtPart2(qId, val) {
+    this.onInputPart2(qId, val);
+    this.renderCbtSidebar();
+    this.updateCbtFooter();
   }
 
   // ============================================================================
@@ -581,8 +943,8 @@ class StudentEvalApp {
     if(!this.canEditPlan() || !['current','goal','conditions'].includes(field))return;
     this.getAssessmentPlan()[field]=value.slice(0,field==='conditions'?1000:500);this.syncStudentProgress();
   }
-  addAssessmentStep(type='seq') { if(assessmentWorkspace.active&&this.canEditPlan())addNlCard(type); }
-  renderAssessmentSteps() { if(assessmentWorkspace.active)renderNlCards(); }
+  addAssessmentStep(type='seq') { if(window.assessmentWorkspace?.active&&this.canEditPlan())addNlCard(type); }
+  renderAssessmentSteps() { if(window.assessmentWorkspace?.active)renderNlCards(); }
   renderAssessmentPlan() {
     const theme=EVAL_QUESTIONS.part3Themes.find(item=>item.id===this.answers.part3.selectedThemeId);
     for(const [id,text] of [['eval-task-situation',theme?.situation||''],['eval-task-input',theme?.input||''],['eval-task-requirement',theme?.requirement||'']]){
@@ -611,11 +973,11 @@ class StudentEvalApp {
   }
 
   // Compatibility entry points all use the common studio now.
-  addPart3Block(shape) { if(assessmentWorkspace.active&&this.canEditPlan())addCanvasBlock(shape); }
-  handlePart3BlockText(id,text) { if(assessmentWorkspace.active&&this.canEditPlan())handleBlockTextChange(id,text); }
-  renderPart3Canvas() { if(assessmentWorkspace.active)renderFreeCanvas(); }
-  renderPart3Connections() { if(assessmentWorkspace.active)renderFreeConnections(); }
-  verifyPart3Flowchart() { if(assessmentWorkspace.active)assessmentWorkspace.run(); }
+  addPart3Block(shape) { if(window.assessmentWorkspace?.active&&this.canEditPlan())addCanvasBlock(shape); }
+  handlePart3BlockText(id,text) { if(window.assessmentWorkspace?.active&&this.canEditPlan())handleBlockTextChange(id,text); }
+  renderPart3Canvas() { if(window.assessmentWorkspace?.active)renderFreeCanvas(); }
+  renderPart3Connections() { if(window.assessmentWorkspace?.active)renderFreeConnections(); }
+  verifyPart3Flowchart() { if(window.assessmentWorkspace?.active)window.assessmentWorkspace.run(); }
 
   updatePart3ScoreBadge(score) {
     const badge=document.getElementById("eval-part3-score-badge");

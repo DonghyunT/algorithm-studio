@@ -2056,6 +2056,9 @@
             </div>
           </div>
           <div class="flex items-center gap-3">
+            <button type="button" id="eval-view-mode-toggle" onclick="window.studentEvalApp.toggleCbtMode()" class="hidden sm:inline-flex text-[11px] font-bold px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition cursor-pointer items-center gap-1.5" title="CBT 1문항 모드와 기존 3단 탭 모드를 전환합니다.">
+              <i class="fa-solid fa-desktop text-indigo-400"></i> <span id="eval-view-mode-text">CBT 모드</span>
+            </button>
             <div class="flex items-center gap-2 bg-slate-800 px-4 py-1.5 rounded-2xl border border-slate-700 shadow-inner">
               <span class="text-xs text-slate-400 font-bold">남은 시간:</span>
               <span id="eval-exam-timer" class="text-base sm:text-lg font-black font-mono text-amber-300">30:00</span>
@@ -2066,7 +2069,168 @@
           </div>
         </div>
 
-        <!-- 3단 탭 네비게이션 알약 바 -->
+        <!-- ============================================================== -->
+        <!-- 📝 신규 국가수준 CBT 단일 문항 집중형 인터페이스 (V4 기본 및 CBT 모드) -->
+        <!-- ============================================================== -->
+        <div id="eval-cbt-container" class="cbt-container flex flex-col md:flex-row gap-4 hidden">
+          <!-- 좌측 OMR 문항 네비게이션 팔레트 -->
+          <aside id="eval-cbt-sidebar" class="w-full md:w-56 bg-white rounded-3xl border border-slate-200 shadow-xs p-4 flex flex-col justify-between shrink-0">
+            <div class="space-y-4">
+              <!-- 팔레트 헤더 -->
+              <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                <span class="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                  <i class="fa-solid fa-list-check text-indigo-600"></i> <span>문항 목록</span>
+                </span>
+                <span id="eval-cbt-answered-ratio" class="text-xs font-black text-indigo-600 font-mono px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-100">0 / 17</span>
+              </div>
+
+              <!-- Part 1 그룹 (객관식 1~10) -->
+              <div>
+                <div class="text-[11px] font-bold text-slate-500 mb-1.5 flex items-center justify-between">
+                  <span>Part 1. 객관식</span>
+                  <span class="text-[10px] text-slate-400">10문항 (30점)</span>
+                </div>
+                <div id="eval-cbt-palette-part1" class="grid grid-cols-5 gap-1.5"></div>
+              </div>
+
+              <!-- Part 2 그룹 (단답형 11~16) -->
+              <div>
+                <div class="text-[11px] font-bold text-slate-500 mb-1.5 flex items-center justify-between">
+                  <span>Part 2. 단답형</span>
+                  <span class="text-[10px] text-slate-400">6문항 (30점)</span>
+                </div>
+                <div id="eval-cbt-palette-part2" class="grid grid-cols-6 gap-1"></div>
+              </div>
+
+              <!-- Part 3 그룹 (알고리즘 설계 17) -->
+              <div>
+                <div class="text-[11px] font-bold text-slate-500 mb-1.5 flex items-center justify-between">
+                  <span>Part 3. 알고리즘 설계</span>
+                  <span class="text-[10px] text-slate-400">40점</span>
+                </div>
+                <div id="eval-cbt-palette-part3"></div>
+              </div>
+            </div>
+
+            <!-- 하단 OMR 범례 -->
+            <div class="pt-3 border-t border-slate-100 mt-4 text-[11px] text-slate-500 space-y-1.5 bg-slate-50/80 p-2.5 rounded-2xl">
+              <div class="flex items-center gap-2">
+                <span class="w-4 h-4 rounded border border-slate-300 bg-white inline-block shrink-0"></span>
+                <span>안 푼 문항</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="w-4 h-4 rounded bg-indigo-600 inline-block shrink-0"></span>
+                <span class="font-bold text-indigo-700">현재 문항</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="w-4 h-4 rounded bg-slate-700 inline-block shrink-0"></span>
+                <span>푼 문항</span>
+              </div>
+              <div class="text-[10px] text-slate-400 pt-0.5">※ 번호를 눌러 바로 이동할 수 있어요.</div>
+            </div>
+          </aside>
+
+          <!-- 우측 메인 1문항 뷰어 영역 -->
+          <section id="eval-cbt-main" class="flex-1 min-w-0 flex flex-col justify-between bg-white rounded-3xl border border-slate-200 shadow-xs p-5 sm:p-7 min-h-[560px]">
+            <!-- 상단 문항 정보 헤더 -->
+            <div id="eval-cbt-header" class="border-b border-slate-100 pb-4 mb-4">
+              <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2">
+                  <span id="eval-cbt-part-badge" class="text-xs font-black px-3 py-1 bg-indigo-50 text-indigo-700 rounded-xl border border-indigo-100">Part 1. 객관식</span>
+                  <span id="eval-cbt-qnum-badge" class="text-xs font-black px-2.5 py-1 bg-slate-100 text-slate-700 rounded-xl font-mono">1번 문제</span>
+                </div>
+                <span id="eval-cbt-points-badge" class="text-xs font-black text-slate-400 font-mono">3점</span>
+              </div>
+              <h3 id="eval-cbt-prompt" class="text-sm sm:text-base font-bold text-slate-800 leading-relaxed whitespace-pre-line"></h3>
+            </div>
+
+            <!-- 중앙 문제 풀이 바디 (문항 유형에 따라 동적 전환) -->
+            <div id="eval-cbt-body" class="flex-1 flex flex-col justify-center my-2">
+              <!-- Part 1: 객관식 보기 영역 -->
+              <div id="eval-cbt-options" class="space-y-2.5 w-full max-w-2xl mx-auto hidden"></div>
+
+              <!-- Part 2: 단답형 입력 영역 -->
+              <div id="eval-cbt-short-answer" class="space-y-4 w-full max-w-xl mx-auto hidden"></div>
+
+              <!-- Part 3: 알고리즘 설계 2단계 스텝 영역 -->
+              <div id="eval-cbt-part3-area" class="w-full flex-1 flex flex-col hidden">
+                <!-- 17번 상단 1단계/2단계 스위처 탭 -->
+                <div class="flex items-center gap-2 mb-4 border-b border-slate-100 pb-3">
+                  <button type="button" id="eval-cbt-step1-tab" onclick="window.studentEvalApp.switchPart3SubStep(1)" class="px-4 py-2 rounded-xl text-xs font-black bg-indigo-600 text-white transition cursor-pointer flex items-center gap-1.5">
+                    <span>1단계: 문제 분석 및 처방전 (자연어)</span>
+                  </button>
+                  <button type="button" id="eval-cbt-step2-tab" onclick="window.studentEvalApp.switchPart3SubStep(2)" class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer flex items-center gap-1.5">
+                    <span>2단계: 순서도 조립 및 실행 검증</span>
+                  </button>
+                </div>
+
+                <!-- 17번 Step 1: 처방전 작성 뷰 -->
+                <div id="eval-cbt-step1-view" class="space-y-4 flex-1">
+                  <!-- 문제 상황 브리프 (접이식) -->
+                  <details class="eval-task-brief bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs" open>
+                    <summary class="font-bold text-slate-800 cursor-pointer">문제 안내 · 접기/펼치기</summary>
+                    <p id="eval-cbt-situation" class="mt-2 text-slate-700 leading-relaxed font-sans"></p>
+                    <dl class="mt-2 space-y-1">
+                      <dt class="font-bold text-slate-500">주어지는 정보:</dt>
+                      <dd id="eval-cbt-input" class="text-slate-800 ml-2 font-medium"></dd>
+                      <dt class="font-bold text-slate-500">요구되는 결과:</dt>
+                      <dd id="eval-cbt-requirement" class="text-slate-800 ml-2 font-medium"></dd>
+                    </dl>
+                  </details>
+
+                  <!-- 처방전 필드 마운트 컨테이너 -->
+                  <div id="eval-cbt-prescription-host"></div>
+
+                  <!-- 2단계 이동 권유 배너/버튼 -->
+                  <div class="pt-4 flex justify-end">
+                    <button type="button" onclick="window.studentEvalApp.switchPart3SubStep(2)" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs sm:text-sm rounded-2xl transition shadow-md flex items-center gap-2 cursor-pointer">
+                      <span>2단계: 순서도 조립하러 가기</span> <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- 17번 Step 2: 순서도 공방 뷰 -->
+                <div id="eval-cbt-step2-view" class="space-y-3 flex-1 hidden">
+                  <!-- 1단계 처방전 요약 미니 바 -->
+                  <details class="bg-indigo-50/60 p-3.5 rounded-2xl border border-indigo-100 text-xs">
+                    <summary class="font-bold text-indigo-900 cursor-pointer flex items-center justify-between">
+                      <span class="flex items-center gap-1.5"><i class="fa-solid fa-clipboard-check text-indigo-600"></i> <span>1단계 처방전 요약 확인</span></span>
+                      <button type="button" onclick="window.studentEvalApp.switchPart3SubStep(1)" class="text-[11px] text-indigo-600 hover:text-indigo-800 underline font-bold cursor-pointer">1단계 처방전 수정하기</button>
+                    </summary>
+                    <div id="eval-cbt-plan-summary" class="mt-2 text-slate-700 space-y-1.5 text-xs bg-white/70 p-3 rounded-xl border border-indigo-50"></div>
+                  </details>
+
+                  <!-- 순서도 공유 워크스페이스 마운트 지점 -->
+                  <div id="eval-cbt-workspace-host" class="min-h-[440px]"></div>
+
+                  <div class="pt-2 flex justify-between items-center">
+                    <button type="button" onclick="window.studentEvalApp.switchPart3SubStep(1)" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer">
+                      <i class="fa-solid fa-arrow-left"></i> <span>1단계 처방전으로 돌아가기</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 하단 순차 이동 및 진행도 네비게이션 바 -->
+            <div id="eval-cbt-footer" class="border-t border-slate-100 pt-4 mt-4 flex items-center justify-between gap-2">
+              <button type="button" id="eval-cbt-prev-btn" onclick="window.studentEvalApp.prevCbtQuestion()" class="px-4 sm:px-5 py-2.5 rounded-2xl border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-xs sm:text-sm transition flex items-center gap-1.5 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed">
+                <i class="fa-solid fa-chevron-left text-xs"></i> <span>이전 문항</span>
+              </button>
+
+              <div class="text-center">
+                <div id="eval-cbt-progress-text" class="text-xs sm:text-sm font-bold text-slate-700">17문항 중 0문항 응답 완료</div>
+                <div id="eval-cbt-progress-hint" class="text-[10px] text-slate-400">풀지 않은 문항은 언제든 다시 돌아와 풀 수 있어요.</div>
+              </div>
+
+              <button type="button" id="eval-cbt-next-btn" onclick="window.studentEvalApp.nextCbtQuestion()" class="px-4 sm:px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs sm:text-sm transition shadow-xs flex items-center gap-1.5 cursor-pointer">
+                <span id="eval-cbt-next-text">다음 문항</span> <i class="fa-solid fa-chevron-right text-xs"></i>
+              </button>
+            </div>
+          </section>
+        </div>
+
+        <!-- 3단 탭 네비게이션 알약 바 (클래식 모드) -->
         <div class="exam-part-tabs flex items-center gap-2 border-b border-slate-200 pb-3">
           <button type="button" id="eval-tab-btn-part1" onclick="window.studentEvalApp.switchPart('part1')" class="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black bg-indigo-600 text-white shadow-xs transition cursor-pointer flex items-center gap-1.5">
             <span>Part 1. 객관식 10문항 (30점)</span>
