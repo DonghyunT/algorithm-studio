@@ -7,16 +7,14 @@
 | 구분 | 인수인계 기준 |
 |---|---|
 | 현재 운영 브랜치 | main |
-| 인수인계 전달 기준 | 최신 main. 완료된 문서를 통합하고 다음 작업은 최신 main에서 새 브랜치로 시작합니다. |
-| 이번 문서 작업 시작 기준 | b410a63 — AGENTS·V4 방향 main 통합 완료. 미커밋 변경 없음 확인 |
-| 최신 제품 코드 | 7c4f1ec — V4 비공개 서버 문항 배정·채점 기반 |
-| 배포 기록 | c48e232 Firestore 규칙 게시, c73e8c4 Vercel API 반영 |
-| 현재 평가 | 기본 새 회차는 V3. 기존 회차·답안·성적 보존 |
-| V4 | 기반 코드·규칙 배포 완료. 실제 문항·환경 변수·회차 선택 UI·실사용 검증은 준비 전 |
-| 이번 승인 범위 | V3 모의 → V4 실제 평가와 AI 채점 토의 기록, 문서 main 병합·자동 배포 확인 승인. 앱 구현·평가 활성화·모델 변경은 미승인 |
-| 이번 토의 문서 작업 | [PR #3](https://github.com/DonghyunT/algorithm-studio/pull/3)에서 통합 상태 확인. 병합 후 최신 main에서 이어감 |
-| 이전 문서 통합 | [PR #2](https://github.com/DonghyunT/algorithm-studio/pull/2)는 b410a63으로 main 병합 완료 |
-| 최신 운영 의도 | 이번 주 V3 모의, 다음 주 V4 실제 평가 목표. 정확한 날짜·반과 AI 개선 방향은 답변 대기 |
+| 현재 작업 브랜치 | codex/cbt-assessment-layout-plan (KERIS 국가수준 CBT 1문항 집중형 레이아웃 및 디벗 최적화 작업 중) |
+| 인수인계 전달 기준 | 최신 main 및 작업 브랜치 codex/cbt-assessment-layout-plan. 검토 후 main 병합 예정 |
+| 이번 작업 시작 기준 | 84c1f68 (main) → 88e7dbe (CBT 기초 구현) → 39f0b39 (디벗 여백 최적화 및 기본 CBT 모드 적용) |
+| 최신 제품 코드 | 39f0b39 — KERIS 표준 팔레트/단일문항/17번 2단계/디벗 여백 최적화 완료 |
+| 배포 기록 | c48e232 Firestore 규칙 게시, c73e8c4 Vercel API 반영 (운영 기준) |
+| 현재 평가 UI | CBT 단일 문항 모드가 기본값 (`isCbtMode = true`), 우측 상단 '클래식 탭 모드' 토글 지원 |
+| 이번 구현 완료 내용 | 1) KERIS 표준 OMR 팔레트 (#c6c7c8, #0d6efd, #676767), 2) 11~12인치 디벗(1280x800) 스크롤 제로 컴팩트 여백, 3) 17번 문항 2단계(처방전 ↔ 순서도 캔버스) 전환, 4) 54개 테스트 통과 |
+| 최신 운영 의도 | 이번 주 V3 모의, 다음 주 V4 실제 평가 목표. 모의/실제 모두 CBT 인터페이스 적용 검토 |
 
 - 저장소: [DonghyunT/algorithm-studio](https://github.com/DonghyunT/algorithm-studio)
 - 운영 웹: [정보 알고리즘 스튜디오](https://algorithm-studio-ten.vercel.app/)
