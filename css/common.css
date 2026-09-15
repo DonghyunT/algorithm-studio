@@ -225,36 +225,36 @@ html, body {
 
 /* ==========================================
    📝 2026 국가수준 CBT 단일 문항 집중형 평가 인터페이스 (V4)
-   - 갤럭시탭 S8/S9 (WQXGA 16:10 터치 환경) & 24인치 데스크탑 모니터 최적화
+   - 24인치 컴퓨터실 모니터 가독성 & 갤럭시탭 S8/S9 디벗 호환
    ========================================== */
 .cbt-container {
   min-height: calc(100vh - 130px);
 }
 
-/* OMR 번호 버튼 타일 (손가락 터치 타깃 최소 40~44px 확보) */
+/* OMR 번호 버튼 타일 (그리드 셀 비율 맞춤, 겹침 방지) */
 .cbt-omr-tile {
-  width: 38px;
-  height: 38px;
-  min-width: 38px;
-  min-height: 38px;
-  border-radius: 12px;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-width: 42px;
+  max-height: 42px;
+  min-width: 32px;
+  min-height: 32px;
+  margin: 0 auto;
+  border-radius: 10px;
   font-size: 13px;
   font-weight: 700;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, outline 0.15s ease;
   user-select: none;
   box-sizing: border-box;
 }
 
 @media (min-width: 768px) {
   .cbt-omr-tile {
-    width: 42px;
-    height: 42px;
-    min-width: 42px;
-    min-height: 42px;
     font-size: 14px;
+    border-radius: 10px;
   }
 }
 
@@ -269,15 +269,15 @@ html, body {
   color: #000000;
 }
 
-/* 2) 현재 풀고 있는 문항 (KERIS 국가수준 CBT 표준 블루) */
+/* 2) 현재 풀고 있는 문항 (KERIS 국가수준 CBT 표준 블루 - 겹침 없는 외곽선 링 강조) */
 .cbt-omr-current {
   background-color: #0d6efd !important;
   border: 1px solid #0b5ed7 !important;
   color: #ffffff !important;
   font-weight: 900 !important;
-  box-shadow: 0 0 0 3.5px rgba(13, 110, 253, 0.35);
-  transform: scale(1.06);
-  z-index: 2;
+  outline: 2.5px solid #0d6efd !important;
+  outline-offset: 2px !important;
+  z-index: 1;
 }
 
 /* 3) 푼 문항 (KERIS 국가수준 CBT 표준 짙은 회색) */
@@ -303,19 +303,180 @@ html, body {
   font-weight: 600 !important;
 }
 
-/* CBT 객관식 보기 카드 인터랙션 */
+/* CBT 지문 하단 정갈한 시스템 안내 가이드 띠지 */
+.cbt-notice-strip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.85rem;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  line-height: 1.3;
+}
+
+/* CBT 객관식 보기 카드 (컴퓨터 화면 기준 시원하고 쾌적한 클릭 인터랙션) */
 .cbt-option-card {
   transition: all 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
+  border: 1.5px solid #e2e8f0;
+  background-color: #ffffff;
 }
 .cbt-option-card:hover {
-  border-color: #818cf8;
-  background-color: #f8fafc;
-  transform: translateY(-1px);
+  border-color: #6366f1;
+  background-color: #f8faff;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.08);
 }
 .cbt-option-card.selected {
-  border-color: #0d6efd;
-  background-color: #f0f7ff;
-  box-shadow: 0 0 0 1.5px #0d6efd;
+  border-color: #2563eb !important;
+  background-color: #eff6ff !important;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2), 0 2px 8px rgba(37, 99, 235, 0.12) !important;
+}
+
+/* Part 3 알고리즘 설계 데스크탑 2열 분할 레이아웃 & 스크롤 제로 */
+.cbt-part3-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+@media (min-width: 1024px) {
+  .cbt-part3-grid {
+    grid-template-columns: minmax(320px, 4fr) minmax(420px, 6fr);
+    gap: 1.25rem;
+    align-items: start;
+  }
+}
+
+/* CBT 17번 Step 1: 처방전 카드 전용 모던 스타일 (세로 압축 & 스크롤 제로) */
+#eval-cbt-prescription-host #eval-plan-guide {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 1.5rem;
+  padding: 1.1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+#eval-cbt-prescription-host #eval-plan-guide details > summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 900;
+  color: #1e293b;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 0.6rem;
+  margin-bottom: 0.6rem;
+  cursor: default;
+}
+#eval-cbt-prescription-host #eval-plan-guide details > summary::-webkit-details-marker {
+  display: none;
+}
+#eval-cbt-prescription-host .eval-prescription-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 0;
+}
+#eval-cbt-prescription-host label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #334155;
+  margin-bottom: 0.2rem;
+}
+#eval-cbt-prescription-host textarea {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #0f172a;
+  background-color: #f8fafc;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 0.65rem;
+  transition: all 0.15s ease;
+  resize: vertical;
+  line-height: 1.35;
+}
+#eval-cbt-prescription-host textarea:focus {
+  outline: none;
+  background-color: #ffffff;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+#eval-cbt-prescription-host #eval-plan-current,
+#eval-cbt-prescription-host #eval-plan-goal {
+  min-height: 44px;
+  height: 44px;
+}
+#eval-cbt-prescription-host #eval-plan-conditions {
+  min-height: 56px;
+  height: 56px;
+}
+#eval-cbt-prescription-host #eval-condition-editor {
+  background-color: #f8faff;
+  border: 1px solid #dbeafe;
+  border-radius: 0.85rem;
+  padding: 0.75rem;
+}
+#eval-cbt-prescription-host #eval-suggest-conditions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #1d4ed8;
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+#eval-cbt-prescription-host #eval-suggest-conditions:hover {
+  background-color: #dbeafe;
+  border-color: #93c5fd;
+}
+#eval-cbt-prescription-host #eval-condition-candidates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+}
+#eval-cbt-prescription-host .eval-support-text {
+  font-size: 0.68rem;
+  color: #64748b;
+  line-height: 1.25;
+  margin-top: 0.15rem;
+}
+
+/* 조건 아이디어 추천 칩 버튼 */
+.cbt-condition-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #1e40af;
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+.cbt-condition-chip:hover {
+  background-color: #dbeafe;
+  border-color: #93c5fd;
+  transform: translateY(-1px);
+}
+.cbt-condition-chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
 }
 
 /* 11~12인치 갤럭시탭 S8/S9 (16:10 WQXGA / FHD+) 디벗 여백 및 가시성 최적화 */
@@ -359,19 +520,64 @@ body.assessment-active #global-header .site-header-inner {
     margin-top: 0.5rem !important;
   }
   .cbt-option-card {
-    padding: 0.5rem 0.875rem !important;
+    padding: 0.65rem 1rem !important;
   }
   #eval-cbt-sidebar {
     padding: 0.75rem !important;
   }
   .cbt-omr-tile {
-    width: 36px !important;
-    height: 36px !important;
-    min-width: 36px !important;
-    min-height: 36px !important;
     font-size: 13px !important;
+    border-radius: 8px !important;
   }
 }
 
+/* ==========================================
+   🖥️ 데스크탑 모니터 기준 CBT 카드 섬 높이 및 버튼 위치 고정
+   ========================================== */
+@media (min-width: 768px) {
+  #eval-cbt-main {
+    height: calc(100vh - 150px) !important;
+    min-height: 600px !important;
+    max-height: 860px !important;
+  }
+}
 
+/* ==========================================
+   📐 OMR 사이드바 접기/펼치기 (Collapse/Expand)
+   ========================================== */
+.cbt-sidebar-collapsed #eval-cbt-sidebar {
+  display: none !important;
+}
+.cbt-sidebar-collapsed #eval-cbt-sidebar-expand-btn {
+  display: inline-flex !important;
+}
 
+/* ==========================================
+   📋 지문 내 독립 조건/규칙 카드 상자 (Condition Box)
+   ========================================== */
+.cbt-condition-box {
+  background-color: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 1rem;
+  padding: 0.85rem 1.15rem;
+  margin: 0.6rem 0;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #1e293b;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+.cbt-condition-box .cbt-condition-title {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.4rem;
+  letter-spacing: 0.025em;
+}
+.cbt-condition-box .cbt-condition-content {
+  white-space: pre-line;
+  font-weight: 700;
+  color: #0f172a;
+}

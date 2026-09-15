@@ -208,8 +208,8 @@ const EVAL_QUESTIONS = {
 // Keep historical answers on their original rubric; new rounds use version 2.
 const EVAL_LEGACY_QUESTIONS = JSON.parse(JSON.stringify(EVAL_QUESTIONS));
 EVAL_QUESTIONS.part1.forEach((q,i)=>{q.title=(i+1)+'번 문제';q.options=q.options.map(text=>text.replace(/\s*\([A-Za-z ]+\)/g,''));});
-EVAL_QUESTIONS.part2[4]={id:'p2_q5_v2',title:'5번 문제',desc:'기온이 30℃ 이상이면 선풍기를 켜고, 그렇지 않으면 끕니다. 기온이 30℃일 때의 동작을 써 보세요.',placeholder:'켜기 또는 끄기',answers:['켜기','켠다','선풍기 켜기','선풍기를 켠다'],points:5};
-EVAL_QUESTIONS.part2[5]={id:'p2_q6_v2',title:'6번 문제',desc:'씻지 않은 컵이 3개 있습니다. 컵 하나 씻기를 씻지 않은 컵이 없을 때까지 반복하면, 컵 씻기는 총 몇 번 실행되나요?',placeholder:'횟수를 적어 주세요',answers:['3','3번','3회','세 번','세번'],points:5};
+EVAL_QUESTIONS.part2[4]={id:'p2_q5_v2',title:'5번 문제',desc:'기온이 30℃ 이상이면 선풍기를 켜고, 그렇지 않으면 끕니다.\n\n기온이 30℃일 때의 동작을 써 보세요.',placeholder:'켜기 또는 끄기',answers:['켜기','켠다','선풍기 켜기','선풍기를 켠다'],points:5};
+EVAL_QUESTIONS.part2[5]={id:'p2_q6_v2',title:'6번 문제',desc:'씻지 않은 컵이 3개 있습니다.\n\n컵 하나 씻기를 씻지 않은 컵이 없을 때까지 반복하면, 컵 씻기는 총 몇 번 실행되나요?',placeholder:'횟수를 적어 주세요',answers:['3','3번','3회','세 번','세번'],points:5};
 function createSeededRandom(seedStr) {
   let h = 2166136261 >>> 0;
   const str = String(seedStr || 'default_seed');
