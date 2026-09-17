@@ -13,8 +13,8 @@ function validateFlowGraph(blocks = [], connections = []) {
     nodes.set(block.id, block);
     if (typeof block.text !== 'string' || !block.text.trim() || block.text.trim() === '내용 입력') add(block.id, '이 기호의 내용이 비어 있습니다.');
   }
-  const starts = blocks.filter(b => b?.shape === 'terminal' && typeof b.text === 'string' && /^시작$/.test(b.text.trim()));
-  const ends = blocks.filter(b => b?.shape === 'terminal' && typeof b.text === 'string' && /^(종료|끝)$/.test(b.text.trim()));
+  const starts = blocks.filter(b => b?.shape === 'terminal' && typeof b.text === 'string' && /^(?:시작|출발)/.test(b.text.trim().replace(/[!?.~]/g, '')));
+  const ends = blocks.filter(b => b?.shape === 'terminal' && typeof b.text === 'string' && /^(?:종료|끝|마침|도착)/.test(b.text.trim().replace(/[!?.~]/g, '')));
   if (starts.length !== 1) add(null, '시작 기호를 하나 지정해 주세요.');
   if (!ends.length) add(null, '종료 기호를 확인해 주세요.');
   const out = new Map(), incoming = new Map();
@@ -38,7 +38,16 @@ function validateFlowGraph(blocks = [], connections = []) {
     for (const id of nodes.keys()) if (!visited.has(id)) add(id, '시작에서 이 기호까지 연결되지 않았습니다.');
     const canEnd = new Set(), back = ends.map(b=>b.id);
     while (back.length) { const id = back.pop(); if (canEnd.has(id)) continue; canEnd.add(id); (incoming.get(id)||[]).forEach(e=>back.push(e.from)); }
-    for (const id of visited) if (!canEnd.has(id)) add(id, '이 단계에서 종료로 이어지는 길이 없습니다.');
+    for (const id of visited) {
+      if (!canEnd.has(id)) {
+        const block = nodes.get(id);
+        if (block?.shape === 'decision') {
+          add(id, `판단 기호('${block.text || id}')의 '예' 또는 '아니오' 분기 중 하나가 종료로 이어지지 않습니다.`);
+        } else {
+          add(id, `'${block?.text || id}' 단계에서 종료로 이어지는 길이 없습니다.`);
+        }
+      }
+    }
   }
   return { valid: issues.length === 0, issues, nodes, out, startId: starts[0]?.id };
 }

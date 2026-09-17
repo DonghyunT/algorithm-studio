@@ -544,6 +544,49 @@ test('CBT round 4: short-answer inputs include Enter key navigation handler and 
   assert.ok(shortArea.innerHTML.includes('window.studentEvalApp.nextCbtQuestion()'), 'Enter 키 입력 시 다음 문항 이동 함수가 호출되어야 함');
 });
 
+test('CBT round 5: 17-2 step summary accordion is open by default', () => {
+  const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+  assert.ok(html.includes('<details open class="bg-indigo-50/60'), 'index.html에 1단계 계획 요약 details 태그가 open 기본 속성을 가지고 있어야 함');
+});
+
+test('CBT round 5: flow-validation accepts flexible terminal names and gives detailed decision branch issue messages', () => {
+  const { validateFlowGraph } = require('../js/core/flow-validation.js');
+
+  // 1. 유연한 시작/종료 단말 기호 허용 테스트 (종료하기, 끝!, 마침, 도착)
+  const blocks = [
+    { id: 's', shape: 'terminal', text: '시작!' },
+    { id: 'p', shape: 'process', text: '창문 닫기' },
+    { id: 'e', shape: 'terminal', text: '종료하기' }
+  ];
+  const connections = [
+    { from: 's', to: 'p', fromPort: 'out', toPort: 'in' },
+    { from: 'p', to: 'e', fromPort: 'out', toPort: 'in' }
+  ];
+  const res = validateFlowGraph(blocks, connections);
+  assert.equal(res.valid, true, '종료하기/시작! 도 정상 단말 기호로 인식되어 검증 통과해야 함');
+
+  // 2. 판단 기호 한쪽 분기 누락 시 구체적인 메시지 제공 테스트
+  const decBlocks = [
+    { id: 's', shape: 'terminal', text: '시작' },
+    { id: 'd', shape: 'decision', text: '기온 > 28' },
+    { id: 'p_yes', shape: 'process', text: '창문 열기' },
+    { id: 'p_no', shape: 'process', text: '창문 닫기' },
+    { id: 'e', shape: 'terminal', text: '종료' }
+  ];
+  // No 분기가 종료에 닿지 않고 끊긴 경우
+  const decConns = [
+    { from: 's', to: 'd', fromPort: 'out', toPort: 'in' },
+    { from: 'd', to: 'p_yes', fromPort: 'yes', toPort: 'in' },
+    { from: 'p_yes', to: 'e', fromPort: 'out', toPort: 'in' },
+    { from: 'd', to: 'p_no', fromPort: 'no', toPort: 'in' } // p_no to e 누락
+  ];
+  const decRes = validateFlowGraph(decBlocks, decConns);
+  assert.equal(decRes.valid, false);
+  const hasSpecificMsg = decRes.issues.some(i => i.message.includes('창문 닫기') && i.message.includes('종료로 이어지는 길이 없습니다'));
+  assert.ok(hasSpecificMsg, '문제가 발생한 구체적인 블록 이름(창문 닫기)이 메시지에 포함되어야 함');
+});
+
+
 
 
 
