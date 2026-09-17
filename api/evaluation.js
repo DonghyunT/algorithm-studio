@@ -30,7 +30,7 @@ module.exports = async (req, res) => {
   const fail = (status, error) => res.status(status).json({ error });
   if (req.method !== 'POST') return fail(405, 'POST 요청만 사용할 수 있습니다.');
   const body = req.body || {};
-  if (!['questions', 'grade', 'review'].includes(body.action) || !validTarget(body) || JSON.stringify(body).length > 1000) return fail(400, '요청 내용을 확인해 주세요.');
+  if (!['questions', 'student-score', 'grade', 'review'].includes(body.action) || !validTarget(body) || JSON.stringify(body).length > 1000) return fail(400, '요청 내용을 확인해 주세요.');
   const token = (req.headers.authorization || '').match(/^Bearer (.+)$/)?.[1];
   const project = process.env.FIREBASE_PROJECT_ID || 'donghyun-algo';
   let claims;
@@ -64,6 +64,26 @@ module.exports = async (req, res) => {
     } catch (error) {
       if (error.message === 'round') return fail(409, '현재 실전평가 회차가 아니거나 회차 정보가 바뀌었습니다. 새로고침한 뒤 다시 확인해 주세요.');
       return fail(403, '평가 문항을 확인할 권한이 없거나 평가가 아직 시작되지 않았습니다.');
+    }
+  }
+
+  if (body.action === 'student-score') {
+    if (claims.firebase?.sign_in_provider !== 'anonymous') return fail(403, '학생 평가 로그인으로만 점수를 확인할 수 있습니다.');
+    try {
+      const { session, student } = await readSessionAndStudent();
+      if (student.ownerUid !== claims.sub) return fail(403, '본인의 평가 점수만 확인할 수 있습니다.');
+      if (student.status !== 'submitted') return res.status(200).json({ ready: false, status: 'pending' });
+      const assignment = assignQuestions(bank, process.env.EVAL_ASSIGNMENT_SECRET, scopeFor(session, body.classId, body.studentNum));
+      const score = gradeAssignment(assignment, student.answers);
+      return res.status(200).json({
+        ready: true,
+        status: 'ready',
+        score: { part1: score.part1, part2: score.part2, objectiveTotal: score.objectiveTotal },
+        rubricVersion: 'v4-server-objective'
+      });
+    } catch (error) {
+      if (error.message === 'round') return fail(409, '현재 실전평가 회차가 아니거나 회차 정보가 바뀌었습니다. 새로고침한 뒤 다시 확인해 주세요.');
+      return fail(403, '학생 점수를 확인할 권한이 없거나 제출 상태를 확인할 수 없습니다.');
     }
   }
 

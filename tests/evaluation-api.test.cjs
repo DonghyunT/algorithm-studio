@@ -61,6 +61,33 @@ test('V4 rejects another student identity before returning question content', as
   assert.equal(result.body.questions, undefined);
 });
 
+test('V4 returns only the submitting student\'s server objective score', async () => {
+  const h = harness();
+  const assigned = bank.assignQuestions(bank.parseEvaluationBank(bankJson()), 's'.repeat(32), 'round-4:2-1:01');
+  assigned.part1.forEach(question => { h.documents.student.answers.part1[question.id] = question.correctAnswer; });
+  assigned.part2.forEach(question => { h.documents.student.answers.part2[question.id] = question.answers[0]; });
+  const result = await h.request({ action: 'student-score', classId: '2-1', studentNum: '01' }, 'student');
+  assert.equal(result.status, 200);
+  assert.equal(result.body.score.part1, 30);
+  assert.equal(result.body.score.part2, 30);
+  assert.equal(result.body.score.objectiveTotal, 60);
+  assert.equal(result.body.ready, true);
+  assert.equal(result.body.review, undefined);
+  assert.ok(!JSON.stringify(result.body).includes('correctAnswer'));
+  assert.ok(!JSON.stringify(result.body).includes('teacherNote'));
+  assert.ok(!JSON.stringify(result.body).includes('answers'));
+});
+
+test('V4 keeps the student score pending before submission and rejects another owner', async () => {
+  const pending = await harness({ studentStatus: 'in_progress' }).request({ action: 'student-score', classId: '2-1', studentNum: '01' }, 'student');
+  assert.equal(pending.status, 200);
+  assert.equal(pending.body.ready, false);
+  assert.equal(pending.body.status, 'pending');
+  const denied = await harness({ studentOwner: 'someone-else' }).request({ action: 'student-score', classId: '2-1', studentNum: '01' }, 'student');
+  assert.equal(denied.status, 403);
+  assert.equal(denied.body.score, undefined);
+});
+
 test('V4 accepts numeric or unpadded studentNum (e.g., 1 or "1") and normalizes to "01"', async () => {
   // Test numeric 1
   const resultNum = await harness({ studentStatus: 'in_progress' }).request({ action: 'questions', classId: '2-1', studentNum: 1 }, 'student');

@@ -16,6 +16,10 @@ class StudentEvalApp {
     this.secureQuestions = null;
     this.secureQuestionAttemptId = null;
     this.startingExam = false;
+    this.serverScoreState = { status: 'idle', score: null };
+    this.serverScorePollTimer = null;
+    this.serverScoreRequest = null;
+    this.serverScoreRequestKey = null;
 
     // 답안 보관함
     this.answers = {
@@ -294,12 +298,14 @@ class StudentEvalApp {
           this.calculateScores();
           this.showScreen('result');
           this.renderResult();
+          this.startServerScorePolling();
           alert("🔔 선생님께서 시험을 마감하여 현재 작성 답안으로 정상 제출되었습니다.");
           return;
         }
         if(this.isSubmitted&&stData?.status==='submitted'){
           this.calculateScores();
           if(!document.getElementById('eval-screen-result').classList.contains('hidden'))this.renderResult();
+          this.startServerScorePolling();
         }
         if (stData?.resetAt && stData.resetAt !== this.lastResetAt) {
           this.lastResetAt=stData.resetAt;
@@ -314,6 +320,7 @@ class StudentEvalApp {
           this.answers.part3.isVerified = false;
           delete this.answers.part3.plan;
           this.scores = { part1: 0, part2: 0, part3: 0, total: 0, teacherOverride: null };
+          this.resetServerScoreState();
 
           this.isSubmitting=false;
           if (this.latestSession?.status === 'in_progress') this.startExam(this.latestSession);
@@ -322,7 +329,7 @@ class StudentEvalApp {
         }
       });
     }
-    if(this.isSubmitted) { this.calculateScores(); this.renderResult(); }
+    if(this.isSubmitted) { this.calculateScores(); this.renderResult(); this.startServerScorePolling(); }
   }
 
   // 2-1. 대기실 나가기 (번호·이름 오입력 수정용)
@@ -1375,6 +1382,159 @@ class StudentEvalApp {
     const result=gradeEvaluation(this.answers,version); result.scores=applyConfirmedAssessmentReview(result.scores,this.latestStudent);this.scores=result.scores; return result;
   }
 
+  isSecureServerScore() {
+    return (this.latestSession?.questionVersion || this.answers?.part3?.questionVersion) === 4;
+  }
+
+  stopServerScorePolling() {
+    clearTimeout(this.serverScorePollTimer);
+    this.serverScorePollTimer = null;
+    this.serverScoreRequest = null;
+    this.serverScoreRequestKey = null;
+  }
+
+  resetServerScoreState() {
+    this.stopServerScorePolling();
+    this.serverScoreState = { status: 'idle', score: null };
+  }
+
+  startServerScorePolling(force = false) {
+    if (!this.isSubmitted || !this.isSecureServerScore() || !this.currentClass || !this.studentNum) return;
+    const key = `${this.currentClass}:${this.studentNum}:${this.attemptId || ''}`;
+    if (force || this.serverScoreRequestKey !== key) {
+      this.stopServerScorePolling();
+      this.serverScoreRequestKey = key;
+      this.serverScoreState = { status: 'loading', score: null };
+    }
+    if (this.serverScoreRequest || this.serverScorePollTimer || this.serverScoreState.status === 'ready') {
+      this.renderServerScoreReveal();
+      return;
+    }
+    this.serverScoreState = { status: 'loading', score: null };
+    this.renderServerScoreReveal();
+    this.pollServerScore(key);
+  }
+
+  async pollServerScore(key) {
+    if (this.serverScoreRequest || key !== this.serverScoreRequestKey) return;
+    this.serverScoreRequest = requestSecureEvaluationStudentScore(this.currentClass, this.studentNum)
+      .then(result => {
+        if (!this.isSubmitted || key !== this.serverScoreRequestKey) return;
+        if (result?.ready && result.score && Number.isFinite(Number(result.score.objectiveTotal))) {
+          this.serverScoreState = {
+            status: 'ready',
+            score: {
+              part1: Number(result.score.part1) || 0,
+              part2: Number(result.score.part2) || 0,
+              objectiveTotal: Number(result.score.objectiveTotal) || 0
+            }
+          };
+          this.renderResult();
+          return;
+        }
+        this.serverScoreState = { status: 'pending', score: null };
+        this.renderServerScoreReveal();
+        this.serverScorePollTimer = setTimeout(() => this.pollServerScore(key), 2500);
+      })
+      .catch(error => {
+        if (!this.isSubmitted || key !== this.serverScoreRequestKey) return;
+        this.serverScoreState = { status: 'error', score: null };
+        this.renderServerScoreReveal();
+        console.warn('서버 점수 확인 실패', error);
+      })
+      .finally(() => {
+        if (key === this.serverScoreRequestKey) this.serverScoreRequest = null;
+      });
+  }
+
+  bindScoreRevealButton() {
+    const button = document.getElementById('eval-result-score-reveal-button');
+    const panel = document.getElementById('eval-result-score-reveal-panel');
+    if (!button || !panel || button._scoreRevealBound || typeof button.addEventListener !== 'function') return;
+    const hide = () => {
+      panel.hidden = true;
+      panel.textContent = '';
+      button.setAttribute('aria-pressed', 'false');
+    };
+    const show = () => {
+      const score = this.serverScoreState.score;
+      if (this.serverScoreState.status !== 'ready' || !score) return;
+      panel.textContent = `객관·단답 자동채점 참고 점수: ${score.objectiveTotal} / 60점 (객관식 ${score.part1}/30점 · 단답형 ${score.part2}/30점)`;
+      panel.hidden = false;
+      button.setAttribute('aria-pressed', 'true');
+    };
+    button.addEventListener('pointerdown', event => {
+      if (button.disabled || this.serverScoreState.status !== 'ready') return;
+      event.preventDefault();
+      button.setPointerCapture?.(event.pointerId);
+      show();
+    });
+    button.addEventListener('pointerup', event => {
+      hide();
+      if (button.hasPointerCapture?.(event.pointerId)) button.releasePointerCapture(event.pointerId);
+    });
+    button.addEventListener('pointercancel', hide);
+    button.addEventListener('lostpointercapture', hide);
+    button.addEventListener('pointerleave', hide);
+    button.addEventListener('blur', hide);
+    button.addEventListener('keydown', event => {
+      if ((event.key === 'Enter' || event.key === ' ') && !event.repeat) {
+        event.preventDefault();
+        show();
+      }
+    });
+    button.addEventListener('keyup', event => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        hide();
+      }
+    });
+    button.addEventListener('click', () => {
+      if (this.serverScoreState.status === 'error') this.startServerScorePolling(true);
+    });
+    button._scoreRevealBound = true;
+  }
+
+  renderServerScoreReveal() {
+    const box = document.getElementById('eval-result-score-reveal');
+    const button = document.getElementById('eval-result-score-reveal-button');
+    const label = document.getElementById('eval-result-score-reveal-label');
+    const status = document.getElementById('eval-result-score-reveal-status');
+    const panel = document.getElementById('eval-result-score-reveal-panel');
+    if (!box || !button || !label || !status || !panel) return;
+    this.bindScoreRevealButton();
+    if (!this.isSubmitted || !this.isSecureServerScore()) {
+      box.hidden = true;
+      button.disabled = true;
+      panel.hidden = true;
+      button.setAttribute('aria-pressed', 'false');
+      return;
+    }
+    box.hidden = false;
+    const state = this.serverScoreState.status;
+    if (state === 'ready' && this.serverScoreState.score) {
+      button.disabled = false;
+      label.textContent = '점수 보기';
+      status.textContent = '버튼을 누르는 동안만 점수가 표시됩니다.';
+      panel.hidden = true;
+      panel.textContent = '';
+      button.setAttribute('aria-label', '점수 보기. 누르는 동안만 표시됩니다.');
+      return;
+    }
+    panel.hidden = true;
+    panel.textContent = '';
+    button.setAttribute('aria-pressed', 'false');
+    if (state === 'error') {
+      button.disabled = false;
+      label.textContent = '점수 다시 확인';
+      status.textContent = '점수를 확인하지 못했습니다. 버튼을 눌러 다시 시도해 주세요.';
+      return;
+    }
+    button.disabled = true;
+    label.textContent = '점수 준비 중';
+    status.textContent = '서버 채점 결과를 확인하고 있습니다.';
+  }
+
   // 5. 최종 제출 처리
   async submitExam(isAuto = false) {
     if (this.isSubmitted || this.isSubmitting) return;
@@ -1416,6 +1576,7 @@ class StudentEvalApp {
     this.saveDraft();
 
     this.renderResult();
+    this.startServerScorePolling();
   }
 
   renderResult() {
@@ -1425,18 +1586,19 @@ class StudentEvalApp {
     this.showScreen('result');
     const scoreTotalEl = document.getElementById('eval-result-total-score');
     const scoreBreakdownEl = document.getElementById('eval-result-breakdown');
-    if (scoreTotalEl) scoreTotalEl.textContent = this.scores.serverGraded?'교사 서버 채점 대기':this.scores.pendingReview?`${this.scores.objectiveTotal} / 60점`:`${this.scores.total}점`;
-    document.querySelector('.eval-review-status').textContent=this.scores.serverGraded?'Part 1·2는 교사 서버 채점 후, Part 3은 교사 검토 후 확인됩니다.':this.scores.pendingReview?'Part 1·2 참고 점수 · Part 3 교사 채점 대기':this.isFreeDesign()?'교사 검토 완료':'교사 검토 전';
+    const serverScoreReady = this.scores.serverGraded && this.serverScoreState.status === 'ready';
+    if (scoreTotalEl) scoreTotalEl.textContent = this.scores.serverGraded?(serverScoreReady?'점수 보기':'교사 서버 채점 대기'):this.scores.pendingReview?`${this.scores.objectiveTotal} / 60점`:`${this.scores.total}점`;
+    document.querySelector('.eval-review-status').textContent=this.scores.serverGraded?(serverScoreReady?'Part 1·2 서버 채점 완료 · 점수는 버튼을 누르는 동안만 표시됩니다. Part 3은 교사 검토 후 확인됩니다.':'Part 1·2는 교사 서버 채점 후, Part 3은 교사 검토 후 확인됩니다.'):this.scores.pendingReview?'Part 1·2 참고 점수 · Part 3 교사 채점 대기':this.isFreeDesign()?'교사 검토 완료':'교사 검토 전';
     if (scoreBreakdownEl) {
       scoreBreakdownEl.innerHTML = `
         <div class="grid grid-cols-3 gap-3 text-center">
           <div class="p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
             <div class="text-xs font-bold text-indigo-700">Part 1. 객관식 (10문항)</div>
-            <div class="text-xl font-black text-indigo-900 mt-1">${this.scores.serverGraded?'채점 대기':this.scores.part1+' / 30점'}</div>
+            <div class="text-xl font-black text-indigo-900 mt-1">${this.scores.serverGraded?(serverScoreReady?'점수 보기':'채점 대기'):this.scores.part1+' / 30점'}</div>
           </div>
           <div class="p-4 bg-amber-50 rounded-2xl border border-amber-100">
             <div class="text-xs font-bold text-amber-800">Part 2. 단답형 (6문항)</div>
-            <div class="text-xl font-black text-amber-900 mt-1">${this.scores.serverGraded?'채점 대기':this.scores.part2+' / 30점'}</div>
+            <div class="text-xl font-black text-amber-900 mt-1">${this.scores.serverGraded?(serverScoreReady?'점수 보기':'채점 대기'):this.scores.part2+' / 30점'}</div>
           </div>
           <div class="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
             <div class="text-xs font-bold text-emerald-800">Part 3. 순서도 조립</div>
@@ -1445,10 +1607,12 @@ class StudentEvalApp {
         </div>
       `;
     }
+    this.renderServerScoreReveal();
   }
 
   // 시험장 나가기 (로드맵으로 복귀)
   exitExam() {
+    this.resetServerScoreState();
     this.saveDraft();
     if (typeof switchUnit === 'function') {
       switchUnit('roadmap');

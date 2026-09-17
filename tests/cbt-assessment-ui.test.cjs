@@ -18,6 +18,9 @@ function createAssessmentContext() {
           contains(c) { return this.classes.has(c); }
         },
         children: [],
+        listeners: {},
+        addEventListener(name, handler) { (this.listeners[name] ||= []).push(handler); },
+        dispatchEvent(event) { for (const handler of this.listeners[event.type] || []) handler.call(this, event); },
         replaceChildren(...ch) { this.children = ch; this.innerHTML = ''; },
         appendChild(child) { this.children.push(child); return child; },
         contains(child) { return this.children.includes(child); },
@@ -115,6 +118,48 @@ test('CBT layout: initializes with default index 1, subStep 1, and isCbtMode tru
   assert.equal(app.currentQuestionIndex, 1);
   assert.equal(app.part3SubStep, 1);
   assert.equal(app.isCbtMode, true);
+});
+
+test('V4 result: server score is fetched for the student and revealed only while the button is held', async () => {
+  const ctx = createAssessmentContext();
+  const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+  assert.ok(html.includes('id="eval-result-score-reveal-button"'), '결과 화면에 점수 보기 버튼이 있어야 함');
+  assert.ok(html.includes('누르는 동안만 표시됩니다.'), '점수 공개 방식이 결과 화면에 안내되어야 함');
+  const StudentEvalApp = ctx.window.studentEvalApp.constructor;
+  const app = new StudentEvalApp();
+  ctx.window.studentEvalApp = app;
+  app.currentClass = '2-1';
+  app.studentNum = 1;
+  app.attemptId = 'round-4';
+  app.isSubmitted = true;
+  app.answers.part3.questionVersion = 4;
+  app.scores = { part1: null, part2: null, part3: null, objectiveTotal: null, total: null, pendingReview: true, serverGraded: true };
+  ctx.requestSecureEvaluationStudentScore = async () => ({ ready: true, status: 'ready', score: { part1: 3, part2: 5, objectiveTotal: 8 } });
+
+  app.renderResult();
+  app.startServerScorePolling();
+  await new Promise(resolve => setTimeout(resolve, 0));
+
+  const button = ctx.document.getElementById('eval-result-score-reveal-button');
+  const panel = ctx.document.getElementById('eval-result-score-reveal-panel');
+  assert.equal(app.serverScoreState.status, 'ready');
+  assert.equal(button.disabled, false);
+  assert.equal(ctx.document.getElementById('eval-result-total-score').textContent, '점수 보기');
+  assert.equal(panel.hidden, true);
+  assert.equal(panel.textContent, '');
+
+  button.dispatchEvent({ type: 'pointerdown', pointerId: 1, preventDefault() {} });
+  assert.equal(panel.hidden, false);
+  assert.ok(panel.textContent.includes('8 / 60점'));
+  button.dispatchEvent({ type: 'pointerup', pointerId: 1 });
+  assert.equal(panel.hidden, true);
+  assert.equal(panel.textContent, '');
+
+  button.dispatchEvent({ type: 'keydown', key: 'Enter', repeat: false, preventDefault() {} });
+  assert.equal(panel.hidden, false);
+  button.dispatchEvent({ type: 'keyup', key: 'Enter', preventDefault() {} });
+  assert.equal(panel.hidden, true);
+  assert.equal(panel.textContent, '');
 });
 
 test('CBT layout: draft preserves currentQuestionIndex, part3SubStep, and isCbtMode', () => {

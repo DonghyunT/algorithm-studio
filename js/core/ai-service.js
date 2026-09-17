@@ -102,6 +102,11 @@ async function requestSecureEvaluationGrade(classId, studentNum) {
   return requestSecureEvaluation('grade', {classId, studentNum: numStr}, true);
 }
 
+async function requestSecureEvaluationStudentScore(classId, studentNum) {
+  const numStr = String(Number(studentNum)).padStart(2, '0');
+  return requestSecureEvaluation('student-score', {classId, studentNum: numStr});
+}
+
 async function requestSecureEvaluationReview(classId, studentNum) {
   const numStr = String(Number(studentNum)).padStart(2, '0');
   return requestSecureEvaluation('review', {classId, studentNum: numStr}, true);

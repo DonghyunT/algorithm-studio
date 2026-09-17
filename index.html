@@ -2382,6 +2382,13 @@
           </div>
           <p class="eval-review-status">교사 검토 전</p>
           <div id="eval-result-breakdown" class="pt-2"></div>
+          <div id="eval-result-score-reveal" class="space-y-2 pt-1" hidden>
+            <button id="eval-result-score-reveal-button" type="button" disabled aria-pressed="false" aria-label="점수 보기. 누르는 동안만 표시됩니다." class="w-full px-4 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-500 text-white rounded-2xl font-black text-sm transition cursor-pointer disabled:cursor-not-allowed">
+              <span id="eval-result-score-reveal-label">점수 준비 중</span>
+            </button>
+            <p id="eval-result-score-reveal-status" class="text-[11px] text-slate-500" role="status">서버 채점 결과를 확인하고 있습니다.</p>
+            <div id="eval-result-score-reveal-panel" class="p-3 bg-white border border-indigo-200 rounded-2xl text-base font-black text-indigo-950" aria-live="polite" hidden></div>
+          </div>
         </div>
 
         <button type="button" onclick="finishSharedSession()" class="px-6 py-3 text-slate-600 text-sm font-bold">로그아웃 · 사용 종료</button>
