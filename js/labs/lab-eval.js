@@ -951,13 +951,14 @@ class StudentEvalApp {
     const safeEsc = typeof escapeHtml === 'function' ? escapeHtml : (str => String(str || ''));
     let text = String(rawDesc).trim();
 
-    // 단일 \n으로만 구분된 경우 중 [조건...] 또는 [규칙...]이 있으면 \n\n으로 정규화
+    // 단일 \n으로만 구분된 경우 중 [조건...] 또는 [규칙...] 또는 [순서도...] 또는 [알고리즘...]이 있으면 \n\n으로 정규화
     if (!text.includes('\n\n') && text.includes('\n')) {
-      if (/\[(?:조건|규칙|상황|조리법)/.test(text)) {
-        text = text.replace(/([^\n])\n(\[(?:조건|규칙|상황|조리법))/g, '$1\n\n$2')
+      if (/\[(?:조건|규칙|상황|조리법|순서도|알고리즘)/.test(text)) {
+        text = text.replace(/([^\n])\n(\[(?:조건|규칙|상황|조리법|순서도|알고리즘))/g, '$1\n\n$2')
                    .replace(/(\n[^\n]+)\n([가-힣A-Za-z0-9]+.*(?:쓰시오|얼마|무엇|몇|구하시오|출력되는|결과는|\?))/g, '$1\n\n$2');
       }
     }
+
 
     const cleanCondition = (s) => {
       let trimmed = s.trim();
@@ -973,7 +974,7 @@ class StudentEvalApp {
     if (paragraphs.length > 1) {
       return paragraphs.map((p, pIdx) => {
         const trimmed = p.trim();
-        if (/^\[(?:조건|규칙|상황|조리법|반복 규칙)/.test(trimmed) || /^(?:조건|규칙)\s*:/.test(trimmed)) {
+        if (/^\[(?:조건|규칙|상황|조리법|반복 규칙|순서도|알고리즘)/.test(trimmed) || /^(?:조건|규칙)\s*:/.test(trimmed)) {
           return `
             <div class="cbt-condition-box">
               <div class="cbt-condition-title"><i class="fa-solid fa-clipboard-list text-blue-500"></i> <span>지켜야 할 규칙 / 조건</span></div>
@@ -986,9 +987,9 @@ class StudentEvalApp {
       }).join('');
     }
 
-    // 단일 단락 내에 [조건: ...] 또는 [규칙: ...] 블록이 포함된 경우 분리
-    if (/\[(?:조건|규칙|상황|조리법|반복 규칙)[^\]]*\]/.test(text)) {
-      const parts = text.split(/(?=\[(?:조건|규칙|상황|조리법|반복 규칙)[^\]]*\])/);
+    // 단일 단락 내에 [조건: ...] 또는 [규칙: ...] 또는 [순서도: ...] 또는 [알고리즘: ...] 블록이 포함된 경우 분리
+    if (/\[(?:조건|규칙|상황|조리법|반복 규칙|순서도|알고리즘)[^\]]*\]/.test(text)) {
+      const parts = text.split(/(?=\[(?:조건|규칙|상황|조리법|반복 규칙|순서도|알고리즘)[^\]]*\])/);
       if (parts.length >= 2) {
         const intro = parts[0].trim();
         const rest = parts.slice(1).join('');

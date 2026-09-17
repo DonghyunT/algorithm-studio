@@ -325,6 +325,22 @@ test('CBT layout: formatCbtPrompt formats condition box cleanly', () => {
   assert.ok(formatted.includes('지켜야 할 규칙 / 조건'), '조건 상자에 헤더 타이틀이 포함되어야 함');
 });
 
+test('CBT layout: formatCbtPrompt wraps [순서도 흐름] and [알고리즘] paragraphs as condition boxes', () => {
+  const ctx = createAssessmentContext();
+  const StudentEvalApp = ctx.window.studentEvalApp.constructor;
+  const app = new StudentEvalApp();
+
+  // [순서도 흐름: ...] 단락 → 섬 처리 확인
+  const flowchartPrompt = '인공지능 스마트 재활용 분리수거기의 동작 순서도입니다.\n\n[순서도 흐름: 분리수거기]\n[시작] ➔ [자료: 재질 센서 값 인식]\n  └─ (아니오) ➔ (허공에 끊김)\n\n이 버그를 해결하기 위해 연결해야 할 처리는?';
+  const flowFormatted = app.formatCbtPrompt(flowchartPrompt);
+  assert.ok(flowFormatted.includes('cbt-condition-box'), '[순서도 흐름] 단락이 cbt-condition-box로 감싸져야 함');
+
+  // [알고리즘: ...] 단락 → 섬 처리 확인
+  const algoPrompt = '다음 알고리즘을 보고 물음에 답하시오.\n\n[알고리즘: 김치볶음밥]\n(A) 프라이팬에 식용유를 두르고 예열한다.\n(B) 김치와 밥을 넣고 볶는다.\n\n알고리즘의 순서 오류를 찾아 올바른 순서로 쓰시오.';
+  const algoFormatted = app.formatCbtPrompt(algoPrompt);
+  assert.ok(algoFormatted.includes('cbt-condition-box'), '[알고리즘] 단락이 cbt-condition-box로 감싸져야 함');
+});
+
 test('CBT round 2: 2-column layout controls grid & Part 3 visibility correctly across Q1, Q11, Q17', () => {
   const ctx = createAssessmentContext();
   const StudentEvalApp = ctx.window.studentEvalApp.constructor;
