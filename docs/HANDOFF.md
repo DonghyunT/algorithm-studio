@@ -1,6 +1,6 @@
 # 다른 PC·에이전트로 작업 이어가기
 
-갱신: 2026-09-17 KST. 기능 명세는 [PRD](../PRD.md), 운영 반영 근거는 [배포 기록](DEPLOYMENT.md)이 기준입니다.
+갱신: 2026-09-18 KST. 기능 명세는 [PRD](../PRD.md), 운영 반영 근거는 [배포 기록](DEPLOYMENT.md)이 기준입니다.
 
 ## 1. 현재 상태
 
@@ -8,12 +8,12 @@
 |---|---|
 | 현재 운영 브랜치 | main |
 | 현재 작업 브랜치 | main (모든 기능 구현·버그 수정 병합 완료, 트리 깨끗함) |
-| 인수인계 전달 기준 | 1) 실전평가(V4) 학생 대기실 정상 입장(클라이언트 answers.assignedQuestions 제거), 2) 학생 로비 '상태 확인 불가' 배지 수정(선제적 익명 로그인 확보), 3) 실전평가 문항 조회 400 에러 해결(studentNum 패딩 및 정규화 지원), 4) 재난 복구(재접속/결시생 추가 응시) 무결성 유지, 85개 전체 단위 테스트 100% 통과 |
-| 최신 제품 코드 | `api/evaluation.js`, `js/core/ai-service.js`, `firestore.rules`, `js/core/eval-service.js`, `js/core/classroom.js`, `js/labs/lab-eval.js`, `index.html`, `tests/evaluation-api.test.cjs` |
-| 배포 기록 | Vercel Production (`https://algorithm-studio-ten.vercel.app/`) 최신 배포 완료 (`6b64b7a`) |
-| 현재 평가 UI | 교사 관제탑 빈 좌석 클릭 시 [결시생 개별 30분 추가 응시 허용] 모달 노출, 풀이 중 학생 클릭 시 [풀던 답안 유지하며 재접속 허용] 및 [답안 초기화 후 처음부터 다시 풀기] 분리 제공, 학생 대기실 [개별 평가 시작하기 (30분)] 버튼 연동, 교사가 [평가 시작] 클릭 시 학생 화면에서 400 에러 없이 즉시 V4 실전 문항 수신 및 CBT 시험 화면 전환 |
-| 이번 구현 완료 내용 | 1) **V4 문항 조회 400 에러 해결**: `js/core/ai-service.js`에서 `studentNum`을 2자리(`"01"`)로 강제하고, `api/evaluation.js`에서도 숫자 1 또는 문자열 '1'을 자동으로 2자리 정규화하도록 개선<br>2) **실전평가 학생 대기실 입장 및 로비 상태 배지 정상화**: `eval-service.js` 보안 규칙 준수 및 선제적 익명 로그인<br>3) **85개 단위 테스트 100% 통과 및 운영 배포 완료** |
-| 최신 운영 의도 | 교사가 '실전평가'를 시작했을 때 학생 화면이 오류 없이 80문항 비공개 문제은행에서 개별 문항을 즉시 불러와 CBT 화면으로 매끄럽게 진입하여 시험을 완벽하게 치를 수 있도록 현장 안정성 100% 확보 |
+| 인수인계 전달 기준 | 1) 실전평가(V4) 503 오류 해결(EVAL_BANK_V4_JSON gzip 압축으로 Vercel 64KB 환경 변수 한도 초과 문제 해결), 2) 86개 전체 단위 테스트 100% 통과 |
+| 최신 제품 코드 | `server/evaluation-bank.cjs`(gzip-base64 자동 감지 및 복원), `api/evaluation.js`(에러 로그 추가), `tests/evaluation-bank.test.cjs`(압축 형식 테스트 추가) |
+| 배포 기록 | Vercel Production (`https://algorithm-studio-ten.vercel.app/`) 최신 배포 완료 (`16cc7ab`) — `/api/evaluation` 이제 401 반환(정상: 미인증 요청 거부), 503 없음 확인 |
+| 현재 평가 UI | 교사 관제탑 빈 좌석 클릭 시 [결시생 개별 30분 추가 응시 허용] 모달 노출, 풀이 중 학생 클릭 시 [풀던 답안 유지하며 재접속 허용] 및 [답안 초기화 후 처음부터 다시 풀기] 분리 제공, 학생 대기실 [개별 평가 시작하기 (30분)] 버튼 연동, 교사가 [평가 시작] 클릭 시 학생 화면에서 503 없이 즉시 V4 실전 문항 수신 및 CBT 시험 화면 전환 |
+| 이번 구현 완료 내용 | **EVAL_BANK_V4_JSON gzip 압축 전환**: 80문항 JSON이 한글 포함 UTF-8 기준 약 74KB로 Vercel 환경 변수 64KB 상한을 초과하여 서버에서 파싱 실패 → gzip+base64 압축(24KB)으로 변환 후 재등록. `server/evaluation-bank.cjs`에 `unpackRaw()` 자동 감지 복원 함수 추가. 기존 평문 JSON·압축 JSON 모두 호환. 86개 단위 테스트 통과 |
+| 최신 운영 의도 | 교사가 '실전평가'를 시작했을 때 학생 화면이 503 없이 80문항 비공개 문제은행에서 개별 문항을 즉시 불러와 CBT 시험 화면으로 매끄럽게 진입 |
 
 - 저장소: [DonghyunT/algorithm-studio](https://github.com/DonghyunT/algorithm-studio)
 - 운영 웹: [정보 알고리즘 스튜디오](https://algorithm-studio-ten.vercel.app/)
