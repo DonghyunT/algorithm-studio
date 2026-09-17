@@ -322,4 +322,73 @@ test('CBT layout: formatCbtPrompt formats condition box cleanly', () => {
   assert.ok(formatted.includes('지켜야 할 규칙 / 조건'), '조건 상자에 헤더 타이틀이 포함되어야 함');
 });
 
+test('CBT round 2: 2-column layout controls grid & Part 3 visibility correctly across Q1, Q11, Q17', () => {
+  const ctx = createAssessmentContext();
+  const StudentEvalApp = ctx.window.studentEvalApp.constructor;
+  const app = new StudentEvalApp();
+  ctx.window.studentEvalApp = app;
+
+  const grid = ctx.document.getElementById('eval-cbt-question-grid');
+  const part3Wrap = ctx.document.getElementById('eval-cbt-part3-title-wrap');
+  const part3Area = ctx.document.getElementById('eval-cbt-part3-area');
+  const optionsArea = ctx.document.getElementById('eval-cbt-options');
+  const shortArea = ctx.document.getElementById('eval-cbt-short-answer');
+
+  // 1번(객관식)
+  app.goToCbtQuestion(1);
+  assert.equal(grid.classList.contains('hidden'), false, '1번 문항에서 2열 그리드가 보여야 함');
+  assert.equal(part3Wrap.classList.contains('hidden'), true, '1번 문항에서 Part 3 타이틀은 숨겨져야 함');
+  assert.equal(part3Area.classList.contains('hidden'), true, '1번 문항에서 Part 3 영역은 숨겨져야 함');
+  assert.equal(optionsArea.classList.contains('hidden'), false, '1번 문항에서 보기가 보여야 함');
+  assert.equal(shortArea.classList.contains('hidden'), true, '1번 문항에서 단답형은 숨겨져야 함');
+
+  // 11번(단답형)
+  app.goToCbtQuestion(11);
+  assert.equal(grid.classList.contains('hidden'), false, '11번 문항에서 2열 그리드가 보여야 함');
+  assert.equal(part3Wrap.classList.contains('hidden'), true, '11번 문항에서 Part 3 타이틀은 숨겨져야 함');
+  assert.equal(part3Area.classList.contains('hidden'), true, '11번 문항에서 Part 3 영역은 숨겨져야 함');
+  assert.equal(optionsArea.classList.contains('hidden'), true, '11번 문항에서 보기는 숨겨져야 함');
+  assert.equal(shortArea.classList.contains('hidden'), false, '11번 문항에서 단답형이 보여야 함');
+
+  // 17번(순서도 및 계획)
+  app.goToCbtQuestion(17);
+  assert.equal(grid.classList.contains('hidden'), true, '17번 문항에서 2열 그리드는 숨겨져야 함');
+  assert.equal(part3Wrap.classList.contains('hidden'), false, '17번 문항에서 Part 3 타이틀이 보여야 함');
+  assert.equal(part3Area.classList.contains('hidden'), false, '17번 문항에서 Part 3 영역이 보여야 함');
+});
+
+test('CBT round 2: slim rail badges and collapsed class update properly', () => {
+  const ctx = createAssessmentContext();
+  const StudentEvalApp = ctx.window.studentEvalApp.constructor;
+  const app = new StudentEvalApp();
+  ctx.window.studentEvalApp = app;
+
+  const sidebar = ctx.document.getElementById('eval-cbt-sidebar');
+  const railCurBadge = ctx.document.getElementById('eval-cbt-rail-cur-badge');
+  const railRatio = ctx.document.getElementById('eval-cbt-rail-ratio');
+
+  // Q1
+  app.goToCbtQuestion(1);
+  assert.equal(railCurBadge.textContent, 1, '레일 뱃지에 현재 문항 1이 표시되어야 함');
+  assert.equal(railRatio.textContent, '0/17', '레일 비율에 0/17이 표시되어야 함');
+
+  // 1번 풀이 후 갱신
+  app.onSelectCbtPart1('p1_q1', 0);
+  assert.equal(railRatio.textContent, '1/17', '답안 선택 시 레일 비율이 1/17로 즉시 갱신되어야 함');
+
+  // 사이드바 접기 토글
+  app.toggleCbtSidebar(true);
+  assert.ok(sidebar.classList.contains('collapsed'), 'toggleCbtSidebar(true) 시 collapsed 클래스가 부여되어야 함');
+
+  // 사이드바 펼치기 토글
+  app.toggleCbtSidebar(false);
+  assert.ok(!sidebar.classList.contains('collapsed'), 'toggleCbtSidebar(false) 시 collapsed 클래스가 제거되어야 함');
+
+  // 17-2 진입 시 레일 뱃지 '17-2' 확인
+  app.goToCbtPart3Step(2);
+  assert.equal(railCurBadge.textContent, '17-2', '17-2 진입 시 레일 뱃지가 17-2로 표시되어야 함');
+  assert.ok(sidebar.classList.contains('collapsed'), '17-2에서는 사이드바가 자동으로 collapsed 되어야 함');
+});
+
+
 

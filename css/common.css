@@ -532,24 +532,146 @@ body.assessment-active #global-header .site-header-inner {
 }
 
 /* ==========================================
-   🖥️ 데스크탑 모니터 기준 CBT 카드 섬 높이 및 버튼 위치 고정
+   🖥️ 데스크탑 모니터 기준 CBT 카드 섬 높이 및 버튼 위치 고정 & 오버플로우 밀봉
    ========================================== */
 @media (min-width: 768px) {
   #eval-cbt-main {
     height: calc(100vh - 150px) !important;
     min-height: 600px !important;
     max-height: 860px !important;
+    overflow: hidden !important;
   }
 }
 
 /* ==========================================
-   📐 OMR 사이드바 접기/펼치기 (Collapse/Expand)
+   📑 지필고사 시험지 2단 분할 레이아웃 (Two-Column Paper Layout)
    ========================================== */
-.cbt-sidebar-collapsed #eval-cbt-sidebar {
+.cbt-question-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+@media (min-width: 768px) {
+  .cbt-question-grid {
+    display: grid !important;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 1.75rem;
+    align-items: stretch;
+    height: 100%;
+    overflow: hidden;
+  }
+  .cbt-col-question {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+    overflow-y: auto;
+    padding-right: 0.85rem;
+  }
+  .cbt-col-answers {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 100%;
+    overflow-y: auto;
+    padding-left: 0.35rem;
+  }
+}
+
+/* ==========================================
+   📐 OMR 사이드바 슬림 레일(Rail) 스무스 접기/펼치기
+   ========================================== */
+#eval-cbt-sidebar {
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), min-width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s ease;
+  overflow: hidden;
+}
+@media (min-width: 768px) {
+  #eval-cbt-sidebar:not(.collapsed) {
+    width: 16rem; /* 256px */
+    min-width: 16rem;
+  }
+  #eval-cbt-sidebar.collapsed {
+    width: 3.5rem !important; /* 56px */
+    min-width: 3.5rem !important;
+    padding: 1rem 0.35rem !important;
+    background-color: #f8fafc;
+  }
+}
+#eval-cbt-sidebar:not(.collapsed) #eval-cbt-sidebar-expanded {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+  width: 100%;
+}
+#eval-cbt-sidebar.collapsed #eval-cbt-sidebar-expanded {
   display: none !important;
 }
-.cbt-sidebar-collapsed #eval-cbt-sidebar-expand-btn {
-  display: inline-flex !important;
+#eval-cbt-sidebar:not(.collapsed) #eval-cbt-sidebar-rail {
+  display: none !important;
+}
+#eval-cbt-sidebar.collapsed #eval-cbt-sidebar-rail {
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+  width: 100%;
+}
+
+.cbt-rail-title {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  letter-spacing: 0.25em;
+  font-size: 11px;
+  font-weight: 900;
+  color: #64748b;
+  user-select: none;
+}
+.cbt-rail-badge {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.75rem;
+  background-color: #0d6efd;
+  color: white;
+  font-size: 12px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+/* ==========================================
+   🖼️ 17-2 순서도 캔버스 넘침 방지 및 부모 피팅
+   ========================================== */
+#eval-cbt-step2-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  height: 100%;
+}
+#eval-cbt-workspace-host {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  border-radius: 1rem;
+  overflow: hidden !important;
+  position: relative;
+}
+#eval-cbt-workspace-host #eval-shared-workspace {
+  height: 100% !important;
+  max-height: 100% !important;
+}
+#eval-cbt-workspace-host #eval-shared-workspace .eval-workspace-body {
+  height: calc(100% - 40px) !important;
+  overflow: hidden !important;
 }
 
 /* ==========================================
@@ -559,10 +681,10 @@ body.assessment-active #global-header .site-header-inner {
   background-color: #f8fafc;
   border: 1.5px solid #e2e8f0;
   border-radius: 1rem;
-  padding: 0.85rem 1.15rem;
-  margin: 0.6rem 0;
-  font-size: 0.95rem;
-  line-height: 1.6;
+  padding: 0.75rem 1rem;
+  margin: 0.5rem 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
   color: #1e293b;
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02);
 }
@@ -573,7 +695,7 @@ body.assessment-active #global-header .site-header-inner {
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.35rem;
   letter-spacing: 0.025em;
 }
 .cbt-condition-box .cbt-condition-content {
@@ -581,3 +703,4 @@ body.assessment-active #global-header .site-header-inner {
   font-weight: 700;
   color: #0f172a;
 }
+

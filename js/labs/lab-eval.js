@@ -668,12 +668,22 @@ class StudentEvalApp {
 
   toggleCbtSidebar(force) {
     const container = document.getElementById('eval-cbt-container');
-    if (!container) return;
+    const sidebar = document.getElementById('eval-cbt-sidebar');
+    if (!container && !sidebar) return;
+
+    let shouldCollapse;
     if (typeof force === 'boolean') {
-      container.classList.toggle('cbt-sidebar-collapsed', force);
+      shouldCollapse = force;
+    } else if (sidebar) {
+      shouldCollapse = !sidebar.classList.contains('collapsed');
+    } else if (container) {
+      shouldCollapse = !container.classList.contains('cbt-sidebar-collapsed');
     } else {
-      container.classList.toggle('cbt-sidebar-collapsed');
+      shouldCollapse = false;
     }
+
+    if (container) container.classList.toggle('cbt-sidebar-collapsed', shouldCollapse);
+    if (sidebar) sidebar.classList.toggle('collapsed', shouldCollapse);
   }
 
   goToCbtPart3Step(step = 1) {
@@ -832,6 +842,15 @@ class StudentEvalApp {
 
     const totalAnswered = p1Answered + p2Answered + (p3Answered ? 1 : 0);
     if (ratioEl) ratioEl.textContent = `${totalAnswered} / 17`;
+
+    const railCurBadge = document.getElementById('eval-cbt-rail-cur-badge');
+    const railRatio = document.getElementById('eval-cbt-rail-ratio');
+    if (railCurBadge) {
+      railCurBadge.textContent = current === 17 ? (this.part3SubStep === 2 ? '17-2' : '17-1') : current;
+    }
+    if (railRatio) {
+      railRatio.textContent = `${totalAnswered}/17`;
+    }
   }
 
   formatCbtPrompt(rawDesc) {
@@ -897,12 +916,18 @@ class StudentEvalApp {
     const optionsArea = document.getElementById('eval-cbt-options');
     const shortArea = document.getElementById('eval-cbt-short-answer');
     const part3Area = document.getElementById('eval-cbt-part3-area');
+    const questionGrid = document.getElementById('eval-cbt-question-grid');
+    const part3TitleWrap = document.getElementById('eval-cbt-part3-title-wrap');
 
     const svgBadge = `<svg class="flex-shrink-0 rounded-xl shadow-xs mt-0.5" width="36" height="36" xmlns="http://www.w3.org/2000/svg" role="img" focusable="false"><rect width="100%" height="100%" rx="10" fill="#0d6efd"></rect><text x="50%" y="50%" text-anchor="middle" alignment-baseline="middle" fill="#fff" dy=".1em" font-weight="900" font-size="16">${idx}</text></svg>`;
 
     if (idx >= 1 && idx <= 10) {
       const q = questions.part1 && questions.part1[idx - 1];
       if (!q) return;
+      if (questionGrid) questionGrid.classList.remove('hidden');
+      if (part3TitleWrap) part3TitleWrap.classList.add('hidden');
+      if (part3Area) part3Area.classList.add('hidden');
+
       if (partBadge) { partBadge.textContent = 'Part 1. 객관식'; partBadge.className = 'text-xs font-black px-3 py-1 bg-indigo-50 text-indigo-700 rounded-xl border border-indigo-100'; }
       if (qnumBadge) qnumBadge.textContent = `${idx}번 문제`;
       if (pointsBadge) pointsBadge.textContent = `${q.points || 3}점`;
@@ -939,10 +964,13 @@ class StudentEvalApp {
         }).join('');
       }
       if (shortArea) shortArea.classList.add('hidden');
-      if (part3Area) part3Area.classList.add('hidden');
     } else if (idx >= 11 && idx <= 16) {
       const q = questions.part2 && questions.part2[idx - 11];
       if (!q) return;
+      if (questionGrid) questionGrid.classList.remove('hidden');
+      if (part3TitleWrap) part3TitleWrap.classList.add('hidden');
+      if (part3Area) part3Area.classList.add('hidden');
+
       if (partBadge) { partBadge.textContent = 'Part 2. 단답형'; partBadge.className = 'text-xs font-black px-3 py-1 bg-amber-50 text-amber-800 rounded-xl border border-amber-200'; }
       if (qnumBadge) qnumBadge.textContent = `${idx}번 문제`;
       if (pointsBadge) pointsBadge.textContent = `${q.points || 5}점`;
@@ -976,43 +1004,27 @@ class StudentEvalApp {
         `;
       }
       if (optionsArea) optionsArea.classList.add('hidden');
-      if (part3Area) part3Area.classList.add('hidden');
     } else if (idx === 17) {
+      if (questionGrid) questionGrid.classList.add('hidden');
+      if (part3TitleWrap) part3TitleWrap.classList.remove('hidden');
+      if (part3Area) part3Area.classList.remove('hidden');
+
       if (partBadge) { partBadge.textContent = 'Part 3. 알고리즘 설계'; partBadge.className = 'text-xs font-black px-3 py-1 bg-emerald-50 text-emerald-800 rounded-xl border border-emerald-200'; }
       if (qnumBadge) qnumBadge.textContent = `17번 문제`;
       if (pointsBadge) pointsBadge.textContent = `40점`;
       const promptText = '문제 상황을 분석하여 나만의 문제 해결 계획을 세우고, 순서도를 완성하여 실행 결과를 검증하세요.';
       if (promptEl) promptEl.textContent = promptText;
-      if (promptContainer) {
-        promptContainer.innerHTML = `
-          <div class="space-y-3">
-            <div class="flex items-start gap-3.5">
-              ${svgBadge}
-              <div class="flex-1 text-base sm:text-lg md:text-xl font-extrabold text-slate-900 leading-snug whitespace-pre-line pt-0.5">
-                ${safeEsc(promptText)}
-              </div>
-            </div>
-            <div class="cbt-notice-strip">
-              <i class="fa-solid fa-circle-info text-emerald-600"></i>
-              <span>계획을 작성한 후, 하단의 <strong class="text-emerald-700">"다음 단계: 순서도 조립"</strong> 버튼을 클릭하세요.</span>
-            </div>
-          </div>
-        `;
-      }
 
       if (optionsArea) optionsArea.classList.add('hidden');
       if (shortArea) shortArea.classList.add('hidden');
-      if (part3Area) {
-        part3Area.classList.remove('hidden');
-        const theme = EVAL_QUESTIONS.part3Themes.find(item => item.id === this.answers.part3.selectedThemeId);
-        const sitEl = document.getElementById('eval-cbt-situation');
-        const inpEl = document.getElementById('eval-cbt-input');
-        const reqEl = document.getElementById('eval-cbt-requirement');
-        if (sitEl) sitEl.textContent = theme?.situation || (this.isFreeDesign() ? '우리 주변의 생활 속 문제를 분석하여 알고리즘으로 해결해 보세요.' : '');
-        if (inpEl) inpEl.textContent = theme?.input || (this.isFreeDesign() ? '문제 해결에 필요한 초기 자료 및 조건' : '');
-        if (reqEl) reqEl.textContent = theme?.requirement || (this.isFreeDesign() ? '문제를 해결한 최종 결과 상태' : '');
-        this.switchPart3SubStep(this.part3SubStep || 1);
-      }
+      const theme = EVAL_QUESTIONS.part3Themes.find(item => item.id === this.answers.part3.selectedThemeId);
+      const sitEl = document.getElementById('eval-cbt-situation');
+      const inpEl = document.getElementById('eval-cbt-input');
+      const reqEl = document.getElementById('eval-cbt-requirement');
+      if (sitEl) sitEl.textContent = theme?.situation || (this.isFreeDesign() ? '우리 주변의 생활 속 문제를 분석하여 알고리즘으로 해결해 보세요.' : '');
+      if (inpEl) inpEl.textContent = theme?.input || (this.isFreeDesign() ? '문제 해결에 필요한 초기 자료 및 조건' : '');
+      if (reqEl) reqEl.textContent = theme?.requirement || (this.isFreeDesign() ? '문제를 해결한 최종 결과 상태' : '');
+      this.switchPart3SubStep(this.part3SubStep || 1);
     }
   }
 
