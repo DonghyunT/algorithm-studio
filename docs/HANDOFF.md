@@ -108,7 +108,14 @@ node tests/browser.cjs
 | GitHub·Firebase·Vercel 인증 | 필요한 PC에서 개별 로그인. 인증 폴더 통째로 복사 금지 |
 | 운영 교사 비밀번호 | 관리자에게 별도 전달받음. 이 PC에 비밀번호 파일이 있다고 가정하지 않음 |
 | .env.preview.local | 로컬 AI 체험 첫 실행 시 PC마다 생성 |
-| V4 비공개 문항·배정 비밀값 | 아직 준비 전. 보관·전달 방법 결정 필요. 실제 값은 공개 문서에 기록 금지 |
+| scratch/eval_bank_v4.json | Vercel 환경 변수에 영구 보관 (아래 5.1 절차 참조) |
+
+### 5.1 다른 PC에서 실전평가 비공개 문제은행(V4) 다루기
+1. **운영 평가 개설 시 (교단 PC 등)**: Vercel Production에 이미 `EVAL_BANK_V4_JSON`과 `EVAL_ASSIGNMENT_SECRET`이 등록되어 있으므로, 어떤 PC에서든 운영 웹([정보 알고리즘 스튜디오](https://algorithm-studio-ten.vercel.app/))에 접속하여 바로 평가를 개설할 수 있습니다. 로컬 파일 다운로드가 필요 없습니다.
+2. **다른 PC에서 로컬 문항 조회 및 오프라인 테스트가 필요한 경우**:
+   - Vercel CLI 사용 시: `npx vercel env pull .env.local` 명령으로 안전하게 주입받습니다.
+   - 대시보드 사용 시: Vercel 대시보드(Settings > Environment Variables)의 `EVAL_BANK_V4_JSON` 내용을 복사하여 `scratch/eval_bank_v4.json`으로 저장합니다. (`.gitignore`에 의해 Git 추적에서 영구 제외되어 GitHub 유출 위험이 없습니다.)
+| V4 비공개 문항·배정 비밀값 | Vercel 환경 변수(EVAL_BANK_V4_JSON, EVAL_ASSIGNMENT_SECRET)에 등록 완료. 공개 Git에 절대 커밋 금지 |
 | 미커밋·Git 제외 자료 | 자동 이동하지 않음. 필요한 개인 자료만 별도 확인 |
 
 이번 점검의 Git 제외 목록에는 temp/가 있었습니다. 내용은 인수인계 대상으로 확정하거나 업로드하지 않았습니다. .env*, .vercel/, js/data/config.js, PDF, 백업용/도 제외 규칙 대상입니다. 제외 규칙과 실제 파일 존재는 다릅니다. 백업용/은 수정·삭제하지 않습니다.
