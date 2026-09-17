@@ -575,10 +575,14 @@ body.assessment-active #global-header .site-header-inner {
   .cbt-col-answers {
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     height: 100%;
     overflow-y: auto;
     padding-left: 0.35rem;
+  }
+  .cbt-col-answers > div {
+    margin: auto 0;
+    width: 100%;
   }
 }
 
@@ -669,9 +673,18 @@ body.assessment-active #global-header .site-header-inner {
   height: 100% !important;
   max-height: 100% !important;
 }
-#eval-cbt-workspace-host #eval-shared-workspace .eval-workspace-body {
-  height: calc(100% - 40px) !important;
+#eval-cbt-workspace-host #fc-level3-view {
+  height: 100% !important;
+  max-height: 100% !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
   overflow: hidden !important;
+}
+#eval-cbt-workspace-host .entry-studio-container {
+  height: 100% !important;
+  max-height: 100% !important;
+  min-height: 0 !important;
 }
 
 /* ==========================================

@@ -390,5 +390,50 @@ test('CBT round 2: slim rail badges and collapsed class update properly', () => 
   assert.ok(sidebar.classList.contains('collapsed'), '17-2에서는 사이드바가 자동으로 collapsed 되어야 함');
 });
 
+test('CBT round 2: preserves user manual sidebar collapse preference across question navigation and draft', () => {
+  const ctx = createAssessmentContext();
+  const StudentEvalApp = ctx.window.studentEvalApp.constructor;
+  const app = new StudentEvalApp();
+  ctx.window.studentEvalApp = app;
+
+  const sidebar = ctx.document.getElementById('eval-cbt-sidebar');
+
+  // 기본 상태: 펼쳐짐
+  app.goToCbtQuestion(1);
+  assert.equal(sidebar.classList.contains('collapsed'), false, '초기 상태는 펼쳐져 있어야 함');
+
+  // 학생이 직접 사이드바를 접음
+  app.toggleCbtSidebar(true, true);
+  assert.equal(sidebar.classList.contains('collapsed'), true, '학생이 직접 접으면 collapsed 여야 함');
+  assert.equal(app.userSidebarCollapsed, true, 'userSidebarCollapsed 상태가 true 로 기록되어야 함');
+
+  // 2번 문제로 이동: 접힌 상태가 강제 복구되지 않고 유지되어야 함!
+  app.goToCbtQuestion(2);
+  assert.equal(sidebar.classList.contains('collapsed'), true, '문항 이동 후에도 접힌 상태가 유지되어야 함');
+
+  // 11번(단답형)으로 이동: 여전히 접힌 상태 유지!
+  app.goToCbtQuestion(11);
+  assert.equal(sidebar.classList.contains('collapsed'), true, '단답형 이동 후에도 접힌 상태가 유지되어야 함');
+
+  // 17-1로 이동: 여전히 접힌 상태 유지!
+  app.goToCbtPart3Step(1);
+  assert.equal(sidebar.classList.contains('collapsed'), true, '17-1 이동 후에도 접힌 상태가 유지되어야 함');
+
+  // 17-2로 이동: 캔버스를 위해 접힌 상태 유지
+  app.goToCbtPart3Step(2);
+  assert.equal(sidebar.classList.contains('collapsed'), true, '17-2 순서도 조립에서도 접혀 있어야 함');
+
+  // 학생이 1번으로 돌아가서 다시 사이드바를 직접 펼침
+  app.goToCbtQuestion(1);
+  app.toggleCbtSidebar(false, true);
+  assert.equal(sidebar.classList.contains('collapsed'), false, '학생이 펼치면 펼쳐져야 함');
+  assert.equal(app.userSidebarCollapsed, false, 'userSidebarCollapsed 상태가 false 로 기록되어야 함');
+
+  // 2번으로 이동: 이제는 펼쳐진 상태로 유지!
+  app.goToCbtQuestion(2);
+  assert.equal(sidebar.classList.contains('collapsed'), false, '펼친 상태에서 문항 이동 시 펼쳐진 상태 유지');
+});
+
+
 
 

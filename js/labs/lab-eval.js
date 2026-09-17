@@ -9,6 +9,7 @@ class StudentEvalApp {
     this.currentPart = "part1";
     this.isCbtMode = true;
     this.userToggledMode = false;
+    this.userSidebarCollapsed = false;
     this.currentQuestionIndex = 1;
     this.part3SubStep = 1;
     this.isSubmitted = false;
@@ -67,7 +68,7 @@ class StudentEvalApp {
   draftKey() { return "ALGO_EXAM_DRAFT_"+(this.ownerUid||'')+"_"+this.currentClass+"_"+this.studentNum+"_"+(this.attemptId||'demo'); }
   saveDraft() {
     if (!this.joined || window.isSessionClosing) return;
-    try { sessionStorage.setItem(this.draftKey(), JSON.stringify({answers:this.answers,deadlineMs:this.deadlineMs,studentName:this.studentName,lastResetAt:this.lastResetAt,isSubmitted:this.isSubmitted,visitedPart3:this.visitedPart3,currentPart:this.currentPart,currentQuestionIndex:this.currentQuestionIndex,part3SubStep:this.part3SubStep,isCbtMode:this.isCbtMode,userToggledMode:!!this.userToggledMode})); } catch(error) { console.warn("임시 저장 실패",error); }
+    try { sessionStorage.setItem(this.draftKey(), JSON.stringify({answers:this.answers,deadlineMs:this.deadlineMs,studentName:this.studentName,lastResetAt:this.lastResetAt,isSubmitted:this.isSubmitted,visitedPart3:this.visitedPart3,currentPart:this.currentPart,currentQuestionIndex:this.currentQuestionIndex,part3SubStep:this.part3SubStep,isCbtMode:this.isCbtMode,userToggledMode:!!this.userToggledMode,userSidebarCollapsed:!!this.userSidebarCollapsed})); } catch(error) { console.warn("임시 저장 실패",error); }
   }
   restoreDraft(student) {
     this.latestStudent=student;
@@ -78,6 +79,9 @@ class StudentEvalApp {
     else if(validDraft) {
       this.answers=draft.answers;
       this.deadlineMs=draft.deadlineMs;
+      if (typeof draft.userSidebarCollapsed === 'boolean') {
+        this.userSidebarCollapsed = draft.userSidebarCollapsed;
+      }
       const urlParams = typeof window !== 'undefined' && typeof URLSearchParams !== 'undefined' ? new URLSearchParams(window.location?.search || '') : null;
       const forceClassic = urlParams && urlParams.get('classic') === '1';
       const forceCbt = urlParams && urlParams.get('cbt') === '1';
@@ -644,10 +648,10 @@ class StudentEvalApp {
 
     if (qIndex <= 10) {
       this.currentPart = 'part1';
-      this.toggleCbtSidebar(false);
+      this.toggleCbtSidebar(this.userSidebarCollapsed || false);
     } else if (qIndex <= 16) {
       this.currentPart = 'part2';
-      this.toggleCbtSidebar(false);
+      this.toggleCbtSidebar(this.userSidebarCollapsed || false);
     } else {
       this.currentPart = 'part3';
       this.visitedPart3 = true;
@@ -655,7 +659,7 @@ class StudentEvalApp {
       if (this.part3SubStep === 2) {
         this.toggleCbtSidebar(true);
       } else {
-        this.toggleCbtSidebar(false);
+        this.toggleCbtSidebar(this.userSidebarCollapsed || false);
       }
     }
 
@@ -666,7 +670,7 @@ class StudentEvalApp {
     this.saveDraft();
   }
 
-  toggleCbtSidebar(force) {
+  toggleCbtSidebar(force, isUserAction = false) {
     const container = document.getElementById('eval-cbt-container');
     const sidebar = document.getElementById('eval-cbt-sidebar');
     if (!container && !sidebar) return;
@@ -680,6 +684,10 @@ class StudentEvalApp {
       shouldCollapse = !container.classList.contains('cbt-sidebar-collapsed');
     } else {
       shouldCollapse = false;
+    }
+
+    if (isUserAction) {
+      this.userSidebarCollapsed = shouldCollapse;
     }
 
     if (container) container.classList.toggle('cbt-sidebar-collapsed', shouldCollapse);
@@ -728,7 +736,7 @@ class StudentEvalApp {
     const view2 = document.getElementById('eval-cbt-step2-view');
 
     if (step === 1) {
-      this.toggleCbtSidebar(false);
+      this.toggleCbtSidebar(this.userSidebarCollapsed || false);
       if (tab1) { tab1.className = 'px-4 py-2 rounded-xl text-xs font-black bg-indigo-600 text-white transition cursor-pointer flex items-center gap-1.5'; }
       if (tab2) { tab2.className = 'px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer flex items-center gap-1.5'; }
       if (view1) view1.classList.remove('hidden');
