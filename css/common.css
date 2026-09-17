@@ -708,6 +708,8 @@ body.assessment-active #global-header .site-header-inner {
 #eval-cbt-workspace-host #eval-shared-workspace {
   height: 100% !important;
   max-height: 100% !important;
+  margin: 0 !important;
+  margin-top: 0 !important;
 }
 #eval-cbt-workspace-host #fc-level3-view {
   height: 100% !important;
