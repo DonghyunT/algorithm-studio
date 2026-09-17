@@ -7,7 +7,7 @@
 | 구분 | 인수인계 기준 |
 |---|---|
 | 현재 운영 브랜치 | main |
-| 현재 작업 브랜치 | codex/eval-version-selector |
+| 현재 작업 브랜치 | main (평가 선택 드롭다운 통합 및 Vercel Production 배포 완료, 클린 트리) |
 | 인수인계 전달 기준 | 교사 관제탑 평가 유형 선택 드롭다운(`teacher-session-version-select`) 구현(모의평가 V3 vs 실전평가 V4 선택 개설 지원), 상태 기반 자동 잠금, 맞춤 확인창 및 피드백 연동, 81개 전체 단위 테스트 100% 통과 |
 | 최신 제품 코드 | `index.html` / `css/studio-ui.css` (드롭다운 UI 및 다크 스타일링), `js/core/classroom.js` (드롭다운 상태 연동 및 버전 전달, 확인창 맞춤화), `tests/rounds.test.cjs` (버전별 prepareSession 단위 테스트) |
 | 배포 기록 | Vercel Production 환경 변수(`EVAL_BANK_V4_JSON`, `EVAL_ASSIGNMENT_SECRET`) 주입 완료 및 Production 배포 완료 (`https://algorithm-studio-ten.vercel.app/`), 라이브 실측 검증 완료 |
