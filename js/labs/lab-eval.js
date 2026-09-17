@@ -338,7 +338,7 @@ class StudentEvalApp {
         if (this.secureQuestionAttemptId !== sessionData?.attemptId) this.secureQuestions = null;
         if (!this.secureQuestions) {
           const result = await requestSecureEvaluationQuestions(this.currentClass, this.studentNum);
-          if (!result.questions || result.questions.version !== 4 || result.questions.part1?.length !== 10 || result.questions.part2?.length !== 6 || !result.attemptId || result.attemptId !== sessionData?.attemptId) throw Error('V4 문항 회차 또는 구성이 완전하지 않습니다.');
+          if (!result.questions || result.questions.version !== 4 || result.questions.part1?.length !== 10 || result.questions.part2?.length !== 6 || !result.attemptId || result.attemptId !== sessionData?.attemptId) throw Error('실전평가 문항 회차 또는 구성이 완전하지 않습니다.');
           this.secureQuestions = result.questions;
           this.secureQuestionAttemptId = result.attemptId;
         }

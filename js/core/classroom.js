@@ -336,6 +336,20 @@ function renderTeacherSessionControl() {
   if (!teacherSessionPending) {
     if (badge) { badge.textContent = model.label; badge.dataset.state = model.state; }
     if (hint) hint.textContent = model.hint;
+    const verBadge = document.getElementById('teacher-session-version');
+    if (verBadge) {
+      if (currentLiveSession?.questionVersion === 4) {
+        verBadge.textContent = '실전평가';
+        verBadge.className = 'text-xs font-black px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40';
+        verBadge.classList.remove('hidden');
+      } else if (currentLiveSession?.questionVersion === 3) {
+        verBadge.textContent = '모의평가';
+        verBadge.className = 'text-xs font-black px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-400/40';
+        verBadge.classList.remove('hidden');
+      } else {
+        verBadge.classList.add('hidden');
+      }
+    }
   }
   if (time) {
     const seconds = Math.max(0, Math.ceil((currentLiveSession?.deadlineMs - Date.now()) / 1000));
@@ -477,7 +491,14 @@ async function handleTeacherSessionAction() {
     }
     if (!confirm(confirmMsg)) return;
   }
-  if (model.action === 'prepare' && model.state === 'ended' && !confirm('이전 답안을 보관하고 새 평가를 준비하시겠습니까? 학생들은 새 회차에 다시 입장해야 합니다.')) return;
+  if (model.action === 'prepare' && model.state === 'ended') {
+    const ok = confirm(
+      '이전 답안을 안전하게 보관하고 새 실전평가를 준비하시겠습니까?\n\n' +
+      '• 평가 유형: 실전평가 (80문항 비공개 문제은행 기반 균형 배정)\n' +
+      '• 학생들은 새 회차에 다시 입장해야 합니다.'
+    );
+    if (!ok) return;
+  }
   teacherSessionPending = true;
   teacherSessionPendingLabel = {prepare:'준비 중…', start:'시작 중…', end:'종료 중…'}[model.action];
   setTeacherSessionFeedback(''); renderTeacherSessionControl();
@@ -1162,14 +1183,14 @@ function openLiveStudentModal(studentNum) {
   }
   if (secureV4) {
     if (s.status !== 'submitted') {
-      if (p1El) p1El.textContent='V4 문항·정답·출제 의도는 학생이 제출한 뒤 교사 화면에서 확인할 수 있습니다.';
+      if (p1El) p1El.textContent='실전평가 문항·정답·출제 의도는 학생이 제출한 뒤 교사 화면에서 확인할 수 있습니다.';
       if (p2El) p2El.textContent='진행 중에는 정답이 보이지 않으며, 객관·단답 점수도 서버에서만 계산합니다.';
-      if (summaryEl) summaryEl.textContent='학생이 제출하면 V4 서버 채점 결과를 확인할 수 있습니다.';
+      if (summaryEl) summaryEl.textContent='학생이 제출하면 실전평가 서버 채점 결과를 확인할 수 있습니다.';
     } else {
-      if (p1El) p1El.textContent='V4 객관식 문항 검토 내용을 서버에서 확인하고 있습니다…';
-      if (p2El) p2El.textContent='V4 단답형 문항 검토 내용을 서버에서 확인하고 있습니다…';
+      if (p1El) p1El.textContent='실전평가 객관식 문항 검토 내용을 서버에서 확인하고 있습니다…';
+      if (p2El) p2El.textContent='실전평가 단답형 문항 검토 내용을 서버에서 확인하고 있습니다…';
       if (summaryEl) {
-        summaryEl.textContent='V4 객관·단답 답안의 서버 채점 결과를 확인하고 있습니다…';
+        summaryEl.textContent='실전평가 객관·단답 답안의 서버 채점 결과를 확인하고 있습니다…';
       requestSecureEvaluationGrade(currentSelectedClass, s.numStr).then(result=>{
         if (currentModalStudent !== s) return;
         const score=result.score;
@@ -1180,7 +1201,7 @@ function openLiveStudentModal(studentNum) {
           const resultText=document.createElement('div');resultText.className='text-base font-black text-slate-900 mt-1';resultText.textContent=`${value} / ${max}점`;
           row.append(name,resultText);summaryEl.appendChild(row);
         });
-      }).catch(error=>{if(currentModalStudent===s)summaryEl.textContent='V4 서버 채점 결과를 확인하지 못했습니다. '+error.message;});
+      }).catch(error=>{if(currentModalStudent===s)summaryEl.textContent='실전평가 서버 채점 결과를 확인하지 못했습니다. '+error.message;});
       }
       requestSecureEvaluationReview(currentSelectedClass, s.numStr).then(result=>{
         if (currentModalStudent !== s) return;
@@ -1188,8 +1209,8 @@ function openLiveStudentModal(studentNum) {
         renderSecureV4TeacherQuestions(p2El, result.review?.part2, 'part2');
       }).catch(error=>{
         if (currentModalStudent !== s) return;
-        if (p1El) p1El.textContent='V4 문항 검토 내용을 확인하지 못했습니다. '+error.message;
-        if (p2El) p2El.textContent='V4 문항 검토 내용을 확인하지 못했습니다. '+error.message;
+        if (p1El) p1El.textContent='실전평가 문항 검토 내용을 확인하지 못했습니다. '+error.message;
+        if (p2El) p2El.textContent='실전평가 문항 검토 내용을 확인하지 못했습니다. '+error.message;
       });
     }
   }

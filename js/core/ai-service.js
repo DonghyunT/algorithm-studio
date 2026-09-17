@@ -83,12 +83,12 @@ async function requestAssessmentAI(body){
 }
 
 async function requestSecureEvaluation(action, body, teacher=false) {
-  if (window.authService.isDemo()) throw Error('로컬 시연에서는 V4 보안 평가 문항을 열지 않습니다.');
+  if (window.authService.isDemo()) throw Error('로컬 시연에서는 실전평가 비공개 문항을 열지 않습니다.');
   if (teacher) await window.authService.teacher({classId:body.classId});
   const token = await window.authService.token();
   const response = await fetch('/api/evaluation', {method:'POST',signal:AbortSignal.timeout(30000),headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({action,...body})});
   const data = await response.json().catch(()=>({}));
-  if (!response.ok) throw Error(data.error || 'V4 수행평가 서버를 확인하지 못했습니다.');
+  if (!response.ok) throw Error(data.error || '실전평가 서버를 확인하지 못했습니다.');
   return data;
 }
 

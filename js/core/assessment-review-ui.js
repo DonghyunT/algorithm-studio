@@ -11,7 +11,14 @@ function renderAssessmentReview(student,classId){
   if(proposal?.sourceKey!==sourceKey||proposal?.attemptId!==student.attemptId)proposal=null;
   let confirmed=student.review?.confirmed;
   if(confirmed?.sourceKey!==sourceKey||confirmed?.attemptId!==student.attemptId)confirmed=null;
-  const ai=add('button','Solar AI 초벌 채점 요청');ai.type='button';ai.disabled=student.status!=='submitted';
+  let ai = null;
+  if (student.questionVersion === 4) {
+    ai = add('button', 'Solar AI 초벌 채점 요청');
+    ai.type = 'button';
+    ai.disabled = student.status !== 'submitted';
+  } else {
+    add('p', 'ℹ️ 모의평가 회차는 교사 직접 평가로 진행됩니다. (AI 초벌 채점은 실전평가 회차에서 지원)');
+  }
   const detail=add('div',''),inputs=[];
   for(const rule of ASSESSMENT_RUBRIC){
     const row=add('div','',detail);row.className='assessment-review-row';
@@ -27,15 +34,17 @@ function renderAssessmentReview(student,classId){
   const save=add('button','교사 점수 확정 저장');save.type='button';save.id='review-confirm-save';save.disabled=true;
   ack.onchange=()=>{save.disabled=!ack.checked||student.status!=='submitted';};
   inputs.forEach(({input})=>input.addEventListener('input',()=>{ack.checked=false;save.disabled=true;}));
-  ai.onclick=async()=>{
-    ai.disabled=true;status.textContent='제출 답안을 검토하고 있습니다. 점수는 자동 확정되지 않습니다.';
-    try{
-      const result=await requestAssessmentAI({purpose:'review',classId,studentNum:student.numStr});
-      await evalService.savePart3Review(classId,student.num,sourceKey,result,'proposal');
-      if(assessmentReviewViewToken===token){student.review={...student.review,proposal:{...result,sourceKey}};renderAssessmentReview(student,classId);}
-    }catch(error){if(assessmentReviewViewToken===token)status.textContent=error.message;}
-    finally{if(assessmentReviewViewToken===token)ai.disabled=false;}
-  };
+  if(ai){
+    ai.onclick=async()=>{
+      ai.disabled=true;status.textContent='제출 답안을 검토하고 있습니다. 점수는 자동 확정되지 않습니다.';
+      try{
+        const result=await requestAssessmentAI({purpose:'review',classId,studentNum:student.numStr});
+        await evalService.savePart3Review(classId,student.num,sourceKey,result,'proposal');
+        if(assessmentReviewViewToken===token){student.review={...student.review,proposal:{...result,sourceKey}};renderAssessmentReview(student,classId);}
+      }catch(error){if(assessmentReviewViewToken===token)status.textContent=error.message;}
+      finally{if(assessmentReviewViewToken===token)ai.disabled=false;}
+    };
+  }
   save.onclick=async()=>{
     if(!ack.checked)return;
     save.disabled=true;

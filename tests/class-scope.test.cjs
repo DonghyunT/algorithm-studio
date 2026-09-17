@@ -20,7 +20,7 @@ function harness(role){
     fetch:async(url,options)=>{
       calls.push({url,options});
       if(url.includes('upstage.ai'))return {ok:true,json:async()=>({choices:[{message:{content:JSON.stringify({criteria,uncertainties:[]})}}]})};
-      const data=url.includes('/teachers/')?role:url.includes('/students/')?{status:'submitted',attemptId:'round-3',answers:{part3:answer}}:{questionVersion:3,attemptId:'round-3'};
+      const data=url.includes('/teachers/')?role:url.includes('/students/')?{status:'submitted',attemptId:'round-4',answers:{part3:answer}}:{questionVersion:4,attemptId:'round-4'};
       return {ok:true,json:async()=>({fields:field(data).mapValue.fields})};
     }
   };

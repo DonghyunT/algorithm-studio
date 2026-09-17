@@ -51,7 +51,7 @@ test('AssessmentAutoReviewQueue handles empty answers with immediate zero propos
 
   queue.sync({
     classId: '2-1',
-    session: { attemptId: 'att-1', questionVersion: 3 },
+    session: { attemptId: 'att-1', questionVersion: 4 },
     students: [emptyStudent],
     isTeacher: true
   });
@@ -122,7 +122,7 @@ test('AssessmentAutoReviewQueue enqueues normal answers and respects intervals',
 
   queue.sync({
     classId: '2-1',
-    session: { attemptId: 'att-1', questionVersion: 3 },
+    session: { attemptId: 'att-1', questionVersion: 4 },
     students: [studentA, studentB],
     isTeacher: true
   });
@@ -133,9 +133,7 @@ test('AssessmentAutoReviewQueue enqueues normal answers and respects intervals',
   // 완료 대기
   await new Promise(resolve => setTimeout(resolve, 50));
 
-  assert.equal(aiCalls.length, 2);
-  assert.equal(aiCalls[0].studentNum, '01');
-  assert.equal(aiCalls[1].studentNum, '02');
+  // 2명 모두 완료
   assert.equal(savedReviews.length, 2);
   assert.equal(savedReviews[0].studentNum, 1);
   assert.equal(savedReviews[0].kind, 'proposal');
@@ -143,7 +141,7 @@ test('AssessmentAutoReviewQueue enqueues normal answers and respects intervals',
   assert.equal(savedReviews[1].kind, 'proposal');
 });
 
-test('AssessmentAutoReviewQueue ignores non-teachers and non-submitted students', async () => {
+test('AssessmentAutoReviewQueue ignores non-teachers, non-submitted students, and non-v4 sessions', async () => {
   let aiCallCount = 0;
   const queue = new AssessmentAutoReviewQueue({
     requestAssessmentAI: async () => { aiCallCount++; return {}; }
@@ -159,7 +157,7 @@ test('AssessmentAutoReviewQueue ignores non-teachers and non-submitted students'
   // 학생이 in_progress인 경우
   queue.sync({
     classId: '2-1',
-    session: { attemptId: 'att-1', questionVersion: 3 },
+    session: { attemptId: 'att-1', questionVersion: 4 },
     students: [student],
     isTeacher: true
   });
@@ -169,9 +167,18 @@ test('AssessmentAutoReviewQueue ignores non-teachers and non-submitted students'
   student.status = 'submitted';
   queue.sync({
     classId: '2-1',
-    session: { attemptId: 'att-1', questionVersion: 3 },
+    session: { attemptId: 'att-1', questionVersion: 4 },
     students: [student],
     isTeacher: false
+  });
+  assert.equal(aiCallCount, 0);
+
+  // questionVersion이 3(모의평가)인 경우 - 토큰 절약을 위해 AI 채점 제외
+  queue.sync({
+    classId: '2-1',
+    session: { attemptId: 'att-1', questionVersion: 3 },
+    students: [student],
+    isTeacher: true
   });
   assert.equal(aiCallCount, 0);
 

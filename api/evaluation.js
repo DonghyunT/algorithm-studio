@@ -39,9 +39,9 @@ module.exports = async (req, res) => {
     return { session, student };
   };
   let bank;
-  try { bank = loadEvaluationBank(); } catch { return fail(503, 'V4 수행평가 문항 설정을 확인 중입니다. 선생님께 준비 상태를 확인해 주세요.'); }
+  try { bank = loadEvaluationBank(); } catch { return fail(503, '실전평가 문항 설정을 확인 중입니다. 선생님께 준비 상태를 확인해 주세요.'); }
   if (typeof process.env.EVAL_ASSIGNMENT_SECRET !== 'string' || process.env.EVAL_ASSIGNMENT_SECRET.length < 32) {
-    return fail(503, 'V4 수행평가 문항 배정 설정을 확인 중입니다. 선생님께 준비 상태를 확인해 주세요.');
+    return fail(503, '실전평가 문항 배정 설정을 확인 중입니다. 선생님께 준비 상태를 확인해 주세요.');
   }
 
   if (body.action === 'questions') {
@@ -52,7 +52,7 @@ module.exports = async (req, res) => {
       const assignment = assignQuestions(bank, process.env.EVAL_ASSIGNMENT_SECRET, scopeFor(session, body.classId, body.studentNum));
       return res.status(200).json({ attemptId: session.attemptId, questions: publicAssignment(assignment) });
     } catch (error) {
-      if (error.message === 'round') return fail(409, '현재 V4 평가 회차가 아니거나 회차 정보가 바뀌었습니다. 새로고침한 뒤 다시 확인해 주세요.');
+      if (error.message === 'round') return fail(409, '현재 실전평가 회차가 아니거나 회차 정보가 바뀌었습니다. 새로고침한 뒤 다시 확인해 주세요.');
       return fail(403, '평가 문항을 확인할 권한이 없거나 평가가 아직 시작되지 않았습니다.');
     }
   }
@@ -72,7 +72,7 @@ module.exports = async (req, res) => {
     }
     return res.status(200).json({ attemptId: session.attemptId, score: gradeAssignment(assignment, student.answers), rubricVersion: 'v4-server-objective' });
   } catch (error) {
-    if (error.message === 'round') return fail(409, '현재 V4 평가 회차가 아니거나 회차 정보가 바뀌었습니다.');
+    if (error.message === 'round') return fail(409, '현재 실전평가 회차가 아니거나 회차 정보가 바뀌었습니다.');
     return fail(403, '제출 답안을 읽을 수 없습니다. 담당 학급과 회차를 확인해 주세요.');
   }
 };

@@ -29,7 +29,7 @@ class EvalService {
     if (!/^2-(?:[1-9]|10|11)$/.test(classId) || !Number.isInteger(Number(num)) || Number(num) < 1 || Number(num) > 27) throw new Error('학급과 번호를 확인해 주세요.');
     return String(Number(num)).padStart(2, '0');
   }
-  defaultSession(classId) { return { classId, questionVersion:3, status: 'ended', durationMinutes: 30, startTime: null, maxStudents: 27 }; }
+  defaultSession(classId) { return { classId, questionVersion:4, status: 'ended', durationMinutes: 30, startTime: null, maxStudents: 27 }; }
   mergeLocalStudent(classId, student) {
     const key = 'EVAL_STUDENTS_' + classId;
     const list = this.read(key, []);
@@ -87,10 +87,11 @@ class EvalService {
     }
     return payload;
   }
-  async prepareSession(classId, expected) {
+  async prepareSession(classId, expected, questionVersion = 4) {
     await window.authService.teacher({classId});this.identity(classId,1);
     const db=this.getDb(), archivedAt=new Date().toISOString(), archiveId=crypto.randomUUID();
-    const fresh={...this.defaultSession(classId),schemaVersion:2,status:'waiting',attemptId:crypto.randomUUID(),preparedAt:archivedAt};
+    const qv = (questionVersion === 3 || questionVersion === 4) ? questionVersion : 4;
+    const fresh={...this.defaultSession(classId),questionVersion:qv,schemaVersion:2,status:'waiting',attemptId:crypto.randomUUID(),preparedAt:archivedAt};
     if(db){
       const ref=db.collection('classrooms').doc(classId);
       await db.runTransaction(async tx=>{
@@ -150,7 +151,7 @@ class EvalService {
         if (existing.exists) {
           const existingData = existing.data();
           if (existingData.ownerUid !== user.uid) throw new Error('이 번호는 다른 응시 기록에 연결되어 있습니다. 선생님께 확인해 주세요.');
-          if (sessionData && sessionData.questionVersion === 3 && assignFn && !existingData.answers?.assignedQuestions) {
+          if (sessionData && [3, 4].includes(sessionData.questionVersion) && assignFn && !existingData.answers?.assignedQuestions) {
             existingData.answers = existingData.answers || {};
             existingData.answers.assignedQuestions = assignFn(`${existingData.attemptId || sessionData.attemptId}_${classId}_${studentNum}`);
             transaction.update(ref, { 'answers.assignedQuestions': existingData.answers.assignedQuestions });
@@ -162,7 +163,7 @@ class EvalService {
         }
         student.attemptId=sessionData.attemptId;
         student.answers.part3.questionVersion=sessionData.questionVersion||1;
-        if (sessionData.questionVersion === 3 && assignFn && !student.answers.assignedQuestions) {
+        if ([3, 4].includes(sessionData.questionVersion) && assignFn && !student.answers.assignedQuestions) {
           student.answers.assignedQuestions = assignFn(`${student.attemptId}_${classId}_${studentNum}`);
         }
         transaction.set(ref, student);
@@ -177,7 +178,7 @@ class EvalService {
     if (existing) {
       const session=this.read('EVAL_SESSION_'+classId,this.defaultSession(classId));
       const assignFn = typeof assignQuestions === 'function' ? assignQuestions : (typeof window !== 'undefined' ? window.assignQuestions : null);
-      if (session && session.questionVersion === 3 && assignFn && !existing.answers?.assignedQuestions) {
+      if (session && [3, 4].includes(session.questionVersion) && assignFn && !existing.answers?.assignedQuestions) {
         existing.answers = existing.answers || {};
         existing.answers.assignedQuestions = assignFn(`${existing.attemptId || session.attemptId}_${classId}_${studentNum}`);
         this.mergeLocalStudent(classId, existing);
@@ -190,7 +191,7 @@ class EvalService {
     }
     student.answers.part3.questionVersion=session.questionVersion||1;student.attemptId=session.attemptId||'';
     const assignFn = typeof assignQuestions === 'function' ? assignQuestions : (typeof window !== 'undefined' ? window.assignQuestions : null);
-    if (session.questionVersion === 3 && assignFn && !student.answers.assignedQuestions) {
+    if ([3, 4].includes(session.questionVersion) && assignFn && !student.answers.assignedQuestions) {
       student.answers.assignedQuestions = assignFn(`${student.attemptId}_${classId}_${studentNum}`);
     }
     this.mergeLocalStudent(classId, student); this.notify(classId, {students:[student]}); return student;

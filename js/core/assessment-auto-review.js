@@ -72,8 +72,8 @@ class AssessmentAutoReviewQueue {
       this.isTeacher = !!isTeacher;
     }
 
-    // Part 3 자유 설계 회차(3, 4)이고 교사 권한일 때만 자동 초벌 채점 수행
-    if (![3, 4].includes(this.questionVersion) || !this.isTeacher) {
+    // 실전평가 회차(4)이고 교사 권한일 때만 자동 초벌 채점 수행 (모의평가 3은 토큰 절약을 위해 제외)
+    if (this.questionVersion !== 4 || !this.isTeacher) {
       return;
     }
 
