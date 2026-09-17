@@ -418,7 +418,19 @@ async function handleTeacherSessionAction() {
   if (!model.action) return;
   const classId = getClassIdFromSelected(), generation = liveDashboardGeneration;
   const expected = {attemptId:currentLiveSession?.attemptId ?? null, status:currentLiveSession?.status ?? 'waiting'};
-  if (model.action === 'end' && !confirm(`[${currentSelectedClass}] 평가를 종료하시겠습니까?\n연결된 학생 화면에 현재 답안 제출을 요청합니다. 연결이 끊긴 학생은 제출 여부를 별도로 확인해 주세요.`)) return;
+  if (model.action === 'end') {
+    const unsubmitted = (currentLiveStudents || []).filter(s => s.status !== 'submitted');
+    let confirmMsg = `[${currentSelectedClass}] 평가를 종료하시겠습니까?\n연결된 학생 화면에 현재 답안 제출을 요청합니다.`;
+    if (unsubmitted.length > 0) {
+      const inProg = unsubmitted.filter(s => s.status === 'in_progress').length;
+      const waiting = unsubmitted.filter(s => s.status === 'waiting').length;
+      confirmMsg = `⚠️ 아직 제출하지 않은 학생이 ${unsubmitted.length}명 있습니다.\n` +
+        `(풀이 중: ${inProg}명, 대기 중: ${waiting}명)\n\n` +
+        `[확인]을 누르면 미제출 학생들의 현재 답안으로 일괄 정상 제출 마감하고 평가를 종료합니다.\n` +
+        `[취소]를 누르면 종료하지 않고 이전 화면을 유지합니다.`;
+    }
+    if (!confirm(confirmMsg)) return;
+  }
   if (model.action === 'prepare' && model.state === 'ended' && !confirm('이전 답안을 보관하고 새 평가를 준비하시겠습니까? 학생들은 새 회차에 다시 입장해야 합니다.')) return;
   teacherSessionPending = true;
   teacherSessionPendingLabel = {prepare:'준비 중…', start:'시작 중…', end:'종료 중…'}[model.action];
@@ -433,7 +445,12 @@ async function handleTeacherSessionAction() {
       }
       session = await window.evalService.prepareSession(classId, expected);
     } else if (model.action === 'start') session = await window.evalService.startSession(classId, 30, expected);
-    else session = {...currentLiveSession, ...await window.evalService.endSession(classId, expected)};
+    else {
+      if (window.evalService && typeof window.evalService.autoSubmitRemainingStudents === 'function') {
+        try { await window.evalService.autoSubmitRemainingStudents(classId); } catch(e) { console.warn('일괄 제출 알림:', e); }
+      }
+      session = {...currentLiveSession, ...await window.evalService.endSession(classId, expected)};
+    }
     if (generation === liveDashboardGeneration) {
       currentLiveSession = session;
       setTeacherSessionFeedback({prepare:'평가를 준비했습니다. 학생 입장 후 시작해 주세요.',start:'평가를 시작했습니다.',end:'평가를 종료했습니다. 학생별 제출 상태를 확인해 주세요.'}[model.action]);
@@ -1262,6 +1279,52 @@ function openLiveStudentModal(studentNum) {
         try { await window.evalService.resetStudentExam(classId, s.num); } catch(error) { alert(error.message); return; }
         alert(`🔄 ${s.name} 학생의 재시험이 승인되었습니다. 답안이 초기화되었습니다.`);
         closeLiveStudentModal();
+      }
+    };
+  }
+
+  // 검사 중단 / 풀이중 학생: 현재 답안으로 정상 제출 버튼
+  const forceSubmitBox = document.getElementById('classroom-live-force-submit-box');
+  const forceSubmitBtn = document.getElementById('classroom-live-force-submit-btn');
+  if (forceSubmitBox && forceSubmitBtn) {
+    if (s.status !== 'submitted') {
+      forceSubmitBox.classList.remove('hidden');
+      forceSubmitBtn.onclick = async () => {
+        if (!confirm(`📝 [${s.name || s.num + '번'}] 학생의 현재 작성 답안으로 정상 제출 마감하시겠습니까?\n기기 꺼짐이나 네트워크 중단으로 제출하지 못한 답안을 교사 권한으로 즉시 마감 처리합니다.`)) {
+          return;
+        }
+        const classId = getClassIdFromSelected();
+        if (window.evalService) {
+          try {
+            await window.evalService.forceSubmitStudentExam(classId, s.num);
+            alert(`✅ ${s.name || s.num + '번'} 학생의 현재 답안으로 정상 제출되었습니다.`);
+            closeLiveStudentModal();
+          } catch(error) {
+            alert('제출 처리 실패: ' + error.message);
+          }
+        }
+      };
+    } else {
+      forceSubmitBox.classList.add('hidden');
+    }
+  }
+
+  // 유령 계정 / 번호 오입력: 좌석 비우기 (퇴장 처리) 버튼
+  const kickBtn = document.getElementById('classroom-live-kick-seat-btn');
+  if (kickBtn) {
+    kickBtn.onclick = async () => {
+      if (!confirm(`⚠️ 정말로 [${s.name || s.num + '번'}] 학생의 좌석을 비우고 퇴장 처리하시겠습니까?\n이 좌석의 응시 기록이 삭제되어 빈자리가 되며, 진짜 해당 번호 학생이 에러 없이 새로 입장할 수 있게 됩니다.`)) {
+        return;
+      }
+      const classId = getClassIdFromSelected();
+      if (window.evalService) {
+        try {
+          await window.evalService.clearStudentSeat(classId, s.num);
+          alert(`🗑️ ${s.name || s.num + '번'} 학생의 좌석이 초기화되었습니다. 이제 빈자리로 반환되었습니다.`);
+          closeLiveStudentModal();
+        } catch(error) {
+          alert('좌석 비우기 실패: ' + error.message);
+        }
       }
     };
   }

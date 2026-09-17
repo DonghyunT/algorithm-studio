@@ -2648,6 +2648,21 @@
           </div>
         </div>
 
+        <!-- 📝 검사 중단/풀이중 학생: 현재 답안으로 정상 제출 버튼 -->
+        <div id="classroom-live-force-submit-box" class="p-3 bg-blue-50/70 border border-blue-200 rounded-xl space-y-1.5 hidden">
+          <div class="flex items-center justify-between text-xs">
+            <span class="font-black text-blue-900 flex items-center gap-1.5">
+              <i class="fa-solid fa-file-circle-check text-blue-600"></i>
+              <span>현재 답안으로 정상 제출 (시험 종료 마감)</span>
+            </span>
+            <span class="text-[10px] text-blue-500 font-medium">미제출 ➔ 제출완료</span>
+          </div>
+          <p class="text-[11px] text-slate-600 leading-tight">기기 꺼짐이나 창 닫기로 제출하지 못한 학생의 현재 작성 답안을 바탕으로 즉시 정상 제출 처리합니다.</p>
+          <button id="classroom-live-force-submit-btn" type="button" class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-xs transition cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs active:scale-98">
+            <i class="fa-solid fa-check text-[11px]"></i> <span>현재 답안으로 정상 제출 마감</span>
+          </button>
+        </div>
+
         <!-- 🔄 오제출 구제: 재시험 허용 버튼 -->
         <div class="p-3 bg-rose-50/70 border border-rose-200 rounded-xl space-y-1.5">
           <div class="flex items-center justify-between text-xs">
@@ -2660,6 +2675,21 @@
           <p class="text-[11px] text-slate-600 leading-tight">학생의 제출 상태와 답안을 초기화하여 시험 화면으로 복귀시킵니다.</p>
           <button id="classroom-live-reset-btn" type="button" class="w-full py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-black text-xs transition cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs active:scale-98">
             <i class="fa-solid fa-rotate-left text-[11px]"></i> <span>재시험 허용 (답안 초기화 후 시험장 복귀)</span>
+          </button>
+        </div>
+
+        <!-- 🚫 유령 계정 / 번호 오입력: 좌석 비우기 (퇴장 처리) 버튼 -->
+        <div id="classroom-live-kick-seat-box" class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+          <div class="flex items-center justify-between text-xs">
+            <span class="font-black text-slate-700 flex items-center gap-1.5">
+              <i class="fa-solid fa-user-xmark text-slate-500"></i>
+              <span>좌석 비우기 (유령 좌석 / 결시 퇴장)</span>
+            </span>
+            <span class="text-[10px] text-slate-400 font-medium">좌석 초기화</span>
+          </div>
+          <p class="text-[11px] text-slate-500 leading-tight">번호를 잘못 입력했거나 중복 로그인된 유령 좌석을 비워, 진짜 학생이 입장할 수 있도록 자리를 반환합니다.</p>
+          <button id="classroom-live-kick-seat-btn" type="button" class="w-full py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-black text-xs transition cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs active:scale-98">
+            <i class="fa-solid fa-user-minus text-[11px]"></i> <span>좌석 비우기 (퇴장 및 빈자리 반환)</span>
           </button>
         </div>
       </div>

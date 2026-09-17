@@ -1,13 +1,13 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),crypto=require('node:crypto');
 function setup(){
  const records=new Map(),copy=value=>JSON.parse(JSON.stringify(value));let fail=false;
- function ref(path){return {path,id:path.split('/').pop(),collection:name=>({doc:id=>ref(path+'/'+name+'/'+id)}),update:async value=>{records.set(path,{...records.get(path),...copy(value)});},get:async()=>({exists:records.has(path),id:path.split('/').pop(),ref:ref(path),data:()=>copy(records.get(path)||{})})};}
- const db={collection:name=>({doc:id=>ref(name+'/'+id)}),runTransaction:async task=>{
-   const writes=[];
-   const result=await task({get:async doc=>({exists:records.has(doc.path),id:doc.id,ref:doc,data:()=>copy(records.get(doc.path)||{})}),set:(doc,value)=>writes.push(['set',doc.path,copy(value)]),update:(doc,value)=>writes.push(['update',doc.path,copy(value)]),delete:doc=>writes.push(['delete',doc.path])});
-   if(fail)throw Error('write failed');
-   for(const [type,path,value] of writes){if(type==='delete')records.delete(path);else records.set(path,type==='update'?{...records.get(path),...value}:value);}return result;
- }};
+  function ref(path){return {path,id:path.split('/').pop(),delete:async()=>{records.delete(path);},collection:name=>({doc:id=>ref(path+'/'+name+'/'+id),get:async()=>{const prefix=path+'/'+name+'/';const docs=[...records.keys()].filter(k=>k.startsWith(prefix)&&!k.slice(prefix.length).includes('/')).map(k=>({id:k.split('/').pop(),ref:ref(k),data:()=>copy(records.get(k)||{})}));return {forEach:fn=>docs.forEach(fn),docs};}}),update:async value=>{records.set(path,{...records.get(path),...copy(value)});},get:async()=>({exists:records.has(path),id:path.split('/').pop(),ref:ref(path),data:()=>copy(records.get(path)||{})})};}
+  const db={collection:name=>({doc:id=>ref(name+'/'+id)}),batch:()=>({update:(d,val)=>{records.set(d.path,{...records.get(d.path),...copy(val)});},commit:async()=>{}}),runTransaction:async task=>{
+    const writes=[];
+    const result=await task({get:async doc=>({exists:records.has(doc.path),id:doc.id,ref:doc,data:()=>copy(records.get(doc.path)||{})}),set:(doc,value)=>writes.push(['set',doc.path,copy(value)]),update:(doc,value)=>writes.push(['update',doc.path,copy(value)]),delete:doc=>writes.push(['delete',doc.path])});
+    if(fail)throw Error('write failed');
+    for(const [type,path,value] of writes){if(type==='delete')records.delete(path);else records.set(path,type==='update'?{...records.get(path),...value}:value);}return result;
+  }};
  const ctx={window:{firebaseDb:db,authService:{isDemo:()=>false,teacher:async()=>({uid:'teacher'}),student:async()=>({uid:'new-student'})}},crypto,console,Map,Set};
  vm.createContext(ctx);
  vm.runInContext(fs.readFileSync(require.resolve('../js/data/eval-question-bank.js'),'utf8'),ctx);
@@ -295,6 +295,61 @@ test('eval-service assigns distinct question sets to different students and back
   assert.ok(rejoined.answers.assignedQuestions, 'Rejoined student must have backfilled assignedQuestions');
   assert.deepEqual(rejoined.answers.assignedQuestions, student1.answers.assignedQuestions, 'Backfilled questions must match original deterministic set');
 });
+
+test('teacher can clear student seat to remove ghost seat or allow new student login', async () => {
+  const { records, service } = setup();
+  await service.prepareSession('2-1');
+  await service.joinWaitingRoom('2-1', 1, '유령학생');
+  assert.ok(records.has('classrooms/2-1/students/01'), 'Student seat must be reserved');
+
+  // Teacher clears the seat
+  await service.clearStudentSeat('2-1', 1);
+  assert.equal(records.has('classrooms/2-1/students/01'), false, 'Seat must be deleted from records');
+
+  // New student can now join without duplicate error
+  const newStudent = await service.joinWaitingRoom('2-1', 1, '진짜학생');
+  assert.equal(newStudent.name, '진짜학생');
+  assert.equal(records.has('classrooms/2-1/students/01'), true);
+});
+
+test('teacher can force submit in-progress student with current answers', async () => {
+  const { records, service } = setup();
+  await service.prepareSession('2-1');
+  await service.joinWaitingRoom('2-1', 1, '풀이중학생');
+  await service.startSession('2-1');
+
+  // Update some answers but never submitted by student
+  await service.updateStudentProgress('2-1', 1, { part1: 5, part2: 0, part3: 0 }, { part1: { q1: 1, q2: 2 } });
+  assert.equal(records.get('classrooms/2-1/students/01').status, 'in_progress');
+
+  // Teacher forces submission
+  const submitted = await service.forceSubmitStudentExam('2-1', 1);
+  assert.equal(submitted.status, 'submitted');
+  assert.equal(submitted.submittedBy, 'teacher_force');
+  assert.equal(records.get('classrooms/2-1/students/01').status, 'submitted');
+  assert.deepEqual(records.get('classrooms/2-1/students/01').answers.part1, { q1: 1, q2: 2 });
+});
+
+test('autoSubmitRemainingStudents submits all unsubmitted students when exam ends', async () => {
+  const { records, service } = setup();
+  await service.prepareSession('2-1');
+  await service.joinWaitingRoom('2-1', 1, '학생1');
+  await service.joinWaitingRoom('2-1', 2, '학생2');
+  await service.startSession('2-1');
+
+  // Student 1 answers something
+  await service.updateStudentProgress('2-1', 1, { part1: 3, part2: 0, part3: 0 }, { part1: { q1: 1 } });
+  // Student 2 never answers anything (stays in_progress)
+
+  // Auto-submit remaining students
+  const count = await service.autoSubmitRemainingStudents('2-1');
+  assert.equal(count, 2, 'Both students must be auto-submitted');
+  assert.equal(records.get('classrooms/2-1/students/01').status, 'submitted');
+  assert.equal(records.get('classrooms/2-1/students/02').status, 'submitted');
+  assert.equal(records.get('classrooms/2-1/students/01').submittedBy, 'teacher_auto_end');
+  assert.equal(records.get('classrooms/2-1/students/02').submittedBy, 'teacher_auto_end');
+});
+
 
 
 

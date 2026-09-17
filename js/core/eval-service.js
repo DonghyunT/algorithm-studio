@@ -308,10 +308,88 @@ class EvalService {
     else { const old=this.read('EVAL_STUDENTS_'+classId,[]).find(s=>s.numStr===docId);payload.answers.part3={questionVersion:old?.answers?.part3?.questionVersion||1,blocks:[],connections:[]};const student={num:Number(studentNum),numStr:docId,...payload};this.mergeLocalStudent(classId,student);this.notify(classId,{students:[student]}); }
     return true;
   }
+  async clearStudentSeat(classId, studentNum) {
+    await window.authService.teacher({classId});
+    const docId = this.identity(classId, studentNum), db = this.getDb();
+    if (db) {
+      const ref = db.collection('classrooms').doc(classId).collection('students').doc(docId);
+      await ref.delete();
+    } else {
+      const key = 'EVAL_STUDENTS_' + classId;
+      const list = this.read(key, []).filter(item => item.numStr !== docId);
+      this.write(key, list);
+      this.notify(classId, { replaceStudents: true, students: list });
+    }
+    return true;
+  }
+  async forceSubmitStudentExam(classId, studentNum) {
+    await window.authService.teacher({classId});
+    const docId = this.identity(classId, studentNum), db = this.getDb();
+    const finalData = { status: 'submitted', submittedAt: new Date().toISOString(), submittedBy: 'teacher_force' };
+    if (db) {
+      const ref = db.collection('classrooms').doc(classId).collection('students').doc(docId);
+      return db.runTransaction(async tx => {
+        const doc = await tx.get(ref);
+        if (!doc.exists) throw new Error('응시 기록이 없습니다.');
+        const current = doc.data();
+        if (current.status === 'submitted') return current;
+        tx.update(ref, finalData);
+        return { ...current, ...finalData };
+      });
+    } else {
+      const key = 'EVAL_STUDENTS_' + classId;
+      const list = this.read(key, []);
+      const student = list.find(item => item.numStr === docId);
+      if (!student) throw new Error('응시 기록이 없습니다.');
+      Object.assign(student, finalData);
+      this.write(key, list);
+      this.notify(classId, { replaceStudents: true, students: list });
+      return student;
+    }
+  }
+  async autoSubmitRemainingStudents(classId) {
+    await window.authService.teacher({classId});
+    const db = this.getDb();
+    const submittedAt = new Date().toISOString();
+    const finalPatch = { status: 'submitted', submittedAt, submittedBy: 'teacher_auto_end' };
+    let count = 0;
+    if (db) {
+      const colRef = db.collection('classrooms').doc(classId).collection('students');
+      const snap = await colRef.get();
+      const unsubmittedDocs = [];
+      snap.forEach(doc => {
+        if (doc.data().status !== 'submitted') unsubmittedDocs.push(doc);
+      });
+      count = unsubmittedDocs.length;
+      if (count > 0) {
+        if (db.batch) {
+          const batch = db.batch();
+          unsubmittedDocs.forEach(d => batch.update(d.ref, finalPatch));
+          await batch.commit();
+        } else {
+          await Promise.all(unsubmittedDocs.map(d => d.ref.update(finalPatch)));
+        }
+      }
+    } else {
+      const key = 'EVAL_STUDENTS_' + classId;
+      const list = this.read(key, []);
+      list.forEach(st => {
+        if (st.status !== 'submitted') {
+          Object.assign(st, finalPatch);
+          count++;
+        }
+      });
+      if (count > 0) {
+        this.write(key, list);
+        this.notify(classId, { replaceStudents: true, students: list });
+      }
+    }
+    return count;
+  }
   listenStudent(classId, studentNum, callback, onError = error => alert(error.message)) {
     const docId=this.identity(classId,studentNum),db=this.getDb();
-    if(db) return db.collection('classrooms').doc(classId).collection('students').doc(docId).onSnapshot(doc=>{if(doc.exists)callback(doc.data());},onError);
-    return this.demoListen(classId,()=>{const student=this.read('EVAL_STUDENTS_'+classId,[]).find(item=>item.numStr===docId);if(student)callback(student);});
+    if(db) return db.collection('classrooms').doc(classId).collection('students').doc(docId).onSnapshot(doc=>{callback(doc.exists?doc.data():null);},onError);
+    return this.demoListen(classId,()=>{const student=this.read('EVAL_STUDENTS_'+classId,[]).find(item=>item.numStr===docId);callback(student||null);});
   }
   async savePart3Review(classId,studentNum,sourceKey,details,kind='proposal'){
     const user=await window.authService.teacher({classId}),docId=this.identity(classId,studentNum),db=this.getDb();
