@@ -240,7 +240,28 @@ class StudentEvalApp {
     // 2) 학생 개별 상태 리스너 구독 (교사의 재시험 허용 실시간 감지 및 시험장 자동 복귀)
     if (window.evalService && !this.studentUnsub) {
       this.studentUnsub = window.evalService.listenStudent(this.currentClass, this.studentNum, (stData) => {
+        // 교사에 의한 좌석 비우기 (퇴장 처리) 실시간 감지
+        if (stData === null && this.joined && !this.isSubmitted) {
+          this.sessionUnsub?.(); this.studentUnsub?.();
+          this.sessionUnsub = null; this.studentUnsub = null;
+          this.joined = false;
+          sessionStorage.removeItem(this.draftKey());
+          sessionStorage.removeItem('ALGO_ACTIVE_EXAM');
+          alert("⚠️ 선생님께서 좌석을 초기화하셨습니다.\n번호와 이름을 다시 확인해 주세요.");
+          location.reload();
+          return;
+        }
         this.latestStudent=stData;
+        // 교사에 의한 강제 정상 제출 실시간 감지
+        if (!this.isSubmitted && stData?.status === 'submitted') {
+          this.isSubmitted = true;
+          clearInterval(this.timerInterval); this.timerInterval = null;
+          this.calculateScores();
+          this.showScreen('result');
+          this.renderResult();
+          alert("🔔 선생님께서 시험을 마감하여 현재 작성 답안으로 정상 제출되었습니다.");
+          return;
+        }
         if(this.isSubmitted&&stData?.status==='submitted'){
           this.calculateScores();
           if(!document.getElementById('eval-screen-result').classList.contains('hidden'))this.renderResult();

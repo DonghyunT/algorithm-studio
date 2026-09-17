@@ -33,6 +33,48 @@ let teacherSessionPending = false;
 let teacherSessionPendingLabel = '';
 let isScoreBlindMode = true; // 프로젝터 투사 시 학생 실시간 점수 유출 방지 (기본 ON)
 let currentModalStudent = null;
+let teacherAutoReviewQueue = null;
+
+function getTeacherAutoReviewQueue() {
+  if (!teacherAutoReviewQueue && typeof AssessmentAutoReviewQueue === 'function') {
+    teacherAutoReviewQueue = new AssessmentAutoReviewQueue({
+      onStatusChange: updateTeacherAiQueueBadge
+    });
+  }
+  return teacherAutoReviewQueue;
+}
+
+function updateTeacherAiQueueBadge(status = {}) {
+  const badge = document.getElementById('classroom-live-ai-status');
+  const text = document.getElementById('classroom-live-ai-text');
+  if (!badge || !text) return;
+
+  if (status.isBusy) {
+    badge.classList.remove('hidden');
+    badge.className = 'text-amber-300 font-bold flex items-center gap-1.5';
+    const pending = status.pendingCount || 0;
+    const proc = status.currentProcessing ? `${status.currentProcessing}번 분석 중` : '대기 중';
+    text.textContent = `⚡ AI 초벌 채점 (${proc} · 대기 ${pending}명)`;
+  } else if (status.totalProcessed > 0 && status.pendingCount === 0) {
+    badge.classList.remove('hidden');
+    badge.className = 'text-emerald-400 font-bold flex items-center gap-1.5';
+    text.textContent = `✓ AI 초벌 채점 완료 (${status.totalProcessed}명)`;
+  } else {
+    badge.classList.add('hidden');
+  }
+}
+
+function syncTeacherAutoReviewQueue(students = currentLiveStudents) {
+  const classId = getClassIdFromSelected();
+  const queue = getTeacherAutoReviewQueue();
+  if (!queue || !classId || !currentLiveSession) return;
+  queue.sync({
+    classId,
+    session: currentLiveSession,
+    students: students || [],
+    isTeacher: isTeacherAuthenticated
+  });
+}
 
 // 1. 클래스룸 데이터 로드 및 초기화
 function getClassroomData() { return Object.fromEntries(DEFAULT_CLASSES.map(name => [name, []])); }
@@ -229,6 +271,7 @@ function initLiveEvalDashboard() {
       currentLiveSession = session;
       liveSessionError = false;
       renderTeacherSessionControl();
+      syncTeacherAutoReviewQueue(currentLiveStudents);
     }, () => {
       if (generation !== liveDashboardGeneration) return;
       clearUnavailableTeacherData();
@@ -240,6 +283,7 @@ function initLiveEvalDashboard() {
       if(label) label.textContent=window.evalService.isDemo() ? '로컬 시연 · 운영 DB와 분리됨' : '답안 수신됨 · 연결 상태는 갱신 시 확인';
       currentLiveStudents = students || [];
       renderLiveGrid(currentLiveStudents);
+      syncTeacherAutoReviewQueue(currentLiveStudents);
     }, ()=>{if(generation===liveDashboardGeneration)clearUnavailableTeacherData();});
     if(generation!==liveDashboardGeneration){liveEvalUnsub?.();liveEvalUnsub=null;return;}
     liveSessionTimer = setInterval(renderTeacherSessionControl, 1000);
@@ -263,6 +307,8 @@ function stopLiveEvalDashboard() {
   liveEvalUnsub?.(); liveEvalUnsub = null;
   liveSessionUnsub?.(); liveSessionUnsub = null;
   clearInterval(liveSessionTimer); liveSessionTimer = null;
+  teacherAutoReviewQueue?.reset();
+  updateTeacherAiQueueBadge({ isBusy: false, pendingCount: 0, totalProcessed: 0 });
 }
 
 function teacherSessionState(session = currentLiveSession) {
@@ -418,7 +464,19 @@ async function handleTeacherSessionAction() {
   if (!model.action) return;
   const classId = getClassIdFromSelected(), generation = liveDashboardGeneration;
   const expected = {attemptId:currentLiveSession?.attemptId ?? null, status:currentLiveSession?.status ?? 'waiting'};
-  if (model.action === 'end' && !confirm(`[${currentSelectedClass}] 평가를 종료하시겠습니까?\n연결된 학생 화면에 현재 답안 제출을 요청합니다. 연결이 끊긴 학생은 제출 여부를 별도로 확인해 주세요.`)) return;
+  if (model.action === 'end') {
+    const unsubmitted = (currentLiveStudents || []).filter(s => s.status !== 'submitted');
+    let confirmMsg = `[${currentSelectedClass}] 평가를 종료하시겠습니까?\n연결된 학생 화면에 현재 답안 제출을 요청합니다.`;
+    if (unsubmitted.length > 0) {
+      const inProg = unsubmitted.filter(s => s.status === 'in_progress').length;
+      const waiting = unsubmitted.filter(s => s.status === 'waiting').length;
+      confirmMsg = `⚠️ 아직 제출하지 않은 학생이 ${unsubmitted.length}명 있습니다.\n` +
+        `(풀이 중: ${inProg}명, 대기 중: ${waiting}명)\n\n` +
+        `[확인]을 누르면 미제출 학생들의 현재 답안으로 일괄 정상 제출 마감하고 평가를 종료합니다.\n` +
+        `[취소]를 누르면 종료하지 않고 이전 화면을 유지합니다.`;
+    }
+    if (!confirm(confirmMsg)) return;
+  }
   if (model.action === 'prepare' && model.state === 'ended' && !confirm('이전 답안을 보관하고 새 평가를 준비하시겠습니까? 학생들은 새 회차에 다시 입장해야 합니다.')) return;
   teacherSessionPending = true;
   teacherSessionPendingLabel = {prepare:'준비 중…', start:'시작 중…', end:'종료 중…'}[model.action];
@@ -433,7 +491,12 @@ async function handleTeacherSessionAction() {
       }
       session = await window.evalService.prepareSession(classId, expected);
     } else if (model.action === 'start') session = await window.evalService.startSession(classId, 30, expected);
-    else session = {...currentLiveSession, ...await window.evalService.endSession(classId, expected)};
+    else {
+      if (window.evalService && typeof window.evalService.autoSubmitRemainingStudents === 'function') {
+        try { await window.evalService.autoSubmitRemainingStudents(classId); } catch(e) { console.warn('일괄 제출 알림:', e); }
+      }
+      session = {...currentLiveSession, ...await window.evalService.endSession(classId, expected)};
+    }
     if (generation === liveDashboardGeneration) {
       currentLiveSession = session;
       setTeacherSessionFeedback({prepare:'평가를 준비했습니다. 학생 입장 후 시작해 주세요.',start:'평가를 시작했습니다.',end:'평가를 종료했습니다. 학생별 제출 상태를 확인해 주세요.'}[model.action]);
@@ -504,7 +567,13 @@ function renderLiveGrid(students = []) {
         const finalScore = (s.scores?.teacherOverride !== null && s.scores?.teacherOverride !== undefined)
           ? s.scores.teacherOverride
           : (s.scores?.total || 0);
-        statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-600 text-white font-bold">제출완료</span>`;
+        let reviewBadge = '';
+        if (s.review?.confirmed) {
+          reviewBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-black ml-1">확정</span>`;
+        } else if (s.review?.proposal) {
+          reviewBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 font-bold ml-1">AI제안</span>`;
+        }
+        statusBadge = `<div class="flex items-center"><span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-600 text-white font-bold">제출완료</span>${reviewBadge}</div>`;
         if (isScoreBlindMode) {
           scoreDisplay = `<span class="text-xs text-emerald-700 font-bold">제출 완료 (비공개)</span>`;
         } else {
@@ -1262,6 +1331,52 @@ function openLiveStudentModal(studentNum) {
         try { await window.evalService.resetStudentExam(classId, s.num); } catch(error) { alert(error.message); return; }
         alert(`🔄 ${s.name} 학생의 재시험이 승인되었습니다. 답안이 초기화되었습니다.`);
         closeLiveStudentModal();
+      }
+    };
+  }
+
+  // 검사 중단 / 풀이중 학생: 현재 답안으로 정상 제출 버튼
+  const forceSubmitBox = document.getElementById('classroom-live-force-submit-box');
+  const forceSubmitBtn = document.getElementById('classroom-live-force-submit-btn');
+  if (forceSubmitBox && forceSubmitBtn) {
+    if (s.status !== 'submitted') {
+      forceSubmitBox.classList.remove('hidden');
+      forceSubmitBtn.onclick = async () => {
+        if (!confirm(`📝 [${s.name || s.num + '번'}] 학생의 현재 작성 답안으로 정상 제출 마감하시겠습니까?\n기기 꺼짐이나 네트워크 중단으로 제출하지 못한 답안을 교사 권한으로 즉시 마감 처리합니다.`)) {
+          return;
+        }
+        const classId = getClassIdFromSelected();
+        if (window.evalService) {
+          try {
+            await window.evalService.forceSubmitStudentExam(classId, s.num);
+            alert(`✅ ${s.name || s.num + '번'} 학생의 현재 답안으로 정상 제출되었습니다.`);
+            closeLiveStudentModal();
+          } catch(error) {
+            alert('제출 처리 실패: ' + error.message);
+          }
+        }
+      };
+    } else {
+      forceSubmitBox.classList.add('hidden');
+    }
+  }
+
+  // 유령 계정 / 번호 오입력: 좌석 비우기 (퇴장 처리) 버튼
+  const kickBtn = document.getElementById('classroom-live-kick-seat-btn');
+  if (kickBtn) {
+    kickBtn.onclick = async () => {
+      if (!confirm(`⚠️ 정말로 [${s.name || s.num + '번'}] 학생의 좌석을 비우고 퇴장 처리하시겠습니까?\n이 좌석의 응시 기록이 삭제되어 빈자리가 되며, 진짜 해당 번호 학생이 에러 없이 새로 입장할 수 있게 됩니다.`)) {
+        return;
+      }
+      const classId = getClassIdFromSelected();
+      if (window.evalService) {
+        try {
+          await window.evalService.clearStudentSeat(classId, s.num);
+          alert(`🗑️ ${s.name || s.num + '번'} 학생의 좌석이 초기화되었습니다. 이제 빈자리로 반환되었습니다.`);
+          closeLiveStudentModal();
+        } catch(error) {
+          alert('좌석 비우기 실패: ' + error.message);
+        }
       }
     };
   }
