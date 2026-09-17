@@ -1,5 +1,24 @@
 # 운영 배포 기록
 
+## 2026-09-17 교사용 좌석 비우기, 강제 정상 제출 및 평가 종료 시 일괄 마감 운영 배포 (S-PLAN 국가수준 CBT 표준 반영)
+
+교실 현장에서 번호 오입력, 기기 꺼짐, 학생 창 닫기로 인해 발생하는 유령 좌석 점유 및 미제출 고착 현상을 해결하기 위해 서울시교육청 S-PLAN 국가수준 CBT 감독관 매뉴얼 원칙을 적용하여 운영 배포했습니다.
+
+1. **Firestore 보안 규칙 클라우드 배포**:
+   - `firestore.rules`에서 교사(`teacherForClass(classId)`)가 세션 상태(`waiting`, `in_progress`, `ended`)에 관계없이 학생 좌석 문서를 삭제할 수 있도록 `allow delete` 규칙을 완화하고, `firebase deploy --only firestore:rules` 명령으로 `donghyun-algo` 프로덕션 DB에 배포 완료.
+2. **교사용 좌석 비우기 (유령 좌석 / 결시 퇴장) 기능 (`clearStudentSeat`)**:
+   - 번호 오입력 또는 중복 로그인으로 꼬인 유령 좌석을 교사가 학생 상세 모달에서 즉시 삭제하여 빈자리(미접속)로 반환.
+   - 학생 브라우저가 살아있는 경우 좌석 초기화를 실시간 감지하여 대기/로비 화면으로 안전하게 복귀.
+3. **교사용 현재 답안 정상 제출 기능 (`forceSubmitStudentExam`)**:
+   - 창을 닫았거나 기기가 꺼져 미제출(`in_progress` 또는 `waiting`) 상태로 멈춘 학생에 대해 교사가 현재 작성된 답안을 바탕으로 즉시 `submitted`로 마감 및 자동 채점 산출.
+   - 학생 브라우저가 살아있는 경우 시험 종료 및 결과 화면으로 실시간 전환.
+4. **평가 종료 시 미제출 학생 일괄 마감 (`autoSubmitRemainingStudents`)**:
+   - 교사가 [평가 종료] 클릭 시 미제출 학생 수를 감지하고, 안내 대화상자를 거쳐 미제출 학생 전원을 현재 답안으로 일괄 정상 제출 처리 후 평가 종료.
+5. **검증 및 배포**:
+   - `tests/rounds.test.cjs`에 3개 신규 단위 테스트 추가, 53개 전체 단위 테스트 통과 (PASS).
+   - 제품 `ee35dd0` main fast-forward 병합 및 Vercel Production 푸시 완료.
+   - 실제 운영 주소 `https://algorithm-studio-ten.vercel.app/index.html`에서 신규 기능 정적 에셋 서빙 확인 완료.
+
 ## 2026-09-15 V4 수행평가 P0 Firestore 보안 규칙 운영 게시
 
 `codex/secure-assessment-integrity`의 V4 보안 경계를 운영 준비로 반영했습니다.
