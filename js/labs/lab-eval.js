@@ -600,12 +600,12 @@ class StudentEvalApp {
       if (p1) p1.classList.add('hidden');
       if (p2) p2.classList.add('hidden');
       if (p3) p3.classList.add('hidden');
-      if (modeBtnText) modeBtnText.textContent = "클래식 탭 모드";
+      if (modeBtnText) modeBtnText.textContent = "모아서 보기";
     } else {
       if (cbtContainer) cbtContainer.classList.add('hidden');
       if (classicContainer) classicContainer.classList.remove('hidden');
       if (tabs) tabs.classList.remove('hidden');
-      if (modeBtnText) modeBtnText.textContent = "CBT 1문항 모드";
+      if (modeBtnText) modeBtnText.textContent = "한 문제씩 보기";
       const sharedWs = document.getElementById('eval-shared-workspace');
       const planGuide = document.getElementById('eval-plan-guide');
       const p3Container = document.getElementById('eval-part3-container');
