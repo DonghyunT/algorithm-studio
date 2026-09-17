@@ -350,6 +350,30 @@ test('autoSubmitRemainingStudents submits all unsubmitted students when exam end
   assert.equal(records.get('classrooms/2-1/students/02').submittedBy, 'teacher_auto_end');
 });
 
+test('prepareSession accepts questionVersion 3 (모의평가) or 4 (실전평가) and defaults to 4', async () => {
+  const { records, service } = setup();
+  // 1. Version 3 (모의평가)
+  const sessionV3 = await service.prepareSession('2-1', null, 3);
+  assert.equal(sessionV3.questionVersion, 3);
+  assert.equal(records.get('classrooms/2-1').questionVersion, 3);
+
+  // End round 3 before preparing next
+  await service.endSession('2-1', { attemptId: sessionV3.attemptId, status: 'waiting' });
+
+  // 2. Version 4 (실전평가)
+  const sessionV4 = await service.prepareSession('2-1', null, 4);
+  assert.equal(sessionV4.questionVersion, 4);
+  assert.equal(records.get('classrooms/2-1').questionVersion, 4);
+
+  // End round 4 before preparing next
+  await service.endSession('2-1', { attemptId: sessionV4.attemptId, status: 'waiting' });
+
+  // 3. Default (omitted questionVersion should default to 4)
+  const sessionDefault = await service.prepareSession('2-1');
+  assert.equal(sessionDefault.questionVersion, 4);
+  assert.equal(records.get('classrooms/2-1').questionVersion, 4);
+});
+
 
 
 

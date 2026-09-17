@@ -135,7 +135,37 @@ body > div:first-child, main { min-width:0; }
 .teacher-session-counts { flex-wrap:wrap; row-gap:6px; }
 .teacher-session-feedback { color:#ffe1a0; font-size:13px; line-height:1.6; margin-top:8px; max-width:52ch; }
 .teacher-session-feedback:empty { display:none; }
-.teacher-session-actions { align-self:center; }
+.teacher-session-actions { align-self:center; flex-wrap:wrap; }
+.teacher-session-version-select {
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: #f1f5f9;
+  background: #1e293b;
+  border: 1px solid #475569;
+  border-radius: 4px;
+  cursor: pointer;
+  outline: none;
+  min-height: 42px;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+}
+.teacher-session-version-select:hover:not(:disabled) {
+  border-color: #94a3b8;
+  background: #334155;
+}
+.teacher-session-version-select:focus-visible {
+  outline: 3px solid #9cc3ff;
+  outline-offset: 2px;
+}
+.teacher-session-version-select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  border-color: #334155;
+  background: #0f172a;
+  color: #94a3b8;
+}
 .teacher-session-action, .teacher-session-sub-action, .teacher-export-action { padding:11px 16px; font-size:14px; font-weight:700; white-space:nowrap; cursor:pointer; }
 .teacher-session-action { min-width:132px; color:#233247; background:#eef4ff; border:1px solid #eef4ff; }
 .teacher-session-action[data-action="end"], .teacher-session-sub-action { color:#f4d4d4; background:transparent; border:1px solid #b497a0; }

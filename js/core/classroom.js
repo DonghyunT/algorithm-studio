@@ -369,6 +369,17 @@ function renderTeacherSessionControl() {
   }
   const select = document.getElementById('classroom-class-select');
   if (select) select.disabled = teacherSessionPending;
+  const verSelect = document.getElementById('teacher-session-version-select');
+  if (verSelect) {
+    const isPrepareState = model.action === 'prepare';
+    verSelect.disabled = teacherSessionPending || !isPrepareState;
+    if (model.state === 'waiting' || model.state === 'running') {
+      verSelect.value = String(currentLiveSession?.questionVersion === 3 ? 3 : 4);
+      verSelect.title = '진행 중이거나 대기 중인 평가의 유형은 변경할 수 없습니다.';
+    } else {
+      verSelect.title = '준비할 평가 유형(실전평가 또는 모의평가)을 선택하세요.';
+    }
+  }
 }
 
 async function handleCloseWaitingRoom() {
@@ -491,13 +502,25 @@ async function handleTeacherSessionAction() {
     }
     if (!confirm(confirmMsg)) return;
   }
-  if (model.action === 'prepare' && model.state === 'ended') {
-    const ok = confirm(
-      '이전 답안을 안전하게 보관하고 새 실전평가를 준비하시겠습니까?\n\n' +
-      '• 평가 유형: 실전평가 (80문항 비공개 문제은행 기반 균형 배정)\n' +
-      '• 학생들은 새 회차에 다시 입장해야 합니다.'
-    );
-    if (!ok) return;
+  let selectedVersion = 4;
+  if (model.action === 'prepare') {
+    const verSelect = document.getElementById('teacher-session-version-select');
+    selectedVersion = Number(verSelect?.value) === 3 ? 3 : 4;
+    const isMock = selectedVersion === 3;
+
+    if (model.state === 'ended') {
+      const confirmMsg = isMock
+        ? '이전 답안을 안전하게 보관하고 새 [📘 모의평가]를 준비하시겠습니까?\n\n' +
+          '• 평가 유형: 모의평가 (기본 실습 문항 배정)\n' +
+          '• 채점 방식: AI 채점 꺼짐 (토큰 절약 및 자유 실습)\n' +
+          '• 학생들은 새 회차에 다시 입장해야 합니다.'
+        : '이전 답안을 안전하게 보관하고 새 [📗 실전평가]를 준비하시겠습니까?\n\n' +
+          '• 평가 유형: 실전평가 (80문항 비공개 문제은행 기반 균형 배정)\n' +
+          '• 채점 방식: Solar AI 자동 초벌 채점 가동\n' +
+          '• 학생들은 새 회차에 다시 입장해야 합니다.';
+      const ok = confirm(confirmMsg);
+      if (!ok) return;
+    }
   }
   teacherSessionPending = true;
   teacherSessionPendingLabel = {prepare:'준비 중…', start:'시작 중…', end:'종료 중…'}[model.action];
@@ -510,7 +533,7 @@ async function handleTeacherSessionAction() {
         await window.evalService.endSession(classId, expected);
         expected.status = 'ended';
       }
-      session = await window.evalService.prepareSession(classId, expected);
+      session = await window.evalService.prepareSession(classId, expected, selectedVersion);
     } else if (model.action === 'start') session = await window.evalService.startSession(classId, 30, expected);
     else {
       if (window.evalService && typeof window.evalService.autoSubmitRemainingStudents === 'function') {
@@ -520,7 +543,11 @@ async function handleTeacherSessionAction() {
     }
     if (generation === liveDashboardGeneration) {
       currentLiveSession = session;
-      setTeacherSessionFeedback({prepare:'평가를 준비했습니다. 학생 입장 후 시작해 주세요.',start:'평가를 시작했습니다.',end:'평가를 종료했습니다. 학생별 제출 상태를 확인해 주세요.'}[model.action]);
+      const isMockSession = currentLiveSession?.questionVersion === 3;
+      const prepFeedback = isMockSession
+        ? '모의평가를 준비했습니다. 학생 입장 후 시작해 주세요.'
+        : '실전평가를 준비했습니다. 학생 입장 후 시작해 주세요.';
+      setTeacherSessionFeedback({prepare:prepFeedback,start:'평가를 시작했습니다.',end:'평가를 종료했습니다. 학생별 제출 상태를 확인해 주세요.'}[model.action]);
     }
   } catch(error) {
     if (generation === liveDashboardGeneration) setTeacherSessionFeedback('처리하지 못했습니다. '+error.message);

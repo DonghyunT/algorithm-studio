@@ -2457,7 +2457,11 @@
             </div>
             <p id="teacher-session-feedback" class="teacher-session-feedback" role="status"></p>
           </div>
-          <div class="teacher-session-actions flex items-center gap-2.5">
+          <div class="teacher-session-actions flex flex-wrap items-center gap-2.5">
+            <select id="teacher-session-version-select" class="teacher-session-version-select" aria-label="평가 유형 선택" title="준비할 평가 유형(실전평가 또는 모의평가)을 선택하세요">
+              <option value="4" selected>📗 실전평가 (80문항 / AI 채점)</option>
+              <option value="3">📘 모의평가 (실습 / AI 끔)</option>
+            </select>
             <button id="teacher-session-action" type="button" onclick="handleTeacherSessionAction()" class="teacher-session-action" aria-describedby="teacher-session-hint" disabled>상태 확인 중</button>
             <button id="teacher-session-close-waiting" type="button" onclick="handleCloseWaitingRoom()" class="teacher-session-sub-action hidden" title="현재 학급의 대기실을 닫아 학생 입장을 차단합니다">대기실 닫기</button>
             <button type="button" onclick="handleTeacherExportCSV()" class="teacher-export-action">
