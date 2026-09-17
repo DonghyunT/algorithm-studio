@@ -1449,16 +1449,33 @@ class StudentEvalApp {
 
   bindScoreRevealButton() {
     const button = document.getElementById('eval-result-score-reveal-button');
+    const label = document.getElementById('eval-result-score-reveal-label');
     const panel = document.getElementById('eval-result-score-reveal-panel');
     if (!button || !panel || button._scoreRevealBound || typeof button.addEventListener !== 'function') return;
     const hide = () => {
       panel.hidden = true;
       panel.textContent = '';
       button.setAttribute('aria-pressed', 'false');
+      const scoreTotalEl = document.getElementById('eval-result-total-score');
+      if (scoreTotalEl && this.scores?.serverGraded) {
+        scoreTotalEl.textContent = '🔒 • • / 60점';
+      }
+      const part1El = document.getElementById('eval-result-part1-score');
+      const part2El = document.getElementById('eval-result-part2-score');
+      if (part1El && this.scores?.serverGraded) part1El.textContent = '🔒 •• / 30점';
+      if (part2El && this.scores?.serverGraded) part2El.textContent = '🔒 •• / 30점';
+      if (label && this.serverScoreState.status === 'ready') label.textContent = '👁️ 누르고 있는 동안 점수 확인';
     };
     const show = () => {
       const score = this.serverScoreState.score;
       if (this.serverScoreState.status !== 'ready' || !score) return;
+      const scoreTotalEl = document.getElementById('eval-result-total-score');
+      if (scoreTotalEl) scoreTotalEl.textContent = `${score.objectiveTotal} / 60점`;
+      const part1El = document.getElementById('eval-result-part1-score');
+      const part2El = document.getElementById('eval-result-part2-score');
+      if (part1El) part1El.textContent = `${score.part1} / 30점`;
+      if (part2El) part2El.textContent = `${score.part2} / 30점`;
+      if (label) label.textContent = '점수 확인 중...';
       panel.textContent = `객관·단답 자동채점 참고 점수: ${score.objectiveTotal} / 60점 (객관식 ${score.part1}/30점 · 단답형 ${score.part2}/30점)`;
       panel.hidden = false;
       button.setAttribute('aria-pressed', 'true');
@@ -1514,11 +1531,23 @@ class StudentEvalApp {
     const state = this.serverScoreState.status;
     if (state === 'ready' && this.serverScoreState.score) {
       button.disabled = false;
-      label.textContent = '점수 보기';
-      status.textContent = '버튼을 누르는 동안만 점수가 표시됩니다.';
+      label.textContent = '👁️ 누르고 있는 동안 점수 확인';
+      status.textContent = '누르는 동안만 표시됩니다.';
       panel.hidden = true;
       panel.textContent = '';
       button.setAttribute('aria-label', '점수 보기. 누르는 동안만 표시됩니다.');
+      const scoreTotalEl = document.getElementById('eval-result-total-score');
+      if (scoreTotalEl && this.scores?.serverGraded && button.getAttribute('aria-pressed') !== 'true') {
+        scoreTotalEl.textContent = '🔒 • • / 60점';
+      }
+      const part1El = document.getElementById('eval-result-part1-score');
+      const part2El = document.getElementById('eval-result-part2-score');
+      if (part1El && this.scores?.serverGraded && button.getAttribute('aria-pressed') !== 'true') {
+        part1El.textContent = '🔒 •• / 30점';
+      }
+      if (part2El && this.scores?.serverGraded && button.getAttribute('aria-pressed') !== 'true') {
+        part2El.textContent = '🔒 •• / 30점';
+      }
       return;
     }
     panel.hidden = true;
@@ -1582,27 +1611,38 @@ class StudentEvalApp {
   renderResult() {
     window.assessmentWorkspace?.leave();
     window.pendingAssessmentResume=false;sessionStorage.removeItem('ALGO_ACTIVE_EXAM');updateAssessmentNavigation();
-    // 자동 계산은 교사 검토 전 참고값입니다.
     this.showScreen('result');
     const scoreTotalEl = document.getElementById('eval-result-total-score');
     const scoreBreakdownEl = document.getElementById('eval-result-breakdown');
+    const reviewStatusEl = document.querySelector('.eval-review-status');
     const serverScoreReady = this.scores.serverGraded && this.serverScoreState.status === 'ready';
-    if (scoreTotalEl) scoreTotalEl.textContent = this.scores.serverGraded?(serverScoreReady?'점수 보기':'교사 서버 채점 대기'):this.scores.pendingReview?`${this.scores.objectiveTotal} / 60점`:`${this.scores.total}점`;
-    document.querySelector('.eval-review-status').textContent=this.scores.serverGraded?(serverScoreReady?'Part 1·2 서버 채점 완료 · 점수는 버튼을 누르는 동안만 표시됩니다. Part 3은 교사 검토 후 확인됩니다.':'Part 1·2는 교사 서버 채점 후, Part 3은 교사 검토 후 확인됩니다.'):this.scores.pendingReview?'Part 1·2 참고 점수 · Part 3 교사 채점 대기':this.isFreeDesign()?'교사 검토 완료':'교사 검토 전';
+    if (scoreTotalEl) {
+      scoreTotalEl.textContent = this.scores.serverGraded
+        ? (serverScoreReady ? '🔒 • • / 60점' : '점수 확인 중...')
+        : (this.scores.pendingReview ? `${this.scores.objectiveTotal} / 60점` : `${this.scores.total}점`);
+    }
+    if (reviewStatusEl) {
+      reviewStatusEl.textContent = this.scores.serverGraded
+        ? 'Part 3(순서도)은 선생님 검토 후 반영됩니다.'
+        : (this.scores.pendingReview ? 'Part 1·2 참고 점수 · Part 3 교사 채점 대기' : (this.isFreeDesign() ? '교사 검토 완료' : '교사 검토 전'));
+    }
     if (scoreBreakdownEl) {
+      const part1Text = this.scores.serverGraded ? (serverScoreReady ? '🔒 •• / 30점' : '채점 중...') : `${this.scores.part1} / 30점`;
+      const part2Text = this.scores.serverGraded ? (serverScoreReady ? '🔒 •• / 30점' : '채점 중...') : `${this.scores.part2} / 30점`;
+      const part3Text = this.scores.pendingReview ? '선생님 검토 대기' : `${this.scores.part3} / 40점`;
       scoreBreakdownEl.innerHTML = `
         <div class="grid grid-cols-3 gap-3 text-center">
           <div class="p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
             <div class="text-xs font-bold text-indigo-700">Part 1. 객관식 (10문항)</div>
-            <div class="text-xl font-black text-indigo-900 mt-1">${this.scores.serverGraded?(serverScoreReady?'점수 보기':'채점 대기'):this.scores.part1+' / 30점'}</div>
+            <div id="eval-result-part1-score" class="text-xl font-black text-indigo-900 mt-1 font-mono">${part1Text}</div>
           </div>
           <div class="p-4 bg-amber-50 rounded-2xl border border-amber-100">
             <div class="text-xs font-bold text-amber-800">Part 2. 단답형 (6문항)</div>
-            <div class="text-xl font-black text-amber-900 mt-1">${this.scores.serverGraded?(serverScoreReady?'점수 보기':'채점 대기'):this.scores.part2+' / 30점'}</div>
+            <div id="eval-result-part2-score" class="text-xl font-black text-amber-900 mt-1 font-mono">${part2Text}</div>
           </div>
           <div class="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
             <div class="text-xs font-bold text-emerald-800">Part 3. 순서도 조립</div>
-            <div class="text-xl font-black text-emerald-900 mt-1">${this.scores.pendingReview?'채점 대기':this.scores.part3+' / 40점'}</div>
+            <div class="text-xl font-black text-emerald-900 mt-1">${part3Text}</div>
           </div>
         </div>
       `;

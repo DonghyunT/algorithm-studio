@@ -144,22 +144,33 @@ test('V4 result: server score is fetched for the student and revealed only while
   const panel = ctx.document.getElementById('eval-result-score-reveal-panel');
   assert.equal(app.serverScoreState.status, 'ready');
   assert.equal(button.disabled, false);
-  assert.equal(ctx.document.getElementById('eval-result-total-score').textContent, '점수 보기');
+  assert.equal(ctx.document.getElementById('eval-result-total-score').textContent, '🔒 • • / 60점');
+  assert.equal(ctx.document.getElementById('eval-result-part1-score').textContent, '🔒 •• / 30점');
+  assert.equal(ctx.document.getElementById('eval-result-part2-score').textContent, '🔒 •• / 30점');
   assert.equal(panel.hidden, true);
   assert.equal(panel.textContent, '');
 
   button.dispatchEvent({ type: 'pointerdown', pointerId: 1, preventDefault() {} });
   assert.equal(panel.hidden, false);
   assert.ok(panel.textContent.includes('8 / 60점'));
+  assert.equal(ctx.document.getElementById('eval-result-total-score').textContent, '8 / 60점');
+  assert.equal(ctx.document.getElementById('eval-result-part1-score').textContent, '3 / 30점');
+  assert.equal(ctx.document.getElementById('eval-result-part2-score').textContent, '5 / 30점');
+
   button.dispatchEvent({ type: 'pointerup', pointerId: 1 });
   assert.equal(panel.hidden, true);
   assert.equal(panel.textContent, '');
+  assert.equal(ctx.document.getElementById('eval-result-total-score').textContent, '🔒 • • / 60점');
+  assert.equal(ctx.document.getElementById('eval-result-part1-score').textContent, '🔒 •• / 30점');
+  assert.equal(ctx.document.getElementById('eval-result-part2-score').textContent, '🔒 •• / 30점');
 
   button.dispatchEvent({ type: 'keydown', key: 'Enter', repeat: false, preventDefault() {} });
   assert.equal(panel.hidden, false);
+  assert.equal(ctx.document.getElementById('eval-result-total-score').textContent, '8 / 60점');
   button.dispatchEvent({ type: 'keyup', key: 'Enter', preventDefault() {} });
   assert.equal(panel.hidden, true);
   assert.equal(panel.textContent, '');
+  assert.equal(ctx.document.getElementById('eval-result-total-score').textContent, '🔒 • • / 60점');
 });
 
 test('CBT layout: draft preserves currentQuestionIndex, part3SubStep, and isCbtMode', () => {

@@ -2376,18 +2376,18 @@
         </div>
 
         <div class="w-full max-w-lg p-6 bg-gradient-to-br from-indigo-50 via-white to-violet-50 rounded-3xl border border-indigo-200 space-y-5 shadow-lg">
-          <div class="text-xs font-bold text-indigo-700">자동 채점 참고 점수</div>
-          <div id="eval-result-total-score" class="text-5xl sm:text-6xl font-black text-indigo-950 font-mono tracking-tight">
+          <div class="text-xs font-bold text-indigo-700 tracking-wide">Part 1 · 2 객관·단답 자동채점</div>
+          <div id="eval-result-total-score" class="text-4xl sm:text-5xl font-black text-indigo-950 font-mono tracking-tight">
             0점
           </div>
-          <p class="eval-review-status">교사 검토 전</p>
+          <p class="eval-review-status text-xs text-slate-500 font-medium">Part 3(순서도)은 선생님 검토 후 반영됩니다.</p>
           <div id="eval-result-breakdown" class="pt-2"></div>
           <div id="eval-result-score-reveal" class="space-y-2 pt-1" hidden>
-            <button id="eval-result-score-reveal-button" type="button" disabled aria-pressed="false" aria-label="점수 보기. 누르는 동안만 표시됩니다." class="w-full px-4 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-500 text-white rounded-2xl font-black text-sm transition cursor-pointer disabled:cursor-not-allowed">
+            <button id="eval-result-score-reveal-button" type="button" disabled aria-pressed="false" aria-label="점수 보기. 누르는 동안만 표시됩니다." class="w-full px-4 py-3.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:bg-slate-200 disabled:text-slate-500 text-white rounded-2xl font-black text-sm transition cursor-pointer disabled:cursor-not-allowed shadow-sm">
               <span id="eval-result-score-reveal-label">점수 준비 중</span>
             </button>
-            <p id="eval-result-score-reveal-status" class="text-[11px] text-slate-500" role="status">서버 채점 결과를 확인하고 있습니다.</p>
-            <div id="eval-result-score-reveal-panel" class="p-3 bg-white border border-indigo-200 rounded-2xl text-base font-black text-indigo-950" aria-live="polite" hidden></div>
+            <p id="eval-result-score-reveal-status" class="text-[11px] text-slate-500" role="status">누르는 동안만 표시됩니다.</p>
+            <div id="eval-result-score-reveal-panel" class="sr-only" aria-live="polite" hidden></div>
           </div>
         </div>
 
