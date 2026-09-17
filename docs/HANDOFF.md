@@ -7,12 +7,12 @@
 | 구분 | 인수인계 기준 |
 |---|---|
 | 현재 운영 브랜치 | main |
-| 현재 작업 브랜치 | codex/eval-score-reveal-ui-polish |
+| 현재 작업 브랜치 | main (codex/eval-score-reveal-ui-polish 병합 완료) |
 | 현재 평가 운영 상태 | 선생님 확인에 따라 V4 실전평가도 운영에 적용 중이며, V3는 모의평가·기존 회차 호환용으로 유지 |
 | 인수인계 전달 기준 | 1) [순서도 흐름]/[알고리즘] 단락이 cbt-condition-box 섬으로 렌더링되도록 formatCbtPrompt 정규식 확장, 2) V4 교사 상세 조회의 학급 ID 전달 오류 수정, 3) V4 객관식 답안의 선지 번호·문구 표시 보완, 4) 학생 본인 전용 V4 객관·단답 점수 API 및 누르는 동안만 표시 UI, 5) 관련 권한·평가 API·UI 38개 테스트 및 운영 정적 파일·화면 확인 |
 | 최신 제품 코드 | `api/evaluation.js`(`student-score` 본인 전용 서버 점수 조회), `js/core/ai-service.js`(보안 점수 요청), `js/labs/lab-eval.js`(V4 점수 폴링·누르는 동안 표시), `index.html`(점수 보기 UI), `js/core/classroom.js`(V4 교사 답안 표시), `css/common.css`(조건 카드 들여쓰기 보존) |
 | 최신 제품 코드 커밋 | `3a4575b` — feat: polish evaluation score reveal layout and masking interaction |
-| 배포 기록 | Vercel Production (`https://algorithm-studio-ten.vercel.app/`)에 `559fc09` 반영 완료 상태. 본 `3a4575b`는 승인 후 병합/배포 예정 |
+| 배포 기록 | Vercel Production (`https://algorithm-studio-ten.vercel.app/`)에 반영 완료 |
 | 현재 평가 UI | 평소에는 점수판과 세부 카드가 `🔒 • •`로 보호되고, 버튼을 누르고 있는 동안에만 제자리에서 선명하게 열리는 토스/애플 스타일 프라이버시 카드 적용 |
 | 이번 구현 완료 내용 | 1) 학생 점수 확인 화면에서 '점수 보기' 중복 노출 및 하단 덜컹거림 패널 개선, 2) 대형 점수판 및 Part 1·2 카드를 `🔒 • • / 60점`, `🔒 •• / 30점`으로 마스킹하고 누르는 동안에만 해당 영역에 직접 점수 표시, 3) 긴 안내문구를 간결화하고 하단 중복 텍스트 박스를 스크린리더용(`sr-only`)으로 전환, 4) 관련 단위 테스트 90개 100% 통과 |
 | 최신 운영 의도 | 점수판과 카드 자체가 블라인드 마스킹되어 시각적 위계와 카드 높이가 흔들림 없이 고정됨 |
