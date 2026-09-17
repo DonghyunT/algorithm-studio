@@ -2200,9 +2200,9 @@
                 </div>
 
                 <!-- 17번 Step 1: 계획 작성 뷰 (데스크탑 좌우 2열 그리드 & 스크롤 제로) -->
-                <div id="eval-cbt-step1-view" class="cbt-part3-grid flex-1 min-h-0 overflow-y-auto">
+                <div id="eval-cbt-step1-view" class="cbt-part3-grid flex-1 min-h-0 overflow-y-auto items-stretch">
                   <!-- 좌측: 도전 과제 & 채점 기준 카드 -->
-                  <div class="bg-gradient-to-br from-slate-50 to-indigo-50/40 p-5 rounded-3xl border border-slate-200/90 space-y-3 flex flex-col justify-between">
+                  <div class="bg-gradient-to-br from-slate-50 to-indigo-50/40 p-5 rounded-3xl border border-slate-200/90 space-y-3 flex flex-col justify-between h-full">
                     <div class="space-y-3">
                       <div class="flex items-center gap-2 border-b border-slate-200/80 pb-2.5">
                         <span class="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs font-black shadow-xs">
@@ -2217,7 +2217,7 @@
                         </div>
                         <div class="space-y-1.5">
                           <div class="bg-white/80 p-2.5 rounded-xl border border-slate-200/60">
-                            <span class="text-[11px] font-bold text-slate-500 block mb-0.5">🚩 시작 상태 (현재 상황)</span>
+                            <span class="text-[11px] font-bold text-slate-500 block mb-0.5">🚩 현재 상태 (주어진 상황)</span>
                             <span id="eval-cbt-input" class="text-slate-800 font-bold block"></span>
                           </div>
                           <div class="bg-white/80 p-2.5 rounded-xl border border-slate-200/60">
@@ -2234,7 +2234,7 @@
                         <span>📌 채점 기준 (각 10점, 총 40점)</span>
                       </div>
                       <ul class="space-y-0.5 text-indigo-800 font-medium pl-1">
-                        <li>① 시작/목표 상태 정의 (10점)</li>
+                        <li>① 현재/목표 상태 정의 (10점)</li>
                         <li>② 지켜야 할 규칙(조건) 작성 (10점)</li>
                         <li>③ 순서도 블록 구성 및 연결 (10점)</li>
                         <li>④ 실행 검증 및 목표 달성 (10점)</li>
@@ -2242,9 +2242,9 @@
                     </div>
                   </div>
 
-                  <!-- 우측: 계획 필드 마운트 컨테이너 -->
-                  <div class="space-y-3 flex flex-col justify-between">
-                    <div id="eval-cbt-prescription-host"></div>
+                  <!-- 우측: 계획 필드 마운트 컨테이너 (좌측 카드와 완벽 칼일치) -->
+                  <div class="h-full flex flex-col justify-between">
+                    <div id="eval-cbt-prescription-host" class="h-full"></div>
                   </div>
                 </div>
 
@@ -2259,8 +2259,8 @@
                     <div id="eval-cbt-plan-summary" class="mt-2 text-slate-700 space-y-1.5 text-xs bg-white/70 p-3 rounded-xl border border-indigo-50"></div>
                   </details>
 
-                  <!-- 순서도 공유 워크스페이스 마운트 지점 (내부 캔버스 넘침 방지) -->
-                  <div id="eval-cbt-workspace-host" class="flex-1 min-h-0 h-full rounded-2xl overflow-hidden border border-slate-200 relative bg-slate-50"></div>
+                  <!-- 순서도 공유 워크스페이스 마운트 지점 (내부 캔버스 넘침 방지 및 순백 단일 프레임) -->
+                  <div id="eval-cbt-workspace-host" class="flex-1 min-h-0 h-full rounded-2xl overflow-hidden border border-slate-200 relative bg-white"></div>
                 </div>
               </div>
             </div>
@@ -2330,11 +2330,11 @@
             </details>
             <div id="eval-shared-workspace"></div>
             <div id="eval-plan-guide" class="eval-plan-fields" hidden>
-              <details open><summary>나의 문제 해결 계획 (문제 정의 및 규칙)</summary>
+              <details open><summary class="flex items-center gap-2"><span class="w-6 h-6 rounded-lg bg-indigo-600 text-white inline-flex items-center justify-center text-xs font-black shadow-xs shrink-0"><i class="fa-solid fa-pen-ruler"></i></span><span>나의 문제 해결 계획 (문제 정의 및 규칙)</span></summary>
                 <div class="eval-prescription-body">
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label for="eval-plan-current">🚩 시작 상태 (현재 상황)</label>
+                      <label for="eval-plan-current">🚩 현재 상태 (주어진 상황)</label>
                       <textarea id="eval-plan-current" rows="2" maxlength="500" placeholder="해결하기 전의 원래 상태나 주어진 상황을 적어보세요." oninput="studentEvalApp.setAssessmentPlanField('current',this.value)"></textarea>
                     </div>
                     <div>

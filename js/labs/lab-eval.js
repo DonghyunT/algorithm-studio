@@ -735,7 +735,13 @@ class StudentEvalApp {
     const view1 = document.getElementById('eval-cbt-step1-view');
     const view2 = document.getElementById('eval-cbt-step2-view');
 
+    const cbtBody = document.getElementById('eval-cbt-body');
     if (step === 1) {
+      if (cbtBody) {
+        cbtBody.classList.add('justify-center');
+        cbtBody.classList.add('overflow-hidden');
+        cbtBody.classList.remove('overflow-y-auto');
+      }
       this.toggleCbtSidebar(this.userSidebarCollapsed || false);
       if (tab1) { tab1.className = 'px-4 py-2 rounded-xl text-xs font-black bg-indigo-600 text-white transition cursor-pointer flex items-center gap-1.5'; }
       if (tab2) { tab2.className = 'px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer flex items-center gap-1.5'; }
@@ -750,6 +756,11 @@ class StudentEvalApp {
       if (guide) guide.hidden = false;
       this.renderAssessmentPlan();
     } else {
+      if (cbtBody) {
+        cbtBody.classList.remove('justify-center');
+        cbtBody.classList.remove('overflow-hidden');
+        cbtBody.classList.add('overflow-y-auto');
+      }
       this.toggleCbtSidebar(true);
       if (tab1) { tab1.className = 'px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer flex items-center gap-1.5'; }
       if (tab2) { tab2.className = 'px-4 py-2 rounded-xl text-xs font-black bg-indigo-600 text-white transition cursor-pointer flex items-center gap-1.5'; }
@@ -761,7 +772,7 @@ class StudentEvalApp {
       const safeEsc = typeof escapeHtml === 'function' ? escapeHtml : (str => String(str || ''));
       if (summaryEl) {
         summaryEl.innerHTML = `
-          <div><strong class="text-indigo-900">🚩 시작 상태:</strong> <span class="font-medium text-slate-800">${safeEsc(plan.current || '(아직 작성하지 않음)')}</span></div>
+          <div><strong class="text-indigo-900">🚩 현재 상태:</strong> <span class="font-medium text-slate-800">${safeEsc(plan.current || '(아직 작성하지 않음)')}</span></div>
           <div><strong class="text-indigo-900">🎯 목표 상태:</strong> <span class="font-medium text-slate-800">${safeEsc(plan.goal || '(아직 작성하지 않음)')}</span></div>
           <div><strong class="text-indigo-900">📋 지켜야 할 규칙(조건):</strong> <span class="font-medium text-slate-800 whitespace-pre-line">${safeEsc(plan.conditions || '(없음)')}</span></div>
         `;
@@ -864,18 +875,35 @@ class StudentEvalApp {
   formatCbtPrompt(rawDesc) {
     if (!rawDesc) return '';
     const safeEsc = typeof escapeHtml === 'function' ? escapeHtml : (str => String(str || ''));
-    const text = String(rawDesc).trim();
+    let text = String(rawDesc).trim();
+
+    // 단일 \n으로만 구분된 경우 중 [조건...] 또는 [규칙...]이 있으면 \n\n으로 정규화
+    if (!text.includes('\n\n') && text.includes('\n')) {
+      if (/\[(?:조건|규칙|상황|조리법)/.test(text)) {
+        text = text.replace(/([^\n])\n(\[(?:조건|규칙|상황|조리법))/g, '$1\n\n$2')
+                   .replace(/(\n[^\n]+)\n([가-힣A-Za-z0-9]+.*(?:쓰시오|얼마|무엇|몇|구하시오|출력되는|결과는|\?))/g, '$1\n\n$2');
+      }
+    }
+
+    const cleanCondition = (s) => {
+      let trimmed = s.trim();
+      // 단일 감싸기 [규칙: ...] 또는 [조건: ...] 인 경우 대괄호 및 머리말 정리
+      if (/^\[(?:규칙|조건|상황|조리법|반복 규칙)\s*:\s*([^\]]+)\]$/.test(trimmed)) {
+        trimmed = trimmed.replace(/^\[(?:규칙|조건|상황|조리법|반복 규칙)\s*:\s*([^\]]+)\]$/, '$1').trim();
+      }
+      return trimmed;
+    };
 
     // 여러 단락(\n\n)으로 구성된 경우 분할 처리
     const paragraphs = text.split(/\n{2,}/);
     if (paragraphs.length > 1) {
       return paragraphs.map((p, pIdx) => {
         const trimmed = p.trim();
-        if (/^\[(?:조건|규칙|상황|조리법)/.test(trimmed) || /^(?:조건|규칙)\s*:/.test(trimmed)) {
+        if (/^\[(?:조건|규칙|상황|조리법|반복 규칙)/.test(trimmed) || /^(?:조건|규칙)\s*:/.test(trimmed)) {
           return `
             <div class="cbt-condition-box">
               <div class="cbt-condition-title"><i class="fa-solid fa-clipboard-list text-blue-500"></i> <span>지켜야 할 규칙 / 조건</span></div>
-              <div class="cbt-condition-content">${safeEsc(trimmed)}</div>
+              <div class="cbt-condition-content">${safeEsc(cleanCondition(trimmed))}</div>
             </div>
           `;
         }
@@ -885,8 +913,8 @@ class StudentEvalApp {
     }
 
     // 단일 단락 내에 [조건: ...] 또는 [규칙: ...] 블록이 포함된 경우 분리
-    if (/\[(?:조건|규칙|상황|조리법)[^\]]*\]/.test(text)) {
-      const parts = text.split(/(?=\[(?:조건|규칙|상황|조리법)[^\]]*\])/);
+    if (/\[(?:조건|규칙|상황|조리법|반복 규칙)[^\]]*\]/.test(text)) {
+      const parts = text.split(/(?=\[(?:조건|규칙|상황|조리법|반복 규칙)[^\]]*\])/);
       if (parts.length >= 2) {
         const intro = parts[0].trim();
         const rest = parts.slice(1).join('');
@@ -898,7 +926,7 @@ class StudentEvalApp {
             ${intro ? `<div class="font-extrabold text-slate-900 mb-2">${safeEsc(intro)}</div>` : ''}
             <div class="cbt-condition-box">
               <div class="cbt-condition-title"><i class="fa-solid fa-clipboard-list text-blue-500"></i> <span>지켜야 할 규칙 / 조건</span></div>
-              <div class="cbt-condition-content">${safeEsc(condition)}</div>
+              <div class="cbt-condition-content">${safeEsc(cleanCondition(condition))}</div>
             </div>
             ${question ? `<div class="font-black text-slate-900 mt-2">${safeEsc(question)}</div>` : ''}
           `;
@@ -926,6 +954,21 @@ class StudentEvalApp {
     const part3Area = document.getElementById('eval-cbt-part3-area');
     const questionGrid = document.getElementById('eval-cbt-question-grid');
     const part3TitleWrap = document.getElementById('eval-cbt-part3-title-wrap');
+    const cbtBody = document.getElementById('eval-cbt-body');
+
+    // 1~16번 문항은 스크롤 제로 고정 바디 유지
+    if (idx >= 1 && idx <= 16 && cbtBody) {
+      cbtBody.classList.add('justify-center');
+      cbtBody.classList.add('overflow-hidden');
+      cbtBody.classList.remove('overflow-y-auto');
+    }
+
+    // 부드러운 토스/애플 스타일 문항 전환 애니메이션
+    if (questionGrid) {
+      questionGrid.classList.remove('cbt-smooth-enter');
+      void questionGrid.offsetWidth;
+      questionGrid.classList.add('cbt-smooth-enter');
+    }
 
     const svgBadge = `<svg class="flex-shrink-0 rounded-xl shadow-xs mt-0.5" width="36" height="36" xmlns="http://www.w3.org/2000/svg" role="img" focusable="false"><rect width="100%" height="100%" rx="10" fill="#0d6efd"></rect><text x="50%" y="50%" text-anchor="middle" alignment-baseline="middle" fill="#fff" dy=".1em" font-weight="900" font-size="16">${idx}</text></svg>`;
 

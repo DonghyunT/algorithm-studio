@@ -12,8 +12,8 @@ function createAssessmentContext() {
         id,
         classList: {
           classes: new Set(),
-          add(c) { this.classes.add(c); },
-          remove(c) { this.classes.delete(c); },
+          add(...args) { for (const c of args) if (c) this.classes.add(c); },
+          remove(...args) { for (const c of args) if (c) this.classes.delete(c); },
           toggle(c, v) { if (v === undefined) v = !this.classes.has(c); if (v) this.classes.add(c); else this.classes.delete(c); return v; },
           contains(c) { return this.classes.has(c); }
         },
@@ -432,6 +432,77 @@ test('CBT round 2: preserves user manual sidebar collapse preference across ques
   // 2번으로 이동: 이제는 펼쳐진 상태로 유지!
   app.goToCbtQuestion(2);
   assert.equal(sidebar.classList.contains('collapsed'), false, '펼친 상태에서 문항 이동 시 펼쳐진 상태 유지');
+});
+
+test('CBT round 3: terminology unified to 현재 상태 in 17-1 and 17-2 summary', () => {
+  const ctx = createAssessmentContext();
+  const StudentEvalApp = ctx.window.studentEvalApp.constructor;
+  const app = new StudentEvalApp();
+  ctx.window.studentEvalApp = app;
+
+  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  assert.ok(html.includes('🚩 현재 상태 (주어진 상황)'), 'index.html에 🚩 현재 상태 (주어진 상황)이 표기되어야 함');
+  assert.ok(html.includes('① 현재/목표 상태 정의 (10점)'), 'index.html 채점 기준에 현재/목표 상태 정의가 표기되어야 함');
+  assert.ok(!html.includes('🚩 시작 상태'), 'index.html에 🚩 시작 상태가 없어야 함');
+
+  app.goToCbtPart3Step(2);
+  const summaryEl = ctx.document.getElementById('eval-cbt-plan-summary');
+  assert.ok(summaryEl.innerHTML.includes('🚩 현재 상태'), '17-2 요약 바에 🚩 현재 상태가 표기되어야 함');
+  assert.ok(!summaryEl.innerHTML.includes('🚩 시작 상태'), '17-2 요약 바에 🚩 시작 상태가 없어야 함');
+});
+
+test('CBT round 3: cbtBody toggles overflow-y-auto only on 17-2 and remains overflow-hidden on 1~16 and 17-1', () => {
+  const ctx = createAssessmentContext();
+  const StudentEvalApp = ctx.window.studentEvalApp.constructor;
+  const app = new StudentEvalApp();
+  ctx.window.studentEvalApp = app;
+
+  const cbtBody = ctx.document.getElementById('eval-cbt-body');
+  assert.ok(cbtBody, 'eval-cbt-body가 존재해야 함');
+
+  // 1번 문항: 스크롤 제로 고정 바디
+  app.goToCbtQuestion(1);
+  assert.equal(cbtBody.classList.contains('overflow-hidden'), true, '1번은 overflow-hidden이어야 함');
+  assert.equal(cbtBody.classList.contains('overflow-y-auto'), false, '1번은 overflow-y-auto가 아니어야 함');
+
+  // 11번(단답형): 스크롤 제로 고정 바디
+  app.goToCbtQuestion(11);
+  assert.equal(cbtBody.classList.contains('overflow-hidden'), true, '11번은 overflow-hidden이어야 함');
+  assert.equal(cbtBody.classList.contains('overflow-y-auto'), false, '11번은 overflow-y-auto가 아니어야 함');
+
+  // 17-1: 계획 수립 화면도 스크롤 제로 고정 바디
+  app.goToCbtPart3Step(1);
+  assert.equal(cbtBody.classList.contains('overflow-hidden'), true, '17-1은 overflow-hidden이어야 함');
+  assert.equal(cbtBody.classList.contains('overflow-y-auto'), false, '17-1은 overflow-y-auto가 아니어야 함');
+
+  // 17-2: 순서도 조립 캔버스는 자유로운 높이 확장을 위해 overflow-y-auto 허용!
+  app.goToCbtPart3Step(2);
+  assert.equal(cbtBody.classList.contains('overflow-y-auto'), true, '17-2 캔버스는 overflow-y-auto가 켜져야 함');
+  assert.equal(cbtBody.classList.contains('overflow-hidden'), false, '17-2 캔버스는 overflow-hidden이 해제되어야 함');
+
+  // 다시 17-1로 복귀 시 즉시 고정 바디로 복원
+  app.goToCbtPart3Step(1);
+  assert.equal(cbtBody.classList.contains('overflow-hidden'), true, '17-1로 복귀 시 overflow-hidden으로 복원되어야 함');
+  assert.equal(cbtBody.classList.contains('overflow-y-auto'), false, '17-1로 복귀 시 overflow-y-auto가 꺼져야 함');
+});
+
+test('CBT round 3: formatCbtPrompt strips outer [규칙: ...] brackets and formats inline conditions', () => {
+  const ctx = createAssessmentContext();
+  const StudentEvalApp = ctx.window.studentEvalApp.constructor;
+  const app = new StudentEvalApp();
+
+  // 단일 감싸기 규칙 대괄호 및 머리말 제거 확인 (Q15 케이스)
+  const q15Prompt = "보물 상자 4개가 있습니다.\n\n[규칙: 다이아몬드는 3점 획득, 루비는 1점 획득]\n\n총 점수는 몇 점인지 쓰시오.";
+  const q15Formatted = app.formatCbtPrompt(q15Prompt);
+  assert.ok(q15Formatted.includes('cbt-condition-box'), '조건 상자로 감싸져야 함');
+  assert.ok(q15Formatted.includes('다이아몬드는 3점 획득, 루비는 1점 획득'), '핵심 규칙 내용이 포함되어야 함');
+  assert.ok(!q15Formatted.includes('[규칙: 다이아몬드는 3점 획득, 루비는 1점 획득]'), '중복되는 대괄호 및 [규칙: ] 머리말은 제거되어야 함');
+
+  // Q7 유형의 3단 분할 조건 처리 확인
+  const q7Prompt = "사용자가 숫자 10을 입력했습니다.\n\n[조건: 입력된 수 > 5]\n- 참(Yes)이면 '크다'를 출력\n- 거짓(No)이면 '작다'를 출력\n\n화면에 출력되는 결과는 무엇인가요?";
+  const q7Formatted = app.formatCbtPrompt(q7Prompt);
+  assert.ok(q7Formatted.includes('cbt-condition-box'), 'Q7도 조건 상자로 묶여야 함');
+  assert.ok(q7Formatted.includes('지켜야 할 규칙 / 조건'), 'Q7 조건 상자 헤더 타이틀이 표기되어야 함');
 });
 
 
