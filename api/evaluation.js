@@ -48,7 +48,7 @@ module.exports = async (req, res) => {
     return { session, student };
   };
   let bank;
-  try { bank = loadEvaluationBank(); } catch { return fail(503, '실전평가 문항 설정을 확인 중입니다. 선생님께 준비 상태를 확인해 주세요.'); }
+  try { bank = loadEvaluationBank(); } catch (err) { console.error('[LOAD_EVAL_BANK_FAIL]', err.message); return fail(503, '실전평가 문항 설정을 확인 중입니다. 선생님께 준비 상태를 확인해 주세요.'); }
   if (typeof process.env.EVAL_ASSIGNMENT_SECRET !== 'string' || process.env.EVAL_ASSIGNMENT_SECRET.length < 32) {
     return fail(503, '실전평가 문항 배정 설정을 확인 중입니다. 선생님께 준비 상태를 확인해 주세요.');
   }

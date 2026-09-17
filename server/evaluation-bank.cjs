@@ -1,4 +1,5 @@
 const { createHmac } = require('node:crypto');
+const { gunzipSync } = require('node:zlib');
 
 const ID = /^[a-z][a-z0-9_-]{2,79}$/;
 const LIMITS = Object.freeze({ questionText: 2000, optionText: 240, answerText: 160 });
@@ -30,10 +31,24 @@ function validateQuestion(question, part, ids) {
   ids.add(question.id);
 }
 
+function unpackRaw(raw) {
+  if (typeof raw !== 'string') return raw;
+  const trimmed = raw.trim();
+  if (trimmed.startsWith('{')) return trimmed;
+  try {
+    const buf = Buffer.from(trimmed, 'base64');
+    if (buf.length >= 2 && buf[0] === 0x1f && buf[1] === 0x8b) {
+      return gunzipSync(buf).toString('utf8');
+    }
+  } catch {}
+  return raw;
+}
+
 function parseEvaluationBank(raw) {
-  if (typeof raw !== 'string' || raw.length < 20 || raw.length > 200000) fail('V4 문항 은행 설정을 확인해 주세요.');
+  const content = unpackRaw(raw);
+  if (typeof content !== 'string' || content.length < 20 || content.length > 200000) fail('V4 문항 은행 설정을 확인해 주세요.');
   let bank;
-  try { bank = JSON.parse(raw); } catch { fail('V4 문항 은행 설정을 확인해 주세요.'); }
+  try { bank = JSON.parse(content); } catch { fail('V4 문항 은행 설정을 확인해 주세요.'); }
   if (!bank || bank.version !== 4 || !Array.isArray(bank.part1) || !Array.isArray(bank.part2)) fail('V4 문항 은행 설정을 확인해 주세요.');
   const ids = new Set();
   bank.part1.forEach(question => validateQuestion(question, 'part1', ids));
