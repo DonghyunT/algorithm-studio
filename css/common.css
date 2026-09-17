@@ -758,7 +758,7 @@ body.assessment-active #global-header .site-header-inner {
   letter-spacing: 0.01em;
 }
 .cbt-condition-box .cbt-condition-content {
-  white-space: pre-line;
+  white-space: pre-wrap;
   font-size: 1.025rem;
   font-weight: 700;
   line-height: 1.6;
