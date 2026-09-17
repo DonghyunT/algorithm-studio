@@ -7,13 +7,13 @@
 | 구분 | 인수인계 기준 |
 |---|---|
 | 현재 운영 브랜치 | main |
-| 현재 작업 브랜치 | codex/cbt-assessment-layout-plan (KERIS CBT 레이아웃 고도화 + 백그라운드 AI 채점 큐 + NEIS CSV 지필소계) |
-| 인수인계 전달 기준 | 최신 main(ef628b3) 병합 완료. CBT 레이아웃 및 교사 관제탑 고도화 통합 상태 |
+| 현재 작업 브랜치 | main (CBT 단일 문항 레이아웃 + 백그라운드 AI 채점 큐 + NEIS CSV 지필소계 완전 통합) |
+| 인수인계 전달 기준 | 최신 main(a244879)에 CBT 레이아웃(13대 피드백) 및 관제탑 고도화 통합 완료 및 배포 |
 | 최신 제품 코드 | CBT 단일 문항 레이아웃(13대 피드백), `AssessmentAutoReviewQueue`, `formatNeisCSVRows`, 교사용 좌석 비우기/강제 제출/자동 마감 |
-| 배포 기록 | 71875a2 Vercel Production 배포 완료, ef628b3 최신 main 푸시 완료 |
+| 배포 기록 | Vercel Production 배포 완료 |
 | 현재 평가 UI | CBT 단일 문항 모드가 기본값 (`isCbtMode = true`), 우측 상단 '클래식 탭 모드' 토글 지원 |
-| 이번 구현 완료 내용 | 1) KERIS CBT 레이아웃 13대 피드백 고도화<br>2) 성적표 CSV `지필소계/60` 열 신설, 응시상태 한국어화, `YYYY-MM-DD HH:mm` 시각 포맷팅<br>3) 교사 관제탑 백그라운드 AI 자동 초벌 채점 큐(6.8초 간격 분당 10회 Rate Limit 준수)<br>4) 빈 답안(블록 0~1개) API 미호출 0점 즉시 제안(토큰 100% 절감)<br>5) 교사 관제탑 진행 배지 및 학생 카드별 AI제안/확정 상태 배지<br>6) 단위 테스트 전체 통과 |
-| 최신 운영 의도 | 이번 주 V3 모의 수행평가 원활한 운영 및 차주 V4 실제 평가 CBT 인터페이스 사전 정비 |
+| 이번 구현 완료 내용 | 1) KERIS CBT 레이아웃 13대 피드백 고도화 (데스크탑 높이/버튼 고정, OMR 분할, '나의 문제 해결 계획' 개편, 조건 테두리 시각화 등)<br>2) 성적표 CSV `지필소계/60` 열 신설, 응시상태 한국어화, `YYYY-MM-DD HH:mm` 시각 포맷팅<br>3) 교사 관제탑 백그라운드 AI 자동 초벌 채점 큐(6.8초 간격 분당 10회 Rate Limit 준수)<br>4) 빈 답안(블록 0~1개) API 미호출 0점 즉시 제안(토큰 100% 절감)<br>5) 교사 관제탑 진행 배지 및 학생 카드별 AI제안/확정 상태 배지<br>6) 69개 전체 단위 테스트 통과 (통과율 100%) |
+| 최신 운영 의도 | 이번 주 V3 모의 수행평가 원활한 운영 및 차주 V4 실제 평가 CBT 인터페이스 사전 검증 |
 
 - 저장소: [DonghyunT/algorithm-studio](https://github.com/DonghyunT/algorithm-studio)
 - 운영 웹: [정보 알고리즘 스튜디오](https://algorithm-studio-ten.vercel.app/)
