@@ -7,13 +7,13 @@
 | 구분 | 인수인계 기준 |
 |---|---|
 | 현재 운영 브랜치 | main |
-| 현재 작업 브랜치 | codex/eval-recovery-and-makeup (재난 복구 2대 메커니즘 및 83개 테스트 완료) |
-| 인수인계 전달 기준 | 1) PC 꺼짐/롤백 복구(서버 저장 답안 유지 재접속 허용), 2) 결시생 개별 30분 추가 응시(세션 종료 후에도 개별 타이머 및 보안 문항 허용, 타 학생 성적 100% 보존), 83개 전체 단위 테스트 100% 통과 |
+| 현재 작업 브랜치 | fix/eval-v4-entry-and-lobby-status (실전평가 V4 입장 및 로비 상태 확인 불가 해결, 84개 테스트 완료) |
+| 인수인계 전달 기준 | 1) 실전평가(V4) 학생 대기실 정상 입장(클라이언트 answers.assignedQuestions 제거로 Firestore 규칙 충족), 2) 학생 로비 '상태 확인 불가' 배지 수정(선제적 익명 로그인 확보), 3) 재난 복구(재접속/결시생 추가 응시) 무결성 유지, 84개 전체 단위 테스트 100% 통과 |
 | 최신 제품 코드 | `firestore.rules`, `api/evaluation.js`, `js/core/eval-service.js`, `js/core/classroom.js`, `js/labs/lab-eval.js`, `index.html`, `tests/rounds.test.cjs` |
 | 배포 기록 | Vercel Production (`https://algorithm-studio-ten.vercel.app/`) 배포 대기 중 |
-| 현재 평가 UI | 교사 관제탑 빈 좌석 클릭 시 [결시생 개별 30분 추가 응시 허용] 모달 노출, 풀이 중 학생 클릭 시 [풀던 답안 유지하며 재접속 허용] 및 [답안 초기화 후 처음부터 다시 풀기] 분리 제공, 학생 대기실 [개별 평가 시작하기 (30분)] 버튼 연동 |
-| 이번 구현 완료 내용 | 1) **PC 꺼짐/롤백 대응 2대 재응시 버튼 분리**: 풀던 답안 유지 재접속(`allowStudentReconnect`) vs 답안 백지화 초기화(`resetStudentExam`)<br>2) **결시생 개별 30분 추가 응시 (`allowStudentMakeup`)**: 빈 좌석 클릭 추가 응시 허용, 개별 30분 타이머(`deadlineMs`), `api/evaluation.js` V4 문항 조회 예외 허용, 학급 마감 시 자동 제출 제외 보호<br>3) **데이터 침범 오류 제로화**: 타 좌석 가로채기 방지(선생님 승인 플래그 필수 검증), 기제출 학생 덮어쓰기 차단, 83개 단위 테스트 통과 |
-| 최신 운영 의도 | 실제 학교 컴퓨터실 현장에서 빈번히 일어나는 PC 재부팅(순간복구 프로그램 롤백) 및 결시/지각생 발생 시, 다른 학생들의 데이터 손실이나 간섭 없이 교사가 1클릭으로 신속하고 안전하게 비상 대응 가능하도록 완성 |
+| 현재 평가 UI | 교사 관제탑 빈 좌석 클릭 시 [결시생 개별 30분 추가 응시 허용] 모달 노출, 풀이 중 학생 클릭 시 [풀던 답안 유지하며 재접속 허용] 및 [답안 초기화 후 처음부터 다시 풀기] 분리 제공, 학생 대기실 [개별 평가 시작하기 (30분)] 버튼 연동, 로비 학급 세션 실시간 상태('대기실 열림' 녹색 배지) 정상 표출 |
+| 이번 구현 완료 내용 | 1) **실전평가(V4) 학생 대기실 입장 오류 수정**: `eval-service.js`에서 클라이언트의 `answers.assignedQuestions` 주입을 모의평가(V3) 전용으로 격리하여 Firestore 보안 규칙(`validAnswers()`) 완벽 충족<br>2) **학생 로비 학급 상태 배지 정상화**: `openLobby` 및 `checkSelectedClassStatus`에서 선제적 익명 로그인(`authService.student()`)을 수행하여 Firestore 권한 거부 없이 '대기실 열림 (입장 가능)' 정상 표출<br>3) **데이터 침범 오류 제로화**: 84개 단위 테스트 100% 통과 |
+| 최신 운영 의도 | 교사가 '실전평가'로 대기실을 열었을 때, 학생들이 오류 메시지나 상태 확인 불가 없이 자연스럽게 대기실로 입장하고 시험을 치를 수 있도록 현장 안정성을 100% 확보 |
 
 - 저장소: [DonghyunT/algorithm-studio](https://github.com/DonghyunT/algorithm-studio)
 - 운영 웹: [정보 알고리즘 스튜디오](https://algorithm-studio-ten.vercel.app/)
@@ -23,7 +23,7 @@
 ## 2. 읽는 순서와 다음 작업
 
 1. [AGENTS](../AGENTS.md) → [INTENT](../INTENT.md) → [PRD](../PRD.md) → 이 문서를 읽습니다.
-2. **평가 비상 복구 및 결시생 추가 응시 완료:** 단위 테스트 83개 전원 통과 완료.
+2. **실전평가(V4) 입장 및 로비 상태 배지 수정 완료:** 단위 테스트 84개 전원 통과 완료.
 3. **다음 작업:**
    - `main` 브랜치에 병합 및 GitHub 원격 push.
    - Vercel Production 자동 배포 확인 및 라이브 검증.

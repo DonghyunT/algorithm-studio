@@ -267,19 +267,19 @@ test('question bank: assignQuestions extracts exact difficulty distributions det
   assert.equal(graded.scores.pendingReview, true, 'Part 3 must remain pendingReview for teacher grading');
 });
 
-test('eval-service assigns distinct question sets to different students and backfills missing assignedQuestions', async () => {
+test('eval-service assigns distinct question sets to different students and backfills missing assignedQuestions in V3', async () => {
   const { records, service } = setup();
-  await service.prepareSession('2-1');
+  await service.prepareSession('2-1', null, 3);
 
   // Student 1 joins
   const student1 = await service.joinWaitingRoom('2-1', 1, '학생1');
-  assert.ok(student1.answers.assignedQuestions, 'Student 1 must have assignedQuestions');
+  assert.ok(student1.answers.assignedQuestions, 'Student 1 must have assignedQuestions in V3');
   assert.equal(student1.answers.assignedQuestions.part1.length, 10);
   assert.equal(student1.answers.assignedQuestions.part2.length, 6);
 
   // Student 2 joins
   const student2 = await service.joinWaitingRoom('2-1', 2, '학생2');
-  assert.ok(student2.answers.assignedQuestions, 'Student 2 must have assignedQuestions');
+  assert.ok(student2.answers.assignedQuestions, 'Student 2 must have assignedQuestions in V3');
   assert.equal(student2.answers.assignedQuestions.part1.length, 10);
   assert.equal(student2.answers.assignedQuestions.part2.length, 6);
 
@@ -293,8 +293,18 @@ test('eval-service assigns distinct question sets to different students and back
 
   // Re-joining should backfill assignedQuestions
   const rejoined = await service.joinWaitingRoom('2-1', 1, '학생1');
-  assert.ok(rejoined.answers.assignedQuestions, 'Rejoined student must have backfilled assignedQuestions');
+  assert.ok(rejoined.answers.assignedQuestions, 'Rejoined student must have backfilled assignedQuestions in V3');
   assert.deepEqual(rejoined.answers.assignedQuestions, student1.answers.assignedQuestions, 'Backfilled questions must match original deterministic set');
+});
+
+test('eval-service does NOT assign client-side assignedQuestions in V4 (server-derived to satisfy firestore rules)', async () => {
+  const { records, service } = setup();
+  await service.prepareSession('2-1', null, 4);
+
+  // Student joins under V4
+  const student = await service.joinWaitingRoom('2-1', 1, '학생1');
+  assert.equal(student.answers.assignedQuestions, undefined, 'V4 student document must NOT contain assignedQuestions on client');
+  assert.equal('assignedQuestions' in student.answers, false, 'answers object must not have assignedQuestions key');
 });
 
 test('teacher can clear student seat to remove ghost seat or allow new student login', async () => {

@@ -235,6 +235,19 @@ AI 의견, 구조 검사, 실행 결과를 구분합니다. AI 미응답을 합�
      - 정규 평가가 끝난 상태에서, 교사가 미응시 빈 좌석을 클릭하여 `[⏱️ 이 학생 30분 추가 응시 허용]`을 활성화.
      - 학생이 컴퓨터실에서 로그인하여 `[평가 시작]`을 누르는 순간 학생 개인의 30분 타이머가 독립적으로 가동.
      - 기존 26명의 제출 답안은 1바이트도 손상되지 않고 안전하게 보호되며, 추가 응시 완료 시 27명 통합 성적표로 합산 산출.
+   - **통합 성적 관리**: 추가 응시 학생의 답안 제출 및 채점 결과는 해당 학급의 단일 27명 나이스(NEIS) CSV 명렬표에 그대로 병합되어 교사의 행정 부담을 최소화합니다.
+
+### 3.9 실전평가(V4) 학생 입장 보안 규칙 충족 및 로비 선제적 인증 — 2026-09-17 수정 및 검증 완료
+
+1. **실전평가(V4) 대기실 입장 거부 원인 및 해결**:
+   - **문제 원인**: `firestore.rules`에서 V4는 클라이언트가 답안에 문항 배정 정보(`answers.assignedQuestions`)를 저장하는 것을 엄격히 금지함 (서버 단독 추출 원칙). 그러나 클라이언트 `js/core/eval-service.js`에서 `[3, 4].includes(...)` 조건으로 인해 V4 세션에서도 `assignedQuestions` 필드를 student 문서의 `answers` 내부에 저장 시도하여 `permission-denied` (권한 오류)가 발생했음.
+   - **해결책**: 클라이언트 문항 배정 및 backfill 로직을 모의평가(`sessionData.questionVersion === 3`) 전용으로 엄격히 제한. 실전평가(4)에서는 클라이언트가 `answers.assignedQuestions` 필드를 일절 생성·저장하지 않도록 하여 Firestore 보안 규칙을 100% 충족함.
+2. **로비 학급 상태 배지 '상태 확인 불가' 회색 배지 방지**:
+   - **문제 원인**: Firestore 보안 규칙 상 `classrooms/{classId}` 세션 문서는 익명 학생(`anonymousStudent()`) 이상의 권한이 있어야 `listenSession` 조회가 허용됨. 이전에는 대기실 입장 버튼을 누르기 전까지 익명 로그인이 호출되지 않아 로비에서 학급 선택 시 `permission-denied`가 발생하며 '상태 확인 불가'로 떨어짐.
+   - **해결책**: `js/labs/lab-eval.js`의 `openLobby` 및 `checkSelectedClassStatus`에서 선제적으로 `authService.student()`를 호출하여 익명 인증 토큰을 확보한 뒤 Firestore 리스너를 연결하도록 개선. 로비 진입 즉시 '대기실 열림 (입장 가능)' 녹색 배지가 정상 표출됨.
+3. **단위 테스트 및 무결성 검증**:
+   - `tests/rounds.test.cjs`: V4 환경에서 student 문서의 answers에 `assignedQuestions` 키가 절대 포함되지 않음을 검증하는 전용 테스트 추가.
+   - 총 84개 단위 테스트 100% 통과.
 
 ## 4. 기술·화면 방향
 

@@ -119,10 +119,13 @@ class StudentEvalApp {
     if (typeof switchUnit === 'function') {
       switchUnit('eval');
     }
+    if (window.authService && !window.authService.isDemo?.()) {
+      window.authService.student().catch(() => {});
+    }
     this.showScreen(this.isSubmitted ? 'result' : isAssessmentLocked() ? 'exam' : 'lobby');
   }
 
-  checkSelectedClassStatus() {
+  async checkSelectedClassStatus() {
     const classSel = document.getElementById('eval-st-class');
     const statusBadge = document.getElementById('eval-lobby-class-status');
     if (!classSel || !statusBadge || !window.evalService) return;
@@ -133,6 +136,15 @@ class StudentEvalApp {
       this.lobbySessionUnsub();
       this.lobbySessionUnsub = null;
     }
+
+    if (window.authService && !window.authService.isDemo?.()) {
+      try {
+        await window.authService.student();
+      } catch (e) {
+        console.warn('Anonymous student auth failed before checking status:', e);
+      }
+    }
+
     this.lobbySessionUnsub = window.evalService.listenSession(classId, (session) => {
       const isOpen = session && ['waiting', 'in_progress'].includes(session.status) && !!session.attemptId;
       if (session?.status === 'in_progress' && session.attemptId) {
