@@ -383,6 +383,9 @@ class StudentEvalApp {
     this.initPart3Canvas();
     this.switchPart(this.currentPart || 'part1');
     this.startingExam = false;
+
+    // 시험장 정상 진입 즉시 서버에 풀이 시작(in_progress) 상태 즉각 동기화
+    this.syncStudentProgress(true);
   }
 
   showTabWarningNotice() {
@@ -643,18 +646,23 @@ class StudentEvalApp {
     if(badge) badge.textContent=score===40?"표시된 입력 확인 완료":"실행 결과를 확인해 보세요";
   }
 
-  syncStudentProgress() {
+  syncStudentProgress(immediate = false) {
     this.updatePartNavigation();this.saveDraft();
     if(!this.joined||this.isSubmitted||this.isSubmitting||this.sessionStatus!=="in_progress")return;
     const status=document.getElementById('eval-save-status');
     if(status)status.textContent='이 창에 임시 저장 · 서버 저장 중';
     clearTimeout(this.progressTimeout);
-    this.progressTimeout=setTimeout(()=>{
+    const executeSync = () => {
       if(this.isSubmitted||this.isSubmitting)return;
       this.progressPromise=window.evalService.updateStudentProgress(this.currentClass,this.studentNum,{part1:Object.keys(this.answers.part1).length,part2:Object.values(this.answers.part2).filter(v=>String(v).trim()).length,part3:this.answers.part3.blocks.length>1?1:0},this.answers)
         .then(()=>{if(status)status.textContent=window.evalService.isDemo()?'로컬 시연에 저장됨':'서버에 저장됨';})
         .catch(error=>{if(status)status.textContent='서버 저장 실패 · 이 창을 유지해 주세요';console.warn("서버 임시 저장 실패",error);});
-    },500);
+    };
+    if (immediate) {
+      executeSync();
+    } else {
+      this.progressTimeout=setTimeout(executeSync,500);
+    }
   }
   // V4의 객관·단답 점수는 학생 브라우저가 계산하지 않는다. 교사만 서버 결과를 확인한다.
   calculateScores() {
