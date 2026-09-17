@@ -1334,7 +1334,7 @@ function openLiveStudentModal(studentNum) {
       if (p2El) p2El.textContent='실전평가 단답형 문항 검토 내용을 서버에서 확인하고 있습니다…';
       if (summaryEl) {
         summaryEl.textContent='실전평가 객관·단답 답안의 서버 채점 결과를 확인하고 있습니다…';
-      requestSecureEvaluationGrade(currentSelectedClass, s.numStr).then(result=>{
+      requestSecureEvaluationGrade(getClassIdFromSelected(), s.numStr).then(result=>{
         if (currentModalStudent !== s) return;
         const score=result.score;
         summaryEl.replaceChildren();
@@ -1346,7 +1346,7 @@ function openLiveStudentModal(studentNum) {
         });
       }).catch(error=>{if(currentModalStudent===s)summaryEl.textContent='실전평가 서버 채점 결과를 확인하지 못했습니다. '+error.message;});
       }
-      requestSecureEvaluationReview(currentSelectedClass, s.numStr).then(result=>{
+      requestSecureEvaluationReview(getClassIdFromSelected(), s.numStr).then(result=>{
         if (currentModalStudent !== s) return;
         renderSecureV4TeacherQuestions(p1El, result.review?.part1, 'part1');
         renderSecureV4TeacherQuestions(p2El, result.review?.part2, 'part2');
