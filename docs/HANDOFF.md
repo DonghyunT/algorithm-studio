@@ -7,15 +7,16 @@
 | 구분 | 인수인계 기준 |
 |---|---|
 | 현재 운영 브랜치 | main |
-| 현재 작업 브랜치 | codex/docs-sync-v4-status (V4 운영 상태 문서 정정 중) |
+| 현재 작업 브랜치 | main (codex/fix-v4-teacher-review 병합 완료) |
 | 현재 평가 운영 상태 | 선생님 확인에 따라 V4 실전평가도 운영에 적용 중이며, V3는 모의평가·기존 회차 호환용으로 유지 |
-| 인수인계 전달 기준 | 1) [순서도 흐름]/[알고리즘] 단락이 cbt-condition-box 섬으로 렌더링되도록 formatCbtPrompt 정규식 확장, 2) 87개 전체 단위 테스트 100% 통과 |
-| 최신 제품 코드 | `js/labs/lab-eval.js`(formatCbtPrompt 정규식 3곳 — 순서도·알고리즘 추가), `css/common.css`(조건 카드 들여쓰기 보존), `tests/cbt-assessment-ui.test.cjs`(섬 렌더링 테스트 추가) |
-| 최신 main 커밋 | `1add13b` — `.cbt-condition-box` 들여쓰기 보존을 위한 `pre-wrap` 적용 |
-| 배포 기록 | Vercel Production (`https://algorithm-studio-ten.vercel.app/`) V4 운영 적용 기록은 [배포 기록](DEPLOYMENT.md), 최신 CSS 커밋의 별도 운영 반영 여부는 추가 확인 필요 |
+| 인수인계 전달 기준 | 1) [순서도 흐름]/[알고리즘] 단락이 cbt-condition-box 섬으로 렌더링되도록 formatCbtPrompt 정규식 확장, 2) V4 교사 상세 조회의 학급 ID 전달 오류 수정, 3) 관련 권한·평가 API 14개 테스트 및 운영 화면 조회 확인 |
+| 최신 제품 코드 | `js/core/classroom.js`(V4 교사 성적·문항 조회에 표시명 대신 학급 ID 전달), `js/labs/lab-eval.js`(조건 카드 섬 트리거 확장), `css/common.css`(조건 카드 들여쓰기 보존) |
+| 최신 제품 코드 커밋 | `ed766ad` — V4 교사 상세 답안 조회 시 학급 ID를 사용하도록 수정하여 현재 main에 병합 |
+| 배포 기록 | Vercel Production (`https://algorithm-studio-ten.vercel.app/`)에 `ed766ad` 반영. 기존 제출 학생 상세 조회에서 서버 점수와 Part 1·2 검토 자료가 정상 표시되는 것을 실제 화면에서 확인함(상세: [배포 기록](DEPLOYMENT.md)) |
 | 현재 평가 UI | [순서도 흐름: ...], [알고리즘: ...] 단락이 파란 카드 섬(cbt-condition-box)으로 표시되어 들여쓰기 포함 가독성 개선. 기존 [규칙], [조건], [상황] 섬도 그대로 유지 |
 | 이번 구현 완료 내용 | **formatCbtPrompt 섬 트리거 확장**: `[조건\|규칙\|상황\|조리법\|반복 규칙]` 허용 목록에 `순서도`, `알고리즘` 추가(정규식 3곳). 영향 문항 19개 모두 섬 렌더링으로 전환. 87개 테스트 통과 |
 | 최신 운영 의도 | 순서도 흐름/알고리즘 단락이 카드 박스 안에서 들여쓰기 보존된 채 가독성 있게 표시됨 |
+| 이번 교사 조회 수정 | `currentSelectedClass` 표시명(`2학년 1반`)을 V4 보안 API가 요구하는 ID(`2-1`)로 변환해 성적·문항 검토 조회가 정상 동작하도록 수정. 기존 답안·Firestore 자료는 변경하지 않음 |
 
 - 저장소: [DonghyunT/algorithm-studio](https://github.com/DonghyunT/algorithm-studio)
 - 운영 웹: [정보 알고리즘 스튜디오](https://algorithm-studio-ten.vercel.app/)
@@ -25,7 +26,7 @@
 ## 2. 읽는 순서와 다음 작업
 
 1. [AGENTS](../AGENTS.md) → [INTENT](../INTENT.md) → [PRD](../PRD.md) → 이 문서를 읽습니다.
-2. **실전평가 V4 운영 적용 및 문항 조회 패딩 수정 완료:** Vercel Production에 V4 운영 설정·코드가 반영되어 사용 중이며, 관련 최신 기록은 선생님 운영 확인과 [배포 기록](DEPLOYMENT.md)을 기준으로 합니다. 문서에 기록된 최신 단위 테스트 수는 87개입니다.
+2. **실전평가 V4 운영 적용 및 교사 상세 조회 수정 완료:** Vercel Production에 V4 운영 설정·코드와 `ed766ad` 수정이 반영되어 사용 중입니다. 문법 검사 66개 스크립트와 관련 권한·평가 API 테스트 14개를 통과했고, 기존 제출 답안의 서버 점수·Part 1·2 문항 검토 자료를 실제 운영 화면에서 읽기 전용으로 확인했습니다. 관련 최신 기록은 선생님 운영 확인과 [배포 기록](DEPLOYMENT.md)을 기준으로 합니다.
 3. **다음 작업:**
    - 다른 PC에서는 `git switch main && git pull --ff-only origin main`으로 최신 커밋을 받아서 작업을 시작합니다.
    - 교실 환경에서 모의평가(V3) 및 실전평가(V4) 라이브 시험을 원활히 진행하고 관찰합니다.
