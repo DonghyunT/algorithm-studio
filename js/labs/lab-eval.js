@@ -204,6 +204,7 @@ class StudentEvalApp {
       try {
         const student=await window.evalService.joinWaitingRoom(this.currentClass,this.studentNum,this.studentName);
         this.ownerUid=student.ownerUid; this.joined=true; this.restoreDraft(student);
+        this.makeupAllowed = !!student.makeupAllowed;
         this.sessionUnsub?.(); this.studentUnsub?.(); this.sessionUnsub=null; this.studentUnsub=null;
       } catch(error) { alert(error.message); return; }
     }
@@ -218,6 +219,18 @@ class StudentEvalApp {
     if (stInfoLabel) {
       stInfoLabel.textContent = `${this.currentClass}반 ${this.studentNum}번 ${this.studentName}`;
     }
+    this.updateLobbyMakeupUI();
+
+    // 풀던 중 재접속하여 이미 시험 진행 중인 경우 즉시 시험장 복구 진입
+    if (this.latestStudent?.status === 'in_progress' && !this.isSubmitted) {
+      const sessionInfo = this.latestSession || {
+        questionVersion: this.latestStudent.answers?.part3?.questionVersion || 4,
+        attemptId: this.latestStudent.attemptId,
+        deadlineMs: this.latestStudent.deadlineMs
+      };
+      this.startExam(sessionInfo);
+      return;
+    }
 
     // 1) 전체 학급 세션 리스너 구독 (선생님이 [30분 동시 시작] 누를 시 시험장 진입)
     if (window.evalService && !this.sessionUnsub) {
@@ -231,6 +244,10 @@ class StudentEvalApp {
           this.sessionStatus='waiting';clearInterval(this.timerInterval);this.timerInterval=null;updateAssessmentNavigation();
         }
         if(sessionData?.status==="ended" && !this.isSubmitted) {
+          if (this.makeupAllowed) {
+            // 개별 추가 응시생은 전체 학급 세션 종료에 영향받지 않고 개별 30분 타이머 유지
+            return;
+          }
           this.sessionStatus="ended"; clearInterval(this.timerInterval); this.timerInterval=null;
           switchUnit('eval'); this.renderPartQuestions(); this.showScreen('exam');
           this.submitExam(true); return;
@@ -256,6 +273,8 @@ class StudentEvalApp {
           return;
         }
         this.latestStudent=stData;
+        this.makeupAllowed = !!stData?.makeupAllowed;
+        this.updateLobbyMakeupUI();
         // 교사에 의한 강제 정상 제출 실시간 감지
         if (!this.isSubmitted && stData?.status === 'submitted') {
           this.isSubmitted = true;
@@ -328,6 +347,44 @@ class StudentEvalApp {
     this.checkSelectedClassStatus();
   }
 
+  updateLobbyMakeupUI() {
+    const makeupBox = document.getElementById('eval-lobby-makeup-start-box');
+    const normalMsg = document.getElementById('eval-lobby-normal-msg');
+    if (this.makeupAllowed && !this.isSubmitted && this.sessionStatus !== 'in_progress') {
+      if (makeupBox) makeupBox.classList.remove('hidden');
+      if (normalMsg) normalMsg.classList.add('hidden');
+    } else {
+      if (makeupBox) makeupBox.classList.add('hidden');
+      if (normalMsg) normalMsg.classList.remove('hidden');
+    }
+  }
+
+  // 결시생 개별 30분 추가 응시 시작
+  async startMakeupExamNow() {
+    if (!this.makeupAllowed || this.sessionStatus === 'in_progress' || this.startingExam) return;
+    const startBtn = document.getElementById('eval-lobby-makeup-start-btn');
+    if (startBtn) {
+      startBtn.disabled = true;
+      startBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 시험 준비 중...';
+    }
+    try {
+      const res = await window.evalService.startStudentMakeupExam(this.currentClass, this.studentNum, 30);
+      this.individualDeadlineMs = res.deadlineMs;
+      const sessionInfo = this.latestSession || {
+        questionVersion: this.answers?.part3?.questionVersion || 4,
+        attemptId: this.attemptId || this.latestStudent?.attemptId || 'makeup',
+        deadlineMs: res.deadlineMs
+      };
+      await this.startExam(sessionInfo);
+    } catch (err) {
+      alert('개별 평가 시작 중 오류가 발생했습니다: ' + (err.message || err));
+      if (startBtn) {
+        startBtn.disabled = false;
+        startBtn.innerHTML = '<i class="fa-solid fa-play"></i> <span>개별 평가 시작하기 (30분)</span>';
+      }
+    }
+  }
+
   // 3. 시험장 진입 및 타이머 가동
   async startExam(sessionData) {
     if (this.sessionStatus === 'in_progress' || this.startingExam) return;
@@ -349,6 +406,7 @@ class StudentEvalApp {
       }
     }
     this.sessionStatus = 'in_progress';
+    this.startingExam = false;
     window.pendingAssessmentResume=false;this.rememberAssessment();
     switchUnit('eval');
     document.body.classList.add('assessment-active');
@@ -361,17 +419,18 @@ class StudentEvalApp {
     }
 
     // 타이머 계산
-    if (sessionData && sessionData.startTime) {
+    if (this.makeupAllowed && (this.individualDeadlineMs || this.latestStudent?.deadlineMs)) {
+      this.deadlineMs = this.individualDeadlineMs || this.latestStudent?.deadlineMs;
+    } else if (sessionData?.deadlineMs) {
+      this.deadlineMs = sessionData.deadlineMs;
+    } else if (sessionData && sessionData.startTime) {
       const startMs = new Date(sessionData.startTime).getTime();
-      const nowMs = Date.now();
-      const elapsedSec = Math.floor((nowMs - startMs) / 1000);
       const totalSec = (sessionData.durationMinutes || 30) * 60;
-      this.remainingSeconds = Math.max(0, totalSec - elapsedSec);
+      this.deadlineMs = startMs + totalSec * 1000;
     } else {
-      this.remainingSeconds = 1800;
+      this.deadlineMs = Date.now() + 1800 * 1000;
     }
 
-    this.deadlineMs = sessionData?.deadlineMs || (new Date(sessionData.startTime).getTime() + (sessionData.durationMinutes || 30)*60000);
     this.remainingSeconds=Math.max(0,Math.ceil((this.deadlineMs-Date.now())/1000));
     this.saveDraft();
     this.renderTimer();

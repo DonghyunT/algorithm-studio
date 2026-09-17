@@ -587,27 +587,30 @@ function renderLiveGrid(students = []) {
     let statusBg = "bg-slate-50 border-slate-200 text-slate-400";
     let statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 font-bold">미접속</span>`;
     let scoreDisplay = `<span class="text-xs text-slate-300">-</span>`;
-    let isClickable = false;
+    const isClickable = true;
 
     if (s) {
-      isClickable = true;
-      if (s.status === 'waiting') {
+      if (s.makeupAllowed && s.status === 'waiting') {
+        statusBg = "bg-amber-50/80 border-amber-400 text-amber-950 shadow-2xs";
+        statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500 text-white font-bold">추가응시대기</span>`;
+      } else if (s.status === 'waiting') {
         statusBg = "bg-amber-50/80 border-amber-300 text-amber-900";
         statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-200 text-amber-800 font-bold">대기중</span>`;
       } else if (s.status === 'in_progress') {
         statusBg = "bg-blue-50/80 border-blue-400 text-blue-900";
         const pCount = (Number(s.progress?.part1) || 0) + (Number(s.progress?.part2) || 0);
         const currentObjScore = (s.scores?.part1 || 0) + (s.scores?.part2 || 0);
+        const makeupPrefix = s.makeupAllowed ? '추가응시 ' : '';
         if (s.scores?.serverGraded) {
-          statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-600 text-white font-bold animate-pulse">풀이중 (${pCount}문항)</span>`;
+          statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-600 text-white font-bold animate-pulse">${makeupPrefix}풀이중 (${pCount}문항)</span>`;
           scoreDisplay = `<span class="text-xs text-slate-400 font-medium">서버 채점 예정</span>`;
         } else if (isScoreBlindMode) {
-          statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-600 text-white font-bold animate-pulse">풀이중 (${pCount}/16문항)</span>`;
+          statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-600 text-white font-bold animate-pulse">${makeupPrefix}풀이중 (${pCount}/16문항)</span>`;
           scoreDisplay = `<span class="text-xs text-slate-400 font-medium">풀이 진행 중</span>`;
         } else if (s.scores?.serverGraded) {
           scoreDisplay = `<span class="text-sm font-black text-emerald-700">서버 채점 확인 필요</span>`;
         } else {
-          statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-600 text-white font-bold animate-pulse">풀이중 (${pCount}문항 · ${currentObjScore}점)</span>`;
+          statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-600 text-white font-bold animate-pulse">${makeupPrefix}풀이중 (${pCount}문항 · ${currentObjScore}점)</span>`;
           scoreDisplay = `<span class="text-xs text-slate-500 font-bold font-mono">${currentObjScore}점 (임시)</span>`;
         }
       } else if (s.status === 'submitted') {
@@ -633,7 +636,7 @@ function renderLiveGrid(students = []) {
     const studentName = s ? s.name : "빈 좌석";
 
     html += `
-      <div onclick="${isClickable ? `openLiveStudentModal(${num})` : ''}" class="p-3 rounded-2xl border ${statusBg} flex flex-col justify-between min-h-[120px] transition ${isClickable ? 'hover:scale-[1.03] cursor-pointer shadow-xs' : 'opacity-60'}">
+      <div onclick="openLiveStudentModal(${num})" class="p-3 rounded-2xl border ${statusBg} flex flex-col justify-between min-h-[120px] transition hover:scale-[1.03] cursor-pointer shadow-xs">
         <div class="flex items-center justify-between">
           <span class="text-xs font-black font-mono px-2 py-0.5 rounded-md bg-white/80 border border-slate-200">${numStr}번</span>
           ${statusBadge}
@@ -1087,20 +1090,133 @@ function renderSecureV4TeacherQuestions(container, questions, part) {
 // 학생 개별 답안 상세 팝업 및 점수 수동 조정 / 재시험 허용
 function openLiveStudentModal(studentNum) {
   const s = currentLiveStudents.find(item => item.num === studentNum);
-  if (!s) return;
-  currentModalStudent = s;
-
   const modal = document.getElementById('classroom-live-detail-modal');
   if (!modal) return;
 
-  const titleEl = document.getElementById('classroom-live-modal-title');
-  if (titleEl) titleEl.textContent = `${currentSelectedClass} ${s.num}번 ${s.name} 학생 답안 검토`;
+  currentModalStudent = s || null;
 
+  const titleEl = document.getElementById('classroom-live-modal-title');
   const summaryEl = document.getElementById('classroom-live-modal-summary');
+  const p1Box = document.getElementById('classroom-live-modal-p1-box');
+  const p2Box = document.getElementById('classroom-live-modal-p2-box');
+  const p3Box = document.getElementById('classroom-live-modal-p3-box');
   const p1El = document.getElementById('classroom-live-modal-p1');
   const p2El = document.getElementById('classroom-live-modal-p2');
   const p3El = document.getElementById('classroom-live-modal-p3');
   const scoreInp = document.getElementById('classroom-live-override-score');
+  const legacyScoreBox = document.getElementById('classroom-legacy-score');
+  const reviewEl = document.getElementById('classroom-assessment-review');
+  const forceSubmitBox = document.getElementById('classroom-live-force-submit-box');
+  const forceSubmitBtn = document.getElementById('classroom-live-force-submit-btn');
+  const reconnectBox = document.getElementById('classroom-live-reconnect-box');
+  const reconnectBtn = document.getElementById('classroom-live-reconnect-btn');
+  const makeupBox = document.getElementById('classroom-live-makeup-box');
+  const makeupBtn = document.getElementById('classroom-live-makeup-btn');
+  const resetBox = document.getElementById('classroom-live-reset-box');
+  const resetBtn = document.getElementById('classroom-live-reset-btn');
+  const kickBox = document.getElementById('classroom-live-kick-seat-box');
+  const kickBtn = document.getElementById('classroom-live-kick-seat-btn');
+
+  if (!s) {
+    if (titleEl) titleEl.textContent = `${currentSelectedClass} ${studentNum}번 좌석 (미응시 / 결시)`;
+    if (summaryEl) {
+      summaryEl.innerHTML = `
+        <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl col-span-1 sm:col-span-3 text-center space-y-1">
+          <div class="text-sm font-black text-slate-700">현재 응시 기록이 없는 빈 좌석입니다.</div>
+          <p class="text-xs text-slate-500">결석이나 지각으로 응시하지 못한 학생인 경우, 아래 <strong>[결시생 개별 추가 응시 허용]</strong> 버튼을 눌러 개별 30분을 부여할 수 있습니다.</p>
+        </div>
+      `;
+    }
+    if (p1Box) p1Box.classList.add('hidden');
+    if (p2Box) p2Box.classList.add('hidden');
+    if (p3Box) p3Box.classList.add('hidden');
+    if (legacyScoreBox) legacyScoreBox.classList.add('hidden');
+    if (reviewEl) reviewEl.hidden = true;
+    if (forceSubmitBox) forceSubmitBox.classList.add('hidden');
+    if (reconnectBox) reconnectBox.classList.add('hidden');
+    if (resetBox) resetBox.classList.add('hidden');
+    if (kickBox) kickBox.classList.add('hidden');
+
+    if (makeupBox) makeupBox.classList.remove('hidden');
+    if (makeupBtn) {
+      makeupBtn.onclick = async () => {
+        if (!confirm(`⏱️ [${currentSelectedClass} ${studentNum}번] 학생에게 개별 30분 추가 응시 권한을 부여하시겠습니까?\n\n- 학생이 로그인하여 시작하는 순간 30분 개인 타이머가 작동합니다.\n- 기존 학생들의 시험 결과는 안전하게 보존되며 영향이 없습니다.`)) {
+          return;
+        }
+        const classId = getClassIdFromSelected();
+        if (window.evalService) {
+          try {
+            await window.evalService.allowStudentMakeup(classId, studentNum, 30);
+            alert(`✅ ${studentNum}번 학생의 개별 30분 추가 응시가 승인되었습니다.\n학생이 로그인하여 [개별 평가 시작하기]를 누르면 시작됩니다.`);
+            closeLiveStudentModal();
+          } catch (error) {
+            alert('추가 응시 승인 실패: ' + error.message);
+          }
+        }
+      };
+    }
+
+    modal.classList.remove('hidden');
+    return;
+  }
+
+  // 응시 학생인 경우
+  if (titleEl) titleEl.textContent = `${currentSelectedClass} ${s.num}번 ${s.name} 학생 답안 검토`;
+  if (p1Box) p1Box.classList.remove('hidden');
+  if (p2Box) p2Box.classList.remove('hidden');
+  if (p3Box) p3Box.classList.remove('hidden');
+  if (legacyScoreBox) legacyScoreBox.classList.remove('hidden');
+  if (resetBox) resetBox.classList.remove('hidden');
+  if (kickBox) kickBox.classList.remove('hidden');
+
+  // 재접속 및 추가응시 박스 표시 제어
+  if (s.status === 'submitted') {
+    if (reconnectBox) reconnectBox.classList.add('hidden');
+    if (makeupBox) makeupBox.classList.add('hidden');
+  } else {
+    if (reconnectBox) reconnectBox.classList.remove('hidden');
+    if (makeupBox) {
+      if (s.makeupAllowed || s.status === 'in_progress') makeupBox.classList.add('hidden');
+      else makeupBox.classList.remove('hidden');
+    }
+  }
+
+  if (reconnectBtn) {
+    reconnectBtn.onclick = async () => {
+      if (!confirm(`🔄 [${s.name || s.num + '번'}] 학생의 풀던 답안 유지 재접속을 허용하시겠습니까?\n\n서버에 저장된 기존 작성 답안을 그대로 유지한 채 새 브라우저로 재접속할 수 있도록 허용합니다.`)) {
+        return;
+      }
+      const classId = getClassIdFromSelected();
+      if (window.evalService) {
+        try {
+          await window.evalService.allowStudentReconnect(classId, s.num);
+          alert(`✅ [${s.name || s.num + '번'}] 학생의 재접속이 승인되었습니다.\n학생 컴퓨터에서 [${s.num}번 / ${s.name}]을 입력하고 대기실에 입장하면 풀던 답안이 그대로 복구됩니다.`);
+          closeLiveStudentModal();
+        } catch (error) {
+          alert('재접속 허용 실패: ' + error.message);
+        }
+      }
+    };
+  }
+
+  if (makeupBtn) {
+    makeupBtn.onclick = async () => {
+      if (!confirm(`⏱️ [${currentSelectedClass} ${s.num}번 ${s.name}] 학생에게 개별 30분 추가 응시 권한을 부여하시겠습니까?\n\n- 학생이 시작하는 순간 30분 개인 타이머가 작동합니다.\n- 기존 학생들의 성적은 안전하게 보존됩니다.`)) {
+        return;
+      }
+      const classId = getClassIdFromSelected();
+      if (window.evalService) {
+        try {
+          await window.evalService.allowStudentMakeup(classId, s.num, 30);
+          alert(`✅ [${s.num}번 ${s.name}] 학생의 개별 30분 추가 응시가 승인되었습니다.`);
+          closeLiveStudentModal();
+        } catch (error) {
+          alert('추가 응시 승인 실패: ' + error.message);
+        }
+      }
+    };
+  }
+
   const secureV4 = s.questionVersion === 4;
 
   let assigned = s.answers?.assignedQuestions || s.answers?.part3?.assignedQuestions;
@@ -1368,7 +1484,6 @@ function openLiveStudentModal(studentNum) {
   }
 
   // 교사 권한 재시험 허용 (답안 초기화) 버튼
-  const resetBtn = document.getElementById('classroom-live-reset-btn');
   if (resetBtn) {
     resetBtn.onclick = async () => {
       if (!confirm(`⚠️ 정말로 [${s.name}] 학생의 답안을 초기화하고 재시험을 허용하시겠습니까?\n기존 제출 답안과 성적이 리셋되며 학생 브라우저가 다시 시험 진행 상태로 전환됩니다.`)) {
@@ -1384,8 +1499,6 @@ function openLiveStudentModal(studentNum) {
   }
 
   // 검사 중단 / 풀이중 학생: 현재 답안으로 정상 제출 버튼
-  const forceSubmitBox = document.getElementById('classroom-live-force-submit-box');
-  const forceSubmitBtn = document.getElementById('classroom-live-force-submit-btn');
   if (forceSubmitBox && forceSubmitBtn) {
     if (s.status !== 'submitted') {
       forceSubmitBox.classList.remove('hidden');
@@ -1410,7 +1523,6 @@ function openLiveStudentModal(studentNum) {
   }
 
   // 유령 계정 / 번호 오입력: 좌석 비우기 (퇴장 처리) 버튼
-  const kickBtn = document.getElementById('classroom-live-kick-seat-btn');
   if (kickBtn) {
     kickBtn.onclick = async () => {
       if (!confirm(`⚠️ 정말로 [${s.name || s.num + '번'}] 학생의 좌석을 비우고 퇴장 처리하시겠습니까?\n이 좌석의 응시 기록이 삭제되어 빈자리가 되며, 진짜 해당 번호 학생이 에러 없이 새로 입장할 수 있게 됩니다.`)) {

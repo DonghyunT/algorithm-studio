@@ -48,7 +48,8 @@ module.exports = async (req, res) => {
     if (claims.firebase?.sign_in_provider !== 'anonymous') return fail(403, '학생 평가 로그인으로만 문항을 열 수 있습니다.');
     try {
       const { session, student } = await readSessionAndStudent();
-      if (student.ownerUid !== claims.sub || session.status !== 'in_progress' || student.status === 'submitted') return fail(403, '현재 본인의 진행 중인 평가 문항만 열 수 있습니다.');
+      const isStudentActive = session.status === 'in_progress' || (student.makeupAllowed === true && student.status === 'in_progress');
+      if (student.ownerUid !== claims.sub || !isStudentActive || student.status === 'submitted') return fail(403, '현재 본인의 진행 중인 평가 문항만 열 수 있습니다.');
       const assignment = assignQuestions(bank, process.env.EVAL_ASSIGNMENT_SECRET, scopeFor(session, body.classId, body.studentNum));
       return res.status(200).json({ attemptId: session.attemptId, questions: publicAssignment(assignment) });
     } catch (error) {

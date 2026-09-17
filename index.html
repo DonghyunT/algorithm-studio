@@ -2019,10 +2019,20 @@
           </div>
           <div class="space-y-1">
             <div id="eval-lobby-student-info" class="text-lg font-black text-amber-950">2학년 1반 1번 학생</div>
-            <p class="text-xs sm:text-sm text-amber-900 leading-relaxed">
+            <p class="text-xs sm:text-sm text-amber-900 leading-relaxed" id="eval-lobby-normal-msg">
               대기실에 안전하게 입장했습니다.<br>
               선생님이 <strong>[평가 시작]</strong> 버튼을 누르면 평가 화면으로 전환되고 30분 동안 답안을 작성합니다.
             </p>
+          </div>
+          <!-- ⏱️ 결시생 개별 30분 시작 박스 -->
+          <div id="eval-lobby-makeup-start-box" class="p-3.5 bg-emerald-100/80 border border-emerald-300 rounded-2xl space-y-2.5 hidden">
+            <p class="text-xs font-bold text-emerald-950 leading-snug">
+              선생님께서 <strong>개별 30분 추가 응시</strong>를 승인하셨습니다.<br>
+              준비가 되셨으면 아래 시작 버튼을 눌러 시험을 시작하세요.
+            </p>
+            <button id="eval-lobby-makeup-start-btn" type="button" onclick="window.studentEvalApp?.startMakeupExamNow()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-sm transition cursor-pointer flex items-center justify-center gap-2 shadow-sm active:scale-98">
+              <i class="fa-solid fa-play"></i> <span>개별 평가 시작하기 (30분)</span>
+            </button>
           </div>
           <div class="text-[11px] text-amber-800/80 bg-white/70 p-2.5 rounded-xl font-medium">
             새로고침(F5)을 하더라도 번호와 상태는 안전하게 보존됩니다.
@@ -2856,15 +2866,15 @@
 
       <div class="space-y-3 text-xs">
         <div id="classroom-live-modal-summary" class="grid grid-cols-1 sm:grid-cols-3 gap-2"></div>
-        <div class="p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl space-y-2">
+        <div id="classroom-live-modal-p1-box" class="p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl space-y-2">
           <div class="font-black text-indigo-900">Part 1. 객관식 답안</div>
           <div id="classroom-live-modal-p1" class="bg-white p-3 rounded-lg text-slate-700 space-y-1.5"></div>
         </div>
-        <div class="p-3 bg-amber-50/70 border border-amber-100 rounded-xl space-y-2">
+        <div id="classroom-live-modal-p2-box" class="p-3 bg-amber-50/70 border border-amber-100 rounded-xl space-y-2">
           <div class="font-black text-amber-900">Part 2. 주관식 단답형 답안</div>
           <div id="classroom-live-modal-p2" class="bg-white p-3 rounded-lg text-slate-700 space-y-1.5"></div>
         </div>
-        <div class="p-3 bg-emerald-50/70 border border-emerald-100 rounded-xl space-y-1">
+        <div id="classroom-live-modal-p3-box" class="p-3 bg-emerald-50/70 border border-emerald-100 rounded-xl space-y-1">
           <div class="font-black text-emerald-900">Part 3. 순서도 백지 조립 검증</div>
           <div id="classroom-live-modal-p3" class="bg-white p-2 rounded-lg text-slate-700 font-bold"></div>
         </div>
@@ -2899,18 +2909,48 @@
           </button>
         </div>
 
-        <!-- 🔄 오제출 구제: 재시험 허용 버튼 -->
-        <div class="p-3 bg-rose-50/70 border border-rose-200 rounded-xl space-y-1.5">
+        <!-- 🔄 PC 꺼짐 복구: 풀던 답안 유지 재접속 허용 버튼 -->
+        <div id="classroom-live-reconnect-box" class="p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-1.5">
+          <div class="flex items-center justify-between text-xs">
+            <span class="font-black text-indigo-900 flex items-center gap-1.5">
+              <i class="fa-solid fa-arrow-rotate-right text-indigo-600"></i>
+              <span>풀던 답안 유지하며 재접속 허용 (PC 꺼짐/롤백 복구)</span>
+            </span>
+            <span class="text-[10px] text-indigo-600 font-medium">서버 저장 답안 보존</span>
+          </div>
+          <p class="text-[11px] text-slate-600 leading-tight">학생 컴퓨터가 꺼졌거나 재부팅되어 튕겼을 때, 서버에 자동 저장된 기존 답안을 그대로 살린 채 새 브라우저로 재접속할 수 있도록 허용합니다.</p>
+          <button id="classroom-live-reconnect-btn" type="button" class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs transition cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs active:scale-98">
+            <i class="fa-solid fa-arrow-rotate-right text-[11px]"></i> <span>풀던 답안 유지하며 재접속 허용</span>
+          </button>
+        </div>
+
+        <!-- ⏱️ 결시생/미응시생: 개별 30분 추가 응시 허용 버튼 -->
+        <div id="classroom-live-makeup-box" class="p-3 bg-amber-50/70 border border-amber-200 rounded-xl space-y-1.5 hidden">
+          <div class="flex items-center justify-between text-xs">
+            <span class="font-black text-amber-900 flex items-center gap-1.5">
+              <i class="fa-solid fa-stopwatch text-amber-600"></i>
+              <span>결시생 개별 추가 응시 (30분 부여)</span>
+            </span>
+            <span class="text-[10px] text-amber-600 font-medium">개별 타이머 가동</span>
+          </div>
+          <p class="text-[11px] text-slate-600 leading-tight">결석이나 지각으로 응시하지 못한 학생에게 개별 30분 평가 권한을 부여합니다. 학생이 로그인하여 시작하는 순간 30분 개인 타이머가 작동하며, 기존 학생들의 성적은 안전하게 보존됩니다.</p>
+          <button id="classroom-live-makeup-btn" type="button" class="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-black text-xs transition cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs active:scale-98">
+            <i class="fa-solid fa-stopwatch text-[11px]"></i> <span>이 학생만 개별 30분 추가 응시 허용</span>
+          </button>
+        </div>
+
+        <!-- 🔄 오제출 구제: 답안 초기화 후 처음부터 다시 풀기 버튼 -->
+        <div id="classroom-live-reset-box" class="p-3 bg-rose-50/70 border border-rose-200 rounded-xl space-y-1.5">
           <div class="flex items-center justify-between text-xs">
             <span class="font-black text-rose-900 flex items-center gap-1.5">
               <i class="fa-solid fa-rotate-left text-rose-600"></i>
-              <span>재시험 허용 (실수 제출 구제)</span>
+              <span>답안 초기화 후 처음부터 다시 풀기 (완전 백지화)</span>
             </span>
             <span class="text-[10px] text-rose-500 font-medium">기존 답안 초기화</span>
           </div>
-          <p class="text-[11px] text-slate-600 leading-tight">학생의 제출 상태와 답안을 초기화하여 시험 화면으로 복귀시킵니다.</p>
+          <p class="text-[11px] text-slate-600 leading-tight">기존에 작성한 답안을 깨끗이 백지화하고 1번 문항부터 새 상태로 시험을 다시 치르게 합니다.</p>
           <button id="classroom-live-reset-btn" type="button" class="w-full py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-black text-xs transition cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs active:scale-98">
-            <i class="fa-solid fa-rotate-left text-[11px]"></i> <span>재시험 허용 (답안 초기화 후 시험장 복귀)</span>
+            <i class="fa-solid fa-trash-can text-[11px]"></i> <span>답안 초기화 후 처음부터 다시 풀기</span>
           </button>
         </div>
 

@@ -53,7 +53,13 @@ service cloud.firestore {
         }
       }
       match /students/{studentNum} {
-        function owner() { return anonymousStudent() && resource.data.ownerUid == request.auth.uid; }
+        function owner() {
+          return anonymousStudent() && (
+            resource.data.ownerUid == request.auth.uid
+            || resource.data.allowReconnect == true
+            || resource.data.makeupAllowed == true
+          );
+        }
         function validAnswers() {
           return request.resource.data.answers is map
             && request.resource.data.answers.keys().hasOnly(['part1', 'part2', 'part3', 'assignedQuestions', 'blurCount'])
@@ -86,8 +92,10 @@ service cloud.firestore {
           && request.resource.data.status == 'waiting' && validAnswers() && validProgress();
         allow update: if teacherForClass(classId) || (owner() && resource.data.status != 'submitted'
           && validAnswers() && validProgress()
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','answers','progress','updatedAt','submittedAt'])
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','answers','progress','updatedAt','submittedAt','ownerUid','name','allowReconnect','deadlineMs','startedAt'])
           && ((active() && request.resource.data.status in ['in_progress','submitted'])
+            || (resource.data.makeupAllowed == true && request.resource.data.status in ['waiting','in_progress','submitted'])
+            || (resource.data.allowReconnect == true && request.resource.data.status in ['waiting','in_progress'])
             || (request.resource.data.status == 'submitted' && request.resource.data.answers == resource.data.answers)));
         allow delete: if teacherForClass(classId)
           || (owner() && resource.data.status == 'waiting');

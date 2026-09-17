@@ -150,7 +150,25 @@ class EvalService {
         const assignFn = typeof assignQuestions === 'function' ? assignQuestions : (typeof window !== 'undefined' ? window.assignQuestions : null);
         if (existing.exists) {
           const existingData = existing.data();
-          if (existingData.ownerUid !== user.uid) throw new Error('이 번호는 다른 응시 기록에 연결되어 있습니다. 선생님께 확인해 주세요.');
+          const canReconnect = existingData.allowReconnect === true;
+          const isMakeup = existingData.makeupAllowed === true;
+
+          if (existingData.ownerUid !== user.uid) {
+            if (canReconnect || (isMakeup && !existingData.ownerUid)) {
+              const updatePayload = {
+                ownerUid: user.uid,
+                allowReconnect: false,
+                name: studentName.trim() || existingData.name || '',
+                updatedAt: new Date().toISOString()
+              };
+              existingData.ownerUid = user.uid;
+              existingData.allowReconnect = false;
+              if (studentName.trim()) existingData.name = studentName.trim();
+              transaction.update(ref, updatePayload);
+            } else {
+              throw new Error('이 번호는 다른 응시 기록에 연결되어 있습니다. 선생님께 확인해 주세요.');
+            }
+          }
           if (sessionData && [3, 4].includes(sessionData.questionVersion) && assignFn && !existingData.answers?.assignedQuestions) {
             existingData.answers = existingData.answers || {};
             existingData.answers.assignedQuestions = assignFn(`${existingData.attemptId || sessionData.attemptId}_${classId}_${studentNum}`);
@@ -176,6 +194,25 @@ class EvalService {
     }
     const existing = this.read('EVAL_STUDENTS_' + classId, []).find(item => item.numStr === docId);
     if (existing) {
+      const user = await window.authService.student();
+      const canReconnect = existing.allowReconnect === true;
+      const isMakeup = existing.makeupAllowed === true;
+      if (existing.ownerUid && existing.ownerUid !== user.uid) {
+        if (canReconnect || (isMakeup && !existing.ownerUid)) {
+          existing.ownerUid = user.uid;
+          existing.allowReconnect = false;
+          if (studentName.trim()) existing.name = studentName.trim();
+          this.mergeLocalStudent(classId, existing);
+          this.notify(classId, { students: [existing] });
+        } else {
+          throw new Error('이 번호는 다른 응시 기록에 연결되어 있습니다. 선생님께 확인해 주세요.');
+        }
+      } else if (!existing.ownerUid) {
+        existing.ownerUid = user.uid;
+        if (studentName.trim()) existing.name = studentName.trim();
+        this.mergeLocalStudent(classId, existing);
+        this.notify(classId, { students: [existing] });
+      }
       const session=this.read('EVAL_SESSION_'+classId,this.defaultSession(classId));
       const assignFn = typeof assignQuestions === 'function' ? assignQuestions : (typeof window !== 'undefined' ? window.assignQuestions : null);
       if (session && [3, 4].includes(session.questionVersion) && assignFn && !existing.answers?.assignedQuestions) {
@@ -348,6 +385,135 @@ class EvalService {
       return student;
     }
   }
+  async allowStudentReconnect(classId, studentNum) {
+    await window.authService.teacher({classId});
+    const docId = this.identity(classId, studentNum), db = this.getDb();
+    const payload = { allowReconnect: true, reconnectAllowedAt: new Date().toISOString() };
+    if (db) {
+      const ref = db.collection('classrooms').doc(classId).collection('students').doc(docId);
+      await ref.update(payload);
+    } else {
+      const key = 'EVAL_STUDENTS_' + classId;
+      const list = this.read(key, []);
+      const item = list.find(s => s.numStr === docId);
+      if (!item) throw new Error('응시 기록이 없습니다.');
+      item.allowReconnect = true;
+      item.reconnectAllowedAt = payload.reconnectAllowedAt;
+      this.write(key, list);
+      this.notify(classId, { students: [item] });
+    }
+    return true;
+  }
+  async allowStudentMakeup(classId, studentNum, durationMinutes = 30) {
+    await window.authService.teacher({classId});
+    const docId = this.identity(classId, studentNum), db = this.getDb();
+    const now = new Date().toISOString();
+    if (db) {
+      const sessionRef = db.collection('classrooms').doc(classId);
+      const ref = sessionRef.collection('students').doc(docId);
+      await db.runTransaction(async tx => {
+        const session = await tx.get(sessionRef);
+        if (!session.exists) throw new Error('학급 세션 정보를 찾을 수 없습니다.');
+        const sessionData = session.data();
+        const existing = await tx.get(ref);
+        if (existing.exists && existing.data().status === 'submitted') {
+          throw new Error('이미 정상 제출된 학생입니다. 재응시가 필요한 경우 재시험 기능을 이용해 주세요.');
+        }
+        const assignFn = typeof assignQuestions === 'function' ? assignQuestions : (typeof window !== 'undefined' ? window.assignQuestions : null);
+        const studentAttemptId = sessionData.attemptId || crypto.randomUUID();
+        const assigned = ([3, 4].includes(sessionData.questionVersion) && assignFn)
+          ? assignFn(`${studentAttemptId}_${classId}_${studentNum}`)
+          : null;
+        const studentPayload = {
+          num: Number(studentNum),
+          numStr: docId,
+          name: existing.exists ? (existing.data().name || '') : '',
+          ownerUid: null,
+          status: 'waiting',
+          makeupAllowed: true,
+          makeupDurationMinutes: durationMinutes,
+          attemptId: studentAttemptId,
+          joinedAt: now,
+          submittedAt: null,
+          progress: { part1: 0, part2: 0, part3: 0 },
+          answers: {
+            part1: {},
+            part2: {},
+            part3: { questionVersion: sessionData.questionVersion || 4, blocks: [], connections: [] },
+            ...(assigned ? { assignedQuestions: assigned } : {})
+          },
+          feedback: {}
+        };
+        tx.set(ref, studentPayload);
+      });
+    } else {
+      const session = this.read('EVAL_SESSION_' + classId, this.defaultSession(classId));
+      const key = 'EVAL_STUDENTS_' + classId;
+      const list = this.read(key, []);
+      const existing = list.find(s => s.numStr === docId);
+      if (existing && existing.status === 'submitted') {
+        throw new Error('이미 정상 제출된 학생입니다. 재응시가 필요한 경우 재시험 기능을 이용해 주세요.');
+      }
+      const assignFn = typeof assignQuestions === 'function' ? assignQuestions : (typeof window !== 'undefined' ? window.assignQuestions : null);
+      const assigned = ([3, 4].includes(session.questionVersion) && assignFn)
+        ? assignFn(`${session.attemptId}_${classId}_${studentNum}`)
+        : null;
+      const studentPayload = {
+        num: Number(studentNum),
+        numStr: docId,
+        name: existing?.name || '',
+        ownerUid: null,
+        status: 'waiting',
+        makeupAllowed: true,
+        makeupDurationMinutes: durationMinutes,
+        attemptId: session.attemptId || 'demo',
+        joinedAt: now,
+        submittedAt: null,
+        progress: { part1: 0, part2: 0, part3: 0 },
+        answers: {
+          part1: {},
+          part2: {},
+          part3: { questionVersion: session.questionVersion || 4, blocks: [], connections: [] },
+          ...(assigned ? { assignedQuestions: assigned } : {})
+        },
+        feedback: {}
+      };
+      this.mergeLocalStudent(classId, studentPayload);
+      this.notify(classId, { students: [studentPayload] });
+    }
+    return true;
+  }
+  async startStudentMakeupExam(classId, studentNum, durationMinutes = 30) {
+    const docId = this.identity(classId, studentNum);
+    const user = await window.authService.student();
+    const db = this.getDb();
+    const now = Date.now();
+    const deadlineMs = now + durationMinutes * 60000;
+    const payload = {
+      status: 'in_progress',
+      startedAt: new Date(now).toISOString(),
+      deadlineMs: deadlineMs
+    };
+    if (db) {
+      const ref = db.collection('classrooms').doc(classId).collection('students').doc(docId);
+      await db.runTransaction(async tx => {
+        const doc = await tx.get(ref);
+        if (!doc.exists) throw new Error('학생 응시 기록을 찾을 수 없습니다.');
+        if (doc.data().ownerUid !== user.uid) throw new Error('본인의 평가만 시작할 수 있습니다.');
+        if (!doc.data().makeupAllowed) throw new Error('추가 응시 대상자가 아닙니다.');
+        tx.update(ref, payload);
+      });
+    } else {
+      const key = 'EVAL_STUDENTS_' + classId;
+      const list = this.read(key, []);
+      const item = list.find(s => s.numStr === docId);
+      if (!item) throw new Error('학생 응시 기록을 찾을 수 없습니다.');
+      Object.assign(item, payload);
+      this.mergeLocalStudent(classId, item);
+      this.notify(classId, { students: [item] });
+    }
+    return { deadlineMs, durationMinutes };
+  }
   async autoSubmitRemainingStudents(classId) {
     await window.authService.teacher({classId});
     const db = this.getDb();
@@ -359,7 +525,7 @@ class EvalService {
       const snap = await colRef.get();
       const unsubmittedDocs = [];
       snap.forEach(doc => {
-        if (doc.data().status !== 'submitted') unsubmittedDocs.push(doc);
+        if (doc.data().status !== 'submitted' && !doc.data().makeupAllowed) unsubmittedDocs.push(doc);
       });
       count = unsubmittedDocs.length;
       if (count > 0) {

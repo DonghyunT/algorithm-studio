@@ -8,15 +8,16 @@ function setup(){
     if(fail)throw Error('write failed');
     for(const [type,path,value] of writes){if(type==='delete')records.delete(path);else records.set(path,type==='update'?{...records.get(path),...value}:value);}return result;
   }};
- const ctx={window:{firebaseDb:db,authService:{isDemo:()=>false,teacher:async()=>({uid:'teacher'}),student:async()=>({uid:'new-student'})}},crypto,console,Map,Set};
- vm.createContext(ctx);
- vm.runInContext(fs.readFileSync(require.resolve('../js/data/eval-question-bank.js'),'utf8'),ctx);
- vm.runInContext(fs.readFileSync(require.resolve('../js/data/eval-questions.js'),'utf8'),ctx);
- vm.runInContext(fs.readFileSync(require.resolve('../js/core/assessment-policy.js'),'utf8'),ctx);
- vm.runInContext(fs.readFileSync(require.resolve('../js/core/eval-service.js'),'utf8'),ctx);
- records.set('classrooms/2-1',{classId:'2-1',status:'ended',attemptId:'old',deadlineMs:1,schoolYear:2026});
- records.set('classrooms/2-1/students/01',{ownerUid:'old-student',status:'submitted',num:1,answers:{part1:{q1:2}},scores:{teacherOverride:85}});
- return {records,service:ctx.window.evalService,setFail:value=>{fail=value}};
+  let studentUid = 'new-student';
+  const ctx={window:{firebaseDb:db,authService:{isDemo:()=>false,teacher:async()=>({uid:'teacher'}),student:async()=>({uid:studentUid})}},crypto,console,Map,Set};
+  vm.createContext(ctx);
+  vm.runInContext(fs.readFileSync(require.resolve('../js/data/eval-question-bank.js'),'utf8'),ctx);
+  vm.runInContext(fs.readFileSync(require.resolve('../js/data/eval-questions.js'),'utf8'),ctx);
+  vm.runInContext(fs.readFileSync(require.resolve('../js/core/assessment-policy.js'),'utf8'),ctx);
+  vm.runInContext(fs.readFileSync(require.resolve('../js/core/eval-service.js'),'utf8'),ctx);
+  records.set('classrooms/2-1',{classId:'2-1',status:'ended',attemptId:'old',deadlineMs:1,schoolYear:2026});
+  records.set('classrooms/2-1/students/01',{ownerUid:'old-student',status:'submitted',num:1,answers:{part1:{q1:2}},scores:{teacherOverride:85}});
+  return {records,service:ctx.window.evalService,setFail:value=>{fail=value},setStudentUid:uid=>{studentUid=uid}};
 }
 test('new round archives answers and grades, frees seats, and prevents accidental restart',async()=>{
  const {records,service}=setup();await service.prepareSession('2-1');
@@ -372,6 +373,82 @@ test('prepareSession accepts questionVersion 3 (모의평가) or 4 (실전평가
   const sessionDefault = await service.prepareSession('2-1');
   assert.equal(sessionDefault.questionVersion, 4);
   assert.equal(records.get('classrooms/2-1').questionVersion, 4);
+});
+
+test('allowStudentReconnect preserves answers and allows rejoining with new UID', async () => {
+  const { records, service, setStudentUid } = setup();
+  await service.prepareSession('2-1');
+  
+  // 1. First student enters with UID 'student-original'
+  setStudentUid('student-original');
+  await service.joinWaitingRoom('2-1', 1, '홍길동');
+  await service.startSession('2-1');
+  
+  // Student writes answers
+  await service.updateStudentProgress('2-1', 1, { part1: 5, part2: 2, part3: 0 }, { part1: { q1: 3, q2: 1 }, part2: { q11: '추상화' } });
+  assert.equal(records.get('classrooms/2-1/students/01').ownerUid, 'student-original');
+  assert.equal(records.get('classrooms/2-1/students/01').answers.part2.q11, '추상화');
+
+  // 2. PC rebooted / rolled back -> Student gets new UID 'student-rebooted'
+  setStudentUid('student-rebooted');
+  
+  // Joining without reconnect permission should be rejected to protect student seat
+  await assert.rejects(service.joinWaitingRoom('2-1', 1, '홍길동'), /다른 응시 기록에 연결/);
+
+  // 3. Teacher grants reconnect
+  await service.allowStudentReconnect('2-1', 1);
+  assert.equal(records.get('classrooms/2-1/students/01').allowReconnect, true);
+
+  // 4. Student rejoins with new UID
+  const reconnected = await service.joinWaitingRoom('2-1', 1, '홍길동');
+  assert.equal(reconnected.ownerUid, 'student-rebooted');
+  assert.equal(reconnected.allowReconnect, false, 'allowReconnect should be reset to false after join');
+  
+  // Verify previous answers and progress are completely preserved
+  assert.equal(reconnected.answers.part2.q11, '추상화', 'Server stored answers must be preserved');
+  assert.equal(reconnected.answers.part1.q1, 3);
+  assert.equal(records.get('classrooms/2-1/students/01').ownerUid, 'student-rebooted');
+});
+
+test('allowStudentMakeup grants individual 30-minute exam without reopening ended session', async () => {
+  const { records, service, setStudentUid } = setup();
+  await service.prepareSession('2-1');
+  await service.joinWaitingRoom('2-1', 1, '정상학생');
+  await service.startSession('2-1');
+  
+  // Student 1 finishes and submits
+  await service.submitStudentExam('2-1', 1, { answers: { part1: {}, part2: {}, part3: { questionVersion: 4, blocks: [], connections: [] } } });
+  assert.equal(records.get('classrooms/2-1/students/01').status, 'submitted');
+
+  // Class session ends
+  const currentSession = records.get('classrooms/2-1');
+  await service.endSession('2-1', currentSession);
+  assert.equal(records.get('classrooms/2-1').status, 'ended');
+
+  // Teacher cannot grant makeup to already submitted student
+  await assert.rejects(service.allowStudentMakeup('2-1', 1, 30), /이미 정상 제출된/);
+
+  // Teacher grants makeup to absent student #5
+  await service.allowStudentMakeup('2-1', 5, 30);
+  assert.equal(records.get('classrooms/2-1/students/05').makeupAllowed, true);
+  assert.equal(records.get('classrooms/2-1/students/05').status, 'waiting');
+
+  // Student 5 joins waiting room
+  setStudentUid('makeup-student-5');
+  const student5 = await service.joinWaitingRoom('2-1', 5, '지각생');
+  assert.equal(student5.ownerUid, 'makeup-student-5');
+  assert.equal(student5.makeupAllowed, true);
+
+  // Student 5 starts their individual makeup exam
+  const startRes = await service.startStudentMakeupExam('2-1', 5, 30);
+  assert.equal(records.get('classrooms/2-1/students/05').status, 'in_progress');
+  assert.ok(startRes.deadlineMs > Date.now());
+
+  // Class end auto-submit must NOT auto-submit active makeup student
+  const autoCount = await service.autoSubmitRemainingStudents('2-1');
+  assert.equal(autoCount, 0, 'Makeup student must not be auto-submitted');
+  assert.equal(records.get('classrooms/2-1/students/05').status, 'in_progress');
+  assert.equal(records.get('classrooms/2-1/students/01').status, 'submitted', 'Student 1 remains submitted');
 });
 
 

@@ -7,13 +7,13 @@
 | 구분 | 인수인계 기준 |
 |---|---|
 | 현재 운영 브랜치 | main |
-| 현재 작업 브랜치 | main (평가 선택 드롭다운 통합 및 Vercel Production 배포 완료, 클린 트리) |
-| 인수인계 전달 기준 | 교사 관제탑 평가 유형 선택 드롭다운(`teacher-session-version-select`) 구현(모의평가 V3 vs 실전평가 V4 선택 개설 지원), 상태 기반 자동 잠금, 맞춤 확인창 및 피드백 연동, 81개 전체 단위 테스트 100% 통과 |
-| 최신 제품 코드 | `index.html` / `css/studio-ui.css` (드롭다운 UI 및 다크 스타일링), `js/core/classroom.js` (드롭다운 상태 연동 및 버전 전달, 확인창 맞춤화), `tests/rounds.test.cjs` (버전별 prepareSession 단위 테스트) |
-| 배포 기록 | Vercel Production 환경 변수(`EVAL_BANK_V4_JSON`, `EVAL_ASSIGNMENT_SECRET`) 주입 완료 및 Production 배포 완료 (`https://algorithm-studio-ten.vercel.app/`), 라이브 실측 검증 완료 |
-| 현재 평가 UI | 단일 문항 집중 모드가 기본값 (`isCbtMode = true`), 교사 관제탑 평가 준비 시 [실전평가] / [모의평가] 드롭다운 선택 및 상태 뱃지 실시간 표시 |
-| 이번 구현 완료 내용 | 1) **교사 관제탑 평가 유형 선택 드롭다운 UI (`#teacher-session-version-select`)**: `[평가 준비]` 버튼 좌측에 드롭다운 배치, 모의평가(V3)와 실전평가(V4) 중 선택하여 새 세션 준비 가능<br>2) **상태 기반 자동 잠금**: 시험 진행 중이거나 대기 중에는 오작동 방지를 위해 드롭다운 자동 비활성화(disabled)<br>3) **스마트 확인창 및 피드백 연동**: 새 평가 준비 시 선택한 유형(실전: 80문항+AI ON / 모의: 기본문항+AI OFF)을 명시하는 맞춤 confirm 창 및 피드백 표출<br>4) **81개 전체 단위 테스트 100% 통과** |
-| 최신 운영 의도 | 모의평가와 실전평가를 교사가 교단에서 손쉽게 전환하며 자유롭게 운영할 수 있도록 준비 완료 |
+| 현재 작업 브랜치 | codex/eval-recovery-and-makeup (재난 복구 2대 메커니즘 및 83개 테스트 완료) |
+| 인수인계 전달 기준 | 1) PC 꺼짐/롤백 복구(서버 저장 답안 유지 재접속 허용), 2) 결시생 개별 30분 추가 응시(세션 종료 후에도 개별 타이머 및 보안 문항 허용, 타 학생 성적 100% 보존), 83개 전체 단위 테스트 100% 통과 |
+| 최신 제품 코드 | `firestore.rules`, `api/evaluation.js`, `js/core/eval-service.js`, `js/core/classroom.js`, `js/labs/lab-eval.js`, `index.html`, `tests/rounds.test.cjs` |
+| 배포 기록 | Vercel Production (`https://algorithm-studio-ten.vercel.app/`) 배포 대기 중 |
+| 현재 평가 UI | 교사 관제탑 빈 좌석 클릭 시 [결시생 개별 30분 추가 응시 허용] 모달 노출, 풀이 중 학생 클릭 시 [풀던 답안 유지하며 재접속 허용] 및 [답안 초기화 후 처음부터 다시 풀기] 분리 제공, 학생 대기실 [개별 평가 시작하기 (30분)] 버튼 연동 |
+| 이번 구현 완료 내용 | 1) **PC 꺼짐/롤백 대응 2대 재응시 버튼 분리**: 풀던 답안 유지 재접속(`allowStudentReconnect`) vs 답안 백지화 초기화(`resetStudentExam`)<br>2) **결시생 개별 30분 추가 응시 (`allowStudentMakeup`)**: 빈 좌석 클릭 추가 응시 허용, 개별 30분 타이머(`deadlineMs`), `api/evaluation.js` V4 문항 조회 예외 허용, 학급 마감 시 자동 제출 제외 보호<br>3) **데이터 침범 오류 제로화**: 타 좌석 가로채기 방지(선생님 승인 플래그 필수 검증), 기제출 학생 덮어쓰기 차단, 83개 단위 테스트 통과 |
+| 최신 운영 의도 | 실제 학교 컴퓨터실 현장에서 빈번히 일어나는 PC 재부팅(순간복구 프로그램 롤백) 및 결시/지각생 발생 시, 다른 학생들의 데이터 손실이나 간섭 없이 교사가 1클릭으로 신속하고 안전하게 비상 대응 가능하도록 완성 |
 
 - 저장소: [DonghyunT/algorithm-studio](https://github.com/DonghyunT/algorithm-studio)
 - 운영 웹: [정보 알고리즘 스튜디오](https://algorithm-studio-ten.vercel.app/)
@@ -23,10 +23,11 @@
 ## 2. 읽는 순서와 다음 작업
 
 1. [AGENTS](../AGENTS.md) → [INTENT](../INTENT.md) → [PRD](../PRD.md) → 이 문서를 읽습니다.
-2. **평가 유형 선택 드롭다운 완료:** 모의평가와 실전평가 선택 개설 기능 및 상태 잠금, 단위 테스트 통과 완료.
+2. **평가 비상 복구 및 결시생 추가 응시 완료:** 단위 테스트 83개 전원 통과 완료.
 3. **다음 작업:**
-   - 선생님께 구현 결과 브리핑 및 화면 확인.
-   - 선생님 승인 시 `main` 브랜치 병합 및 Vercel 배포.
+   - `main` 브랜치에 병합 및 GitHub 원격 push.
+   - Vercel Production 자동 배포 확인 및 라이브 검증.
+   - 선생님께 자연어로 친절하고 상세하게 브리핑.
 
 ## 3. 다른 PC에서 받기
 
