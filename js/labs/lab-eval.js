@@ -735,8 +735,10 @@ class StudentEvalApp {
     const view1 = document.getElementById('eval-cbt-step1-view');
     const view2 = document.getElementById('eval-cbt-step2-view');
 
+    const cbtContainer = document.getElementById('eval-cbt-container');
     const cbtBody = document.getElementById('eval-cbt-body');
     if (step === 1) {
+      if (cbtContainer) cbtContainer.classList.remove('cbt-step2-unclamped');
       if (cbtBody) {
         cbtBody.classList.add('justify-center');
         cbtBody.classList.add('overflow-hidden');
@@ -756,6 +758,7 @@ class StudentEvalApp {
       if (guide) guide.hidden = false;
       this.renderAssessmentPlan();
     } else {
+      if (cbtContainer) cbtContainer.classList.add('cbt-step2-unclamped');
       if (cbtBody) {
         cbtBody.classList.remove('justify-center');
         cbtBody.classList.remove('overflow-hidden');
@@ -956,11 +959,16 @@ class StudentEvalApp {
     const part3TitleWrap = document.getElementById('eval-cbt-part3-title-wrap');
     const cbtBody = document.getElementById('eval-cbt-body');
 
+    const cbtContainer = document.getElementById('eval-cbt-container');
+
     // 1~16번 문항은 스크롤 제로 고정 바디 유지
-    if (idx >= 1 && idx <= 16 && cbtBody) {
-      cbtBody.classList.add('justify-center');
-      cbtBody.classList.add('overflow-hidden');
-      cbtBody.classList.remove('overflow-y-auto');
+    if (idx >= 1 && idx <= 16) {
+      if (cbtContainer) cbtContainer.classList.remove('cbt-step2-unclamped');
+      if (cbtBody) {
+        cbtBody.classList.add('justify-center');
+        cbtBody.classList.add('overflow-hidden');
+        cbtBody.classList.remove('overflow-y-auto');
+      }
     }
 
     // 부드러운 토스/애플 스타일 문항 전환 애니메이션
@@ -1048,11 +1056,23 @@ class StudentEvalApp {
         shortArea.innerHTML = `
           <div class="space-y-3 w-full">
             <div class="flex items-center gap-3">
-              <input type="text" id="cbt_inp_${q.id}" value="${safeEsc(this.answers.part2[q.id] || '')}" ${canEdit ? '' : 'disabled'} oninput="window.studentEvalApp.onInputCbtPart2('${q.id}', this.value)" class="flex-1 text-base sm:text-lg px-5 py-4 bg-slate-50 border-2 border-slate-300 rounded-2xl focus:outline-none focus:border-blue-600 focus:bg-white font-extrabold text-slate-900 transition shadow-inner" placeholder="${q.placeholder || '단답형 정답을 입력하세요'}">
+              <input type="text" id="cbt_inp_${q.id}" value="${safeEsc(this.answers.part2[q.id] || '')}" ${canEdit ? '' : 'disabled'} oninput="window.studentEvalApp.onInputCbtPart2('${q.id}', this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();window.studentEvalApp.nextCbtQuestion();}" class="flex-1 text-base sm:text-lg px-5 py-4 bg-slate-50 border-2 border-slate-300 rounded-2xl focus:outline-none focus:border-blue-600 focus:bg-white font-extrabold text-slate-900 transition shadow-inner" placeholder="${q.placeholder || '단답형 정답을 입력하세요'}">
               <span class="text-xs font-black text-slate-400 bg-slate-100 px-3 py-2 rounded-xl shrink-0">단답형</span>
             </div>
           </div>
         `;
+        if (canEdit) {
+          setTimeout(() => {
+            const inp = document.getElementById(`cbt_inp_${q.id}`);
+            if (inp && typeof inp.focus === 'function') {
+              try {
+                inp.focus();
+                const len = inp.value ? inp.value.length : 0;
+                if (typeof inp.setSelectionRange === 'function') inp.setSelectionRange(len, len);
+              } catch(e) {}
+            }
+          }, 50);
+        }
       }
       if (optionsArea) optionsArea.classList.add('hidden');
     } else if (idx === 17) {

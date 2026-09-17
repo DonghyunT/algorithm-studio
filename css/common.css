@@ -228,7 +228,11 @@ html, body {
    - 24인치 컴퓨터실 모니터 가독성 & 갤럭시탭 S8/S9 디벗 호환
    ========================================== */
 .cbt-container {
-  min-height: calc(100vh - 130px);
+  min-height: 0;
+  align-items: stretch;
+}
+#eval-screen-exam > #eval-cbt-container {
+  padding-bottom: 0 !important;
 }
 
 /* OMR 번호 버튼 타일 (그리드 셀 비율 맞춤, 겹침 방지) */
@@ -546,12 +550,32 @@ body.assessment-active #global-header .site-header-inner {
    🖥️ 데스크탑 모니터 기준 CBT 카드 섬 높이 및 버튼 위치 고정 & 오버플로우 밀봉
    ========================================== */
 @media (min-width: 768px) {
+  #eval-cbt-sidebar,
   #eval-cbt-main {
     height: calc(100vh - 150px) !important;
     min-height: 600px !important;
     max-height: 860px !important;
+  }
+  #eval-cbt-main {
     overflow: hidden !important;
   }
+}
+
+/* 17-2단계(순서도 조립) 높이 고정 해제: 기획서 및 캔버스 작업 공간 무제한 확장 & 자연스러운 페이지 스크롤 */
+#eval-cbt-container.cbt-step2-unclamped #eval-cbt-main {
+  height: auto !important;
+  min-height: calc(100vh - 150px) !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+#eval-cbt-container.cbt-step2-unclamped #eval-cbt-sidebar {
+  height: auto !important;
+  min-height: calc(100vh - 150px) !important;
+  max-height: none !important;
+}
+#eval-cbt-container.cbt-step2-unclamped #eval-cbt-workspace-host {
+  height: 720px !important;
+  min-height: 720px !important;
 }
 
 /* ==========================================

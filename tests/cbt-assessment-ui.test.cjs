@@ -23,6 +23,9 @@ function createAssessmentContext() {
         contains(child) { return this.children.includes(child); },
         setAttribute(name, val) { this[name] = String(val); },
         getAttribute(name) { return this[name] || null; },
+        focus() { this.focused = true; },
+        blur() { this.focused = false; },
+        setSelectionRange(s, e) { this.selectionStart = s; this.selectionEnd = e; },
         querySelector: () => null,
         querySelectorAll: () => [],
         innerHTML: '',
@@ -504,6 +507,43 @@ test('CBT round 3: formatCbtPrompt strips outer [규칙: ...] brackets and forma
   assert.ok(q7Formatted.includes('cbt-condition-box'), 'Q7도 조건 상자로 묶여야 함');
   assert.ok(q7Formatted.includes('지켜야 할 규칙 / 조건'), 'Q7 조건 상자 헤더 타이틀이 표기되어야 함');
 });
+
+test('CBT round 4: cbt-step2-unclamped toggles properly on 17-2 and removes on 17-1 and 1~16', () => {
+  const ctx = createAssessmentContext();
+  const StudentEvalApp = ctx.window.studentEvalApp.constructor;
+  const app = new StudentEvalApp();
+  ctx.window.studentEvalApp = app;
+
+  const container = ctx.document.getElementById('eval-cbt-container');
+  assert.ok(container, 'eval-cbt-container가 존재해야 함');
+
+  // 17-2 진입 시 cbt-step2-unclamped 클래스가 추가되어야 함
+  app.goToCbtPart3Step(2);
+  assert.equal(container.classList.contains('cbt-step2-unclamped'), true, '17-2단계에서는 높이 고정이 해제되어야 함');
+
+  // 17-1로 복귀 시 cbt-step2-unclamped 클래스가 제거되어야 함
+  app.goToCbtPart3Step(1);
+  assert.equal(container.classList.contains('cbt-step2-unclamped'), false, '17-1단계에서는 높이 고정 모드로 복원되어야 함');
+
+  // 17-2로 갔다가 1~16번 문항으로 이동 시에도 cbt-step2-unclamped 제거되어야 함
+  app.goToCbtPart3Step(2);
+  assert.equal(container.classList.contains('cbt-step2-unclamped'), true);
+  app.goToCbtQuestion(14);
+  assert.equal(container.classList.contains('cbt-step2-unclamped'), false, '14번 단답형으로 이동 시 높이 고정 모드로 복원되어야 함');
+});
+
+test('CBT round 4: short-answer inputs include Enter key navigation handler and autofocus logic', () => {
+  const ctx = createAssessmentContext();
+  const StudentEvalApp = ctx.window.studentEvalApp.constructor;
+  const app = new StudentEvalApp();
+  ctx.window.studentEvalApp = app;
+
+  app.goToCbtQuestion(14);
+  const shortArea = ctx.document.getElementById('eval-cbt-short-answer');
+  assert.ok(shortArea.innerHTML.includes('onkeydown="if(event.key===\'Enter\')'), 'Enter 키 이벤트 핸들러가 포함되어야 함');
+  assert.ok(shortArea.innerHTML.includes('window.studentEvalApp.nextCbtQuestion()'), 'Enter 키 입력 시 다음 문항 이동 함수가 호출되어야 함');
+});
+
 
 
 
