@@ -408,17 +408,48 @@ class EvalService {
       const review=update(student,session);this.mergeLocalStudent(classId,{...student,review});this.notify(classId,{students:[{...student,review}]});
     }
   }
-  exportNeisCSV(classId, studentList=[]) {
-    const cell=value=>'"'+String(value??'').replace(/^[=+@-]/,"'$&").replace(/"/g,'""')+'"';
-    const rows=[['학급','번호','이름','응시상태','객관식/30','단답형/30','순서도/40','자동채점 총점','교사 조정','최종 점수','제출시각']];
+  formatNeisCSVRows(classId, studentList=[]) {
+    const statusMap = {
+      submitted: '제출완료',
+      in_progress: '풀이중',
+      waiting: '대기중'
+    };
+    const formatTime = (iso) => {
+      if (!iso) return '';
+      try {
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return String(iso);
+        const pad = n => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      } catch {
+        return String(iso);
+      }
+    };
+    const rows = [['학급','번호','이름','응시상태','객관식/30','단답형/30','지필소계/60','순서도/40','자동채점 총점','교사 조정','최종 점수','제출시각']];
     [...studentList].sort((a,b)=>a.num-b.num).forEach(student=>{
       const score=student.scores||{};
       const serverPending=score.serverGraded === true;
-      rows.push([classId,student.num,student.name,student.status,serverPending?'서버 채점 확인':score.part1||0,serverPending?'서버 채점 확인':score.part2||0,score.pendingReview?'채점 대기':score.part3??0,score.pendingReview?'채점 대기':score.total??0,score.teacherOverride??'',score.pendingReview?'채점 대기':score.teacherOverride??score.total??0,student.submittedAt||'']);
+      const statusText = statusMap[student.status] || student.status || '';
+      const part1 = serverPending ? '서버 채점 확인' : (Number(score.part1) || 0);
+      const part2 = serverPending ? '서버 채점 확인' : (Number(score.part2) || 0);
+      const writtenSubtotal = serverPending ? '서버 채점 확인' : (part1 + part2);
+      const part3 = score.pendingReview ? '채점 대기' : (score.part3 ?? 0);
+      const total = score.pendingReview ? '채점 대기' : (score.total ?? 0);
+      const override = score.teacherOverride ?? '';
+      const finalScore = score.pendingReview ? '채점 대기' : (score.teacherOverride ?? score.total ?? 0);
+      const submittedAt = formatTime(student.submittedAt);
+      rows.push([classId, student.num, student.name, statusText, part1, part2, writtenSubtotal, part3, total, override, finalScore, submittedAt]);
     });
+    return rows;
+  }
+  exportNeisCSV(classId, studentList=[]) {
+    const cell=value=>'"'+String(value??'').replace(/^[=+@-]/,"'$&").replace(/"/g,'""')+'"';
+    const rows=this.formatNeisCSVRows(classId, studentList);
     const blob=new Blob(['\uFEFF'+rows.map(row=>row.map(cell).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'});
     const url=URL.createObjectURL(blob),link=document.createElement('a');
     link.href=url;link.download=classId+'_평가.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
   }
 }
 window.evalService = new EvalService();
+if (typeof module !== 'undefined') module.exports = { EvalService };
+
