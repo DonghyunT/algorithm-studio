@@ -1,19 +1,19 @@
 # 다른 PC·에이전트로 작업 이어가기
 
-갱신: 2026-09-15 KST. 기능 명세는 [PRD](../PRD.md), 운영 반영 근거는 [배포 기록](DEPLOYMENT.md)이 기준입니다.
+갱신: 2026-09-17 KST. 기능 명세는 [PRD](../PRD.md), 운영 반영 근거는 [배포 기록](DEPLOYMENT.md)이 기준입니다.
 
 ## 1. 현재 상태
 
 | 구분 | 인수인계 기준 |
 |---|---|
 | 현재 운영 브랜치 | main |
-| 현재 작업 브랜치 | codex/teacher-seat-management (교사용 좌석 비우기, 강제 정상 제출, 평가 종료 시 미제출 일괄 마감) |
-| 인수인계 전달 기준 | 최신 main 및 작업 브랜치 codex/teacher-seat-management. 검토 후 main 병합 및 배포 예정 |
-| 최신 제품 코드 | 교사용 좌석 비우기(`clearStudentSeat`), 현재 답안 정상 제출(`forceSubmitStudentExam`), 일괄 자동 마감(`autoSubmitRemainingStudents`), Firestore 규칙 delete 개방 |
-| 배포 기록 | c48e232 Firestore 규칙 게시, c73e8c4 Vercel API 반영 (새 기능 병합 후 배포 예정) |
+| 현재 작업 브랜치 | codex/auto-ai-review-and-csv-polish (백그라운드 AI 자동 초벌 채점 큐 및 NEIS 친화 CSV 지필소계 내보내기) |
+| 인수인계 전달 기준 | 최신 main(71875a2) 기반 codex/auto-ai-review-and-csv-polish 구현 완료. 검토 후 main 병합 및 배포 예정 |
+| 최신 제품 코드 | `AssessmentAutoReviewQueue`, `formatNeisCSVRows`, 관제탑 AI 큐 실시간 배지 및 좌석 바둑판 AI제안/확정 상태 표기 |
+| 배포 기록 | 71875a2 Vercel Production 배포 완료 (새 기능 병합 후 배포 예정) |
 | 현재 평가 | 기본 새 회차는 V3. 기존 회차·답안·성적 보존 |
-| 이번 구현 완료 내용 | 1) 번호 오입력/유령 계정 즉시 삭제 및 빈자리 반환, 2) 미제출/기기 꺼짐 학생 현재 답안으로 정상 제출, 3) 평가 종료 시 미제출 학생 일괄 마감, 4) 53개 전체 단위 테스트 통과 |
-| 최신 운영 의도 | 이번 주 V3 모의 평가 안정적 운영을 위한 교사 관제탑 고도화 (S-PLAN 매뉴얼 원칙 적용) |
+| 이번 구현 완료 내용 | 1) 성적표 CSV `지필소계/60` 열 신설, 응시상태 한국어화, `YYYY-MM-DD HH:mm` 시각 포맷팅<br>2) 교사 관제탑 백그라운드 AI 자동 초벌 채점 큐(6.8초 간격 분당 10회 Rate Limit 준수)<br>3) 빈 답안(블록 0~1개) API 미호출 0점 즉시 제안(토큰 100% 절감)<br>4) 교사 관제탑 진행 배지 및 학생 카드별 AI제안/확정 상태 배지<br>5) 59개 전체 단위 테스트 통과 (PASS) |
+| 최신 운영 의도 | 이번 주 V3 모의 수행평가 원활한 운영 및 교사 채점/NEIS 성적 처리 부담 획기적 경감 |
 
 - 저장소: [DonghyunT/algorithm-studio](https://github.com/DonghyunT/algorithm-studio)
 - 운영 웹: [정보 알고리즘 스튜디오](https://algorithm-studio-ten.vercel.app/)
