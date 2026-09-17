@@ -65,3 +65,59 @@ test('V4 rejects an incomplete private bank or an unsafe assignment secret', () 
   assert.throws(() => parseEvaluationBank(JSON.stringify(invalid)), /문항 은행/);
   assert.throws(() => assignQuestions(parseEvaluationBank(bankJson()), 'short', 'round'), /배정 설정/);
 });
+
+test('V4 domain-balanced assignment guarantees exact domain and difficulty distribution', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const bankPath = path.resolve(__dirname, '../scratch/eval_bank_v4.json');
+  if (!fs.existsSync(bankPath)) return;
+
+  const bank = parseEvaluationBank(fs.readFileSync(bankPath, 'utf8'));
+  const secret = 's'.repeat(32);
+
+  for (let studentId = 1; studentId <= 27; studentId++) {
+    const scope = `round-4:2-1:${String(studentId).padStart(2, '0')}`;
+    const assignment = assignQuestions(bank, secret, scope);
+
+    // 1. 문항 수: Part 1은 10개, Part 2는 6개
+    assert.equal(assignment.part1.length, 10);
+    assert.equal(assignment.part2.length, 6);
+
+    // 2. Part 1: D1~D5 대영역별 정확히 2문항씩 배정
+    const dCounts = {};
+    assignment.part1.forEach(q => { dCounts[q.domain] = (dCounts[q.domain] || 0) + 1; });
+    assert.deepEqual(dCounts, { D1: 2, D2: 2, D3: 2, D4: 2, D5: 2 });
+
+    // 3. Part 2: S1~S6 세부 영역별 정확히 1문항씩 배정
+    const sCounts = {};
+    assignment.part2.forEach(q => { sCounts[q.domain] = (sCounts[q.domain] || 0) + 1; });
+    assert.deepEqual(sCounts, { S1: 1, S2: 1, S3: 1, S4: 1, S5: 1, S6: 1 });
+
+    // 4. 난이도 비율: Part 1(하4, 중4, 상2 = 30점), Part 2(하2, 중2, 상2 = 30점)
+    const p1Diff = { easy: 0, medium: 0, hard: 0 };
+    assignment.part1.forEach(q => { p1Diff[q.difficulty]++; });
+    assert.deepEqual(p1Diff, { easy: 4, medium: 4, hard: 2 });
+
+    const p2Diff = { easy: 0, medium: 0, hard: 0 };
+    assignment.part2.forEach(q => { p2Diff[q.difficulty]++; });
+    assert.deepEqual(p2Diff, { easy: 2, medium: 2, hard: 2 });
+
+    // 5. 총 배점: Part 1 30점 + Part 2 30점 = 총 60점
+    const p1Score = assignment.part1.reduce((acc, q) => acc + q.points, 0);
+    const p2Score = assignment.part2.reduce((acc, q) => acc + q.points, 0);
+    assert.equal(p1Score, 30);
+    assert.equal(p2Score, 30);
+
+    // 6. 결정론적 추출 검증 (동일 시드 = 동일 문항)
+    const repeatAssignment = assignQuestions(bank, secret, scope);
+    assert.deepEqual(
+      assignment.part1.map(q => q.id),
+      repeatAssignment.part1.map(q => q.id)
+    );
+    assert.deepEqual(
+      assignment.part2.map(q => q.id),
+      repeatAssignment.part2.map(q => q.id)
+    );
+  }
+});
+

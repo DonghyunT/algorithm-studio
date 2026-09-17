@@ -68,6 +68,61 @@ function take(items, count, random) {
 
 function assignQuestions(bank, secret, scope) {
   const random = randomFor(secret, scope);
+
+  const hasDomain = bank.part1.length > 0 && Boolean(bank.part1[0].domain) &&
+                    bank.part2.length > 0 && Boolean(bank.part2[0].domain);
+
+  if (hasDomain) {
+    // ----------------------------------------------------
+    // Part 1 도메인 균형 배정 (D1~D5 각 2문항 = 10문항, 하4/중4/상2 = 30점)
+    // ----------------------------------------------------
+    const dList = ['D1', 'D2', 'D3', 'D4', 'D5'];
+    const shuffledD = shuffled(dList, random);
+    const hardD1 = shuffledD[0];
+    const hardD2 = shuffledD[1];
+    const remainingD = shuffledD.slice(2);
+
+    const part1Map = {};
+    part1Map[hardD1] = [
+      ...take(bank.part1.filter(q => q.domain === hardD1 && q.difficulty === 'hard'), 1, random),
+      ...take(bank.part1.filter(q => q.domain === hardD1 && q.difficulty === 'easy'), 1, random)
+    ];
+    part1Map[hardD2] = [
+      ...take(bank.part1.filter(q => q.domain === hardD2 && q.difficulty === 'hard'), 1, random),
+      ...take(bank.part1.filter(q => q.domain === hardD2 && q.difficulty === 'medium'), 1, random)
+    ];
+    for (const d of remainingD) {
+      part1Map[d] = [
+        ...take(bank.part1.filter(q => q.domain === d && q.difficulty === 'easy'), 1, random),
+        ...take(bank.part1.filter(q => q.domain === d && q.difficulty === 'medium'), 1, random)
+      ];
+    }
+    const part1 = dList.flatMap(d => part1Map[d]);
+
+    // ----------------------------------------------------
+    // Part 2 도메인 균형 배정 (S1~S6 각 1문항 = 6문항, 하2/중2/상2 = 30점)
+    // ----------------------------------------------------
+    const sList = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6'];
+    const shuffledS = shuffled(sList, random);
+    const hardS = shuffledS.slice(0, 2);
+    const medS = shuffledS.slice(2, 4);
+    const easyS = shuffledS.slice(4, 6);
+
+    const part2Map = {};
+    for (const s of hardS) {
+      part2Map[s] = take(bank.part2.filter(q => q.domain === s && q.difficulty === 'hard'), 1, random)[0];
+    }
+    for (const s of medS) {
+      part2Map[s] = take(bank.part2.filter(q => q.domain === s && q.difficulty === 'medium'), 1, random)[0];
+    }
+    for (const s of easyS) {
+      part2Map[s] = take(bank.part2.filter(q => q.domain === s && q.difficulty === 'easy'), 1, random)[0];
+    }
+    const part2 = sList.map(s => part2Map[s]);
+
+    return { part1, part2 };
+  }
+
   const part1 = [
     ...take(bank.part1.filter(question => question.difficulty === 'easy' && question.subType === 'concept'), 3, random),
     ...take(bank.part1.filter(question => question.difficulty === 'easy' && question.subType === 'applied'), 1, random),
