@@ -8,12 +8,12 @@
 |---|---|
 | 현재 운영 브랜치 | main |
 | 현재 작업 브랜치 | main (모든 기능 구현·버그 수정 병합 완료, 트리 깨끗함) |
-| 인수인계 전달 기준 | 1) 실전평가(V4) 503 오류 해결(EVAL_BANK_V4_JSON gzip 압축으로 Vercel 64KB 환경 변수 한도 초과 문제 해결), 2) 86개 전체 단위 테스트 100% 통과 |
-| 최신 제품 코드 | `server/evaluation-bank.cjs`(gzip-base64 자동 감지 및 복원), `api/evaluation.js`(에러 로그 추가), `tests/evaluation-bank.test.cjs`(압축 형식 테스트 추가) |
-| 배포 기록 | Vercel Production (`https://algorithm-studio-ten.vercel.app/`) 최신 배포 완료 (`16cc7ab`) — `/api/evaluation` 이제 401 반환(정상: 미인증 요청 거부), 503 없음 확인 |
-| 현재 평가 UI | 교사 관제탑 빈 좌석 클릭 시 [결시생 개별 30분 추가 응시 허용] 모달 노출, 풀이 중 학생 클릭 시 [풀던 답안 유지하며 재접속 허용] 및 [답안 초기화 후 처음부터 다시 풀기] 분리 제공, 학생 대기실 [개별 평가 시작하기 (30분)] 버튼 연동, 교사가 [평가 시작] 클릭 시 학생 화면에서 503 없이 즉시 V4 실전 문항 수신 및 CBT 시험 화면 전환 |
-| 이번 구현 완료 내용 | **EVAL_BANK_V4_JSON gzip 압축 전환**: 80문항 JSON이 한글 포함 UTF-8 기준 약 74KB로 Vercel 환경 변수 64KB 상한을 초과하여 서버에서 파싱 실패 → gzip+base64 압축(24KB)으로 변환 후 재등록. `server/evaluation-bank.cjs`에 `unpackRaw()` 자동 감지 복원 함수 추가. 기존 평문 JSON·압축 JSON 모두 호환. 86개 단위 테스트 통과 |
-| 최신 운영 의도 | 교사가 '실전평가'를 시작했을 때 학생 화면이 503 없이 80문항 비공개 문제은행에서 개별 문항을 즉시 불러와 CBT 시험 화면으로 매끄럽게 진입 |
+| 인수인계 전달 기준 | 1) [순서도 흐름]/[알고리즘] 단락이 cbt-condition-box 섬으로 렌더링되도록 formatCbtPrompt 정규식 확장, 2) 87개 전체 단위 테스트 100% 통과 |
+| 최신 제품 코드 | `js/labs/lab-eval.js`(formatCbtPrompt 정규식 3곳 — 순서도·알고리즘 추가), `tests/cbt-assessment-ui.test.cjs`(섬 렌더링 테스트 추가) |
+| 배포 기록 | Vercel Production (`https://algorithm-studio-ten.vercel.app/`) 최신 배포 완료 (`976d0e4`) |
+| 현재 평가 UI | [순서도 흐름: ...], [알고리즘: ...] 단락이 파란 카드 섬(cbt-condition-box)으로 표시되어 들여쓰기 포함 가독성 개선. 기존 [규칙], [조건], [상황] 섬도 그대로 유지 |
+| 이번 구현 완료 내용 | **formatCbtPrompt 섬 트리거 확장**: `[조건\|규칙\|상황\|조리법\|반복 규칙]` 허용 목록에 `순서도`, `알고리즘` 추가(정규식 3곳). 영향 문항 19개 모두 섬 렌더링으로 전환. 87개 테스트 통과 |
+| 최신 운영 의도 | 순서도 흐름/알고리즘 단락이 카드 박스 안에서 들여쓰기 보존된 채 가독성 있게 표시됨 |
 
 - 저장소: [DonghyunT/algorithm-studio](https://github.com/DonghyunT/algorithm-studio)
 - 운영 웹: [정보 알고리즘 스튜디오](https://algorithm-studio-ten.vercel.app/)
