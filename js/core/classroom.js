@@ -1077,13 +1077,36 @@ function renderSecureV4TeacherQuestions(container, questions, part) {
   if (!rows.length) { container.textContent = '서버에서 문항 검토 내용을 받지 못했습니다.'; return; }
   rows.forEach((question, index) => {
     const card = document.createElement('section'); card.className = 'p-2.5 bg-slate-50/80 border border-slate-200/80 rounded-xl space-y-1';
+    const titleRow = document.createElement('div'); titleRow.className = 'flex items-center justify-between gap-2';
     const title = document.createElement('div'); title.className = 'font-black text-slate-800 text-xs'; title.textContent = `${index + 1}. ${question.title}`;
     const desc = document.createElement('div'); desc.className = 'text-[11px] text-slate-500 leading-tight'; desc.textContent = question.desc;
-    const response = document.createElement('div'); response.className = 'text-xs text-slate-700 font-medium pl-2.5 border-l-2 border-slate-300 mt-1.5';
-    const answer = part === 'part1' && Number.isInteger(question.correctAnswer) ? question.options?.[question.correctAnswer] : (question.answers || []).join(' · ');
-    response.textContent = `학생 답: ${question.studentAnswer === '' || question.studentAnswer === null || question.studentAnswer === undefined ? '미응답' : question.studentAnswer} / 정답: ${answer || '없음'}`;
+    const rawStudentAnswer = question.studentAnswer;
+    const hasStudentAnswer = rawStudentAnswer !== '' && rawStudentAnswer !== null && rawStudentAnswer !== undefined;
+    const studentChoiceIndex = part === 'part1' && hasStudentAnswer && Number.isInteger(Number(rawStudentAnswer)) ? Number(rawStudentAnswer) : null;
+    const correctChoiceIndex = part === 'part1' && Number.isInteger(question.correctAnswer) ? question.correctAnswer : null;
+    const studentChoiceText = studentChoiceIndex !== null ? question.options?.[studentChoiceIndex] : null;
+    const answer = correctChoiceIndex !== null ? question.options?.[correctChoiceIndex] : (question.answers || []).join(' · ');
+    const studentAnswer = !hasStudentAnswer
+      ? '미응답'
+      : studentChoiceIndex !== null
+        ? `${studentChoiceIndex + 1}번 (${studentChoiceText || '선지 내용을 확인해 주세요.'})`
+        : String(rawStudentAnswer);
+    const correctAnswer = correctChoiceIndex !== null
+      ? `${correctChoiceIndex + 1}번 (${answer || '선지 내용을 확인해 주세요.'})`
+      : (answer || '없음');
+    const normalizeAnswer = value => String(value ?? '').toLowerCase().replace(/\s+/g, '');
+    const isCorrect = hasStudentAnswer && (part === 'part1'
+      ? studentChoiceIndex !== null && studentChoiceIndex === correctChoiceIndex
+      : (question.answers || []).some(accepted => normalizeAnswer(accepted) === normalizeAnswer(rawStudentAnswer)));
+    const badge = document.createElement('span');
+    badge.className = `text-[10px] px-1.5 py-0.5 rounded font-bold ml-2 shrink-0 ${!hasStudentAnswer ? 'bg-slate-100 text-slate-500' : isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`;
+    badge.textContent = !hasStudentAnswer ? '미응답 (0점)' : isCorrect ? `정답 (+${question.points || (part === 'part1' ? 3 : 5)}점)` : `오답 (0점 / 정답: ${correctAnswer})`;
+    titleRow.append(title, badge);
+    const response = document.createElement('div');
+    response.className = `text-xs text-slate-700 font-medium pl-2.5 border-l-2 ${isCorrect ? 'border-emerald-400' : (hasStudentAnswer ? 'border-rose-400' : 'border-slate-300')} mt-1.5`;
+    response.textContent = `${part === 'part1' ? '학생 선택' : '학생 답안'}: ${studentAnswer} / 정답: ${correctAnswer}`;
     const note = document.createElement('div'); note.className = 'text-[11px] text-indigo-700 bg-indigo-50 rounded-lg px-2 py-1'; note.textContent = `출제 의도: ${question.teacherNote}`;
-    card.append(title, desc, response, note); container.appendChild(card);
+    card.append(titleRow, desc, response, note); container.appendChild(card);
   });
 }
 
