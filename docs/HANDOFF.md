@@ -7,10 +7,10 @@
 | 구분 | 인수인계 기준 |
 |---|---|
 | 현재 운영 브랜치 | main |
-| 현재 작업 브랜치 | codex/eval-v4-setup (1, 2단계 완료: V4 80문항 은행 및 도메인 균형 배정 엔진 구축, 모의평가 AI 채점 차단 & 실전평가 전용 활성화, UI 한글 용어 표준화 완료) |
-| 인수인계 전달 기준 | 실전평가(V4) 80문항 비공개 문제은행 생성(`scratch/eval_bank_v4.json`, Git 제외), 도메인 균형 배정 엔진(`server/evaluation-bank.cjs`), 모의평가(V3) AI 채점 비활성화로 토큰 절약 최적화, 80개 전체 단위 테스트 100% 통과 |
+| 현재 작업 브랜치 | main (모든 기능 통합 및 Vercel Production 배포 완료, 클린 트리) |
+| 인수인계 전달 기준 | 실전평가(V4) 80문항 비공개 문제은행 생성(`scratch/eval_bank_v4.json`, Git 제외) 및 Vercel 환경 변수 주입 완료, 도메인 균형 배정 엔진(`server/evaluation-bank.cjs`), 모의평가(V3) AI 채점 비활성화로 토큰 절약 최적화, 80개 전체 단위 테스트 100% 통과 |
 | 최신 제품 코드 | `server/evaluation-bank.cjs` (D1~D5 각 2문항, S1~S6 각 1문항 균형 배정), `api/assessment.js` (실전평가 4 전용 AI 검토 제한), `js/core/assessment-auto-review.js` (실전평가 4 전용 자동 검토 큐), `js/core/assessment-review-ui.js` (모의평가 AI 버튼 숨김 및 안내), `classroom.js` / `index.html` (교사 관제탑 헤더 회차 종류 실시간 뱃지 및 한글 용어 표준화) |
-| 배포 기록 | Vercel Production 환경 변수(`EVAL_BANK_V4_JSON`, `EVAL_ASSIGNMENT_SECRET`) 등록 및 main 병합 대기 |
+| 배포 기록 | Vercel Production 환경 변수(`EVAL_BANK_V4_JSON`, `EVAL_ASSIGNMENT_SECRET`) 주입 완료 및 Production 배포 완료 (`https://algorithm-studio-ten.vercel.app/`), 라이브 실측 검증 완료 |
 | 현재 평가 UI | 단일 문항 집중 모드가 기본값 (`isCbtMode = true`), 우측 상단 '모아서 보기 / 한 문제씩 보기' 토글 지원, 교사 관제탑 [실전평가] / [모의평가] 실시간 상태 뱃지 표시 |
 | 이번 구현 완료 내용 | 1) **실전평가 80문항 비공개 문제은행 구축 (`scratch/eval_bank_v4.json`)**: 객관식 50문항(D1~D5 각 10문항) + 단답형 30문항(S1~S6 각 5문항) 순수 CS/컴퓨팅 사고력 중심 문제은행 완비. 공식 기호 명칭 준수 및 비학습 용어 배제, 74번 누적합 루프 난이도 캘리브레이션 완료<br>2) **이원목적분류표 기반 도메인 균형 배정 엔진 (`server/evaluation-bank.cjs`)**: Part 1은 D1~D5에서 각 2문항(총 10문항, 하4/중4/상2 = 30점), Part 2는 S1~S6에서 각 1문항(총 6문항, 하2/중2/상2 = 30점) 무작위 균등 추출 보장. 1,000회 시뮬레이션 전수 검증 통과<br>3) **AI 토큰 절약 최적화: 모의평가(V3) 비활성화 & 실전평가(V4) 전용 활성화**: 모의평가에서 유료 Solar AI 채점 호출을 원천 차단하여 토큰 낭비 방지, 실전평가 회차에서만 AI 초벌 채점 허용<br>4) **사용자 친화적 한글 용어 표준화**: 화면 전체에서 '모의평가' 및 '실전평가' 표준 용어로 통일, 교사 대시보드 회차 종류 실시간 뱃지 탑재<br>5) **80개 전체 단위 테스트 100% 통과** (통과율 100%) |
 | 최신 운영 의도 | 모의평가(V3) 안정적 운영(AI 토큰 낭비 방지) 및 차주 실전평가(V4) 비공개 문제은행 기반 완벽 준비 |
