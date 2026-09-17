@@ -33,6 +33,48 @@ let teacherSessionPending = false;
 let teacherSessionPendingLabel = '';
 let isScoreBlindMode = true; // 프로젝터 투사 시 학생 실시간 점수 유출 방지 (기본 ON)
 let currentModalStudent = null;
+let teacherAutoReviewQueue = null;
+
+function getTeacherAutoReviewQueue() {
+  if (!teacherAutoReviewQueue && typeof AssessmentAutoReviewQueue === 'function') {
+    teacherAutoReviewQueue = new AssessmentAutoReviewQueue({
+      onStatusChange: updateTeacherAiQueueBadge
+    });
+  }
+  return teacherAutoReviewQueue;
+}
+
+function updateTeacherAiQueueBadge(status = {}) {
+  const badge = document.getElementById('classroom-live-ai-status');
+  const text = document.getElementById('classroom-live-ai-text');
+  if (!badge || !text) return;
+
+  if (status.isBusy) {
+    badge.classList.remove('hidden');
+    badge.className = 'text-amber-300 font-bold flex items-center gap-1.5';
+    const pending = status.pendingCount || 0;
+    const proc = status.currentProcessing ? `${status.currentProcessing}번 분석 중` : '대기 중';
+    text.textContent = `⚡ AI 초벌 채점 (${proc} · 대기 ${pending}명)`;
+  } else if (status.totalProcessed > 0 && status.pendingCount === 0) {
+    badge.classList.remove('hidden');
+    badge.className = 'text-emerald-400 font-bold flex items-center gap-1.5';
+    text.textContent = `✓ AI 초벌 채점 완료 (${status.totalProcessed}명)`;
+  } else {
+    badge.classList.add('hidden');
+  }
+}
+
+function syncTeacherAutoReviewQueue(students = currentLiveStudents) {
+  const classId = getClassIdFromSelected();
+  const queue = getTeacherAutoReviewQueue();
+  if (!queue || !classId || !currentLiveSession) return;
+  queue.sync({
+    classId,
+    session: currentLiveSession,
+    students: students || [],
+    isTeacher: isTeacherAuthenticated
+  });
+}
 
 // 1. 클래스룸 데이터 로드 및 초기화
 function getClassroomData() { return Object.fromEntries(DEFAULT_CLASSES.map(name => [name, []])); }
@@ -229,6 +271,7 @@ function initLiveEvalDashboard() {
       currentLiveSession = session;
       liveSessionError = false;
       renderTeacherSessionControl();
+      syncTeacherAutoReviewQueue(currentLiveStudents);
     }, () => {
       if (generation !== liveDashboardGeneration) return;
       clearUnavailableTeacherData();
@@ -240,6 +283,7 @@ function initLiveEvalDashboard() {
       if(label) label.textContent=window.evalService.isDemo() ? '로컬 시연 · 운영 DB와 분리됨' : '답안 수신됨 · 연결 상태는 갱신 시 확인';
       currentLiveStudents = students || [];
       renderLiveGrid(currentLiveStudents);
+      syncTeacherAutoReviewQueue(currentLiveStudents);
     }, ()=>{if(generation===liveDashboardGeneration)clearUnavailableTeacherData();});
     if(generation!==liveDashboardGeneration){liveEvalUnsub?.();liveEvalUnsub=null;return;}
     liveSessionTimer = setInterval(renderTeacherSessionControl, 1000);
@@ -263,6 +307,8 @@ function stopLiveEvalDashboard() {
   liveEvalUnsub?.(); liveEvalUnsub = null;
   liveSessionUnsub?.(); liveSessionUnsub = null;
   clearInterval(liveSessionTimer); liveSessionTimer = null;
+  teacherAutoReviewQueue?.reset();
+  updateTeacherAiQueueBadge({ isBusy: false, pendingCount: 0, totalProcessed: 0 });
 }
 
 function teacherSessionState(session = currentLiveSession) {
@@ -521,7 +567,13 @@ function renderLiveGrid(students = []) {
         const finalScore = (s.scores?.teacherOverride !== null && s.scores?.teacherOverride !== undefined)
           ? s.scores.teacherOverride
           : (s.scores?.total || 0);
-        statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-600 text-white font-bold">제출완료</span>`;
+        let reviewBadge = '';
+        if (s.review?.confirmed) {
+          reviewBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-black ml-1">확정</span>`;
+        } else if (s.review?.proposal) {
+          reviewBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 font-bold ml-1">AI제안</span>`;
+        }
+        statusBadge = `<div class="flex items-center"><span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-600 text-white font-bold">제출완료</span>${reviewBadge}</div>`;
         if (isScoreBlindMode) {
           scoreDisplay = `<span class="text-xs text-emerald-700 font-bold">제출 완료 (비공개)</span>`;
         } else {

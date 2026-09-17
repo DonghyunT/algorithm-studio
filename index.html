@@ -2223,6 +2223,7 @@
             <div class="teacher-session-counts text-xs text-slate-300 mt-1 flex items-center gap-4">
               <span>입장 인원: <strong id="classroom-live-online-count" class="text-white font-mono text-sm">0 / 27명</strong></span>
               <span>제출 완료: <strong id="classroom-live-submit-count" class="text-emerald-400 font-mono text-sm">0 / 27명</strong></span>
+              <span id="classroom-live-ai-status" class="hidden text-amber-300 font-bold flex items-center gap-1.5"><i class="fa-solid fa-wand-magic-sparkles animate-pulse"></i><span id="classroom-live-ai-text">AI 초벌 채점 대기</span></span>
             </div>
             <p id="teacher-session-feedback" class="teacher-session-feedback" role="status"></p>
           </div>
@@ -2453,6 +2454,7 @@
   <script src="js/labs/lab-quiz.js"></script>
   <script src="js/core/assessment-policy.js"></script>
   <script src="js/core/assessment-review-ui.js"></script>
+  <script src="js/core/assessment-auto-review.js"></script>
   <script src="js/core/assessment-workspace.js"></script>
   <script src="js/labs/lab-eval.js"></script>
 
