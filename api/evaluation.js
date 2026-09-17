@@ -13,7 +13,16 @@ function decode(value) {
   if (value?.nullValue !== undefined) return null;
   return value?.stringValue ?? null;
 }
-function validTarget(body) { return CLASS_ID.test(body.classId || '') && STUDENT_NUM.test(body.studentNum || ''); }
+function validTarget(body) {
+  if (!body) return false;
+  if (typeof body.studentNum === 'number' || typeof body.studentNum === 'string') {
+    const num = Number(body.studentNum);
+    if (Number.isInteger(num) && num >= 1 && num <= 27) {
+      body.studentNum = String(num).padStart(2, '0');
+    }
+  }
+  return CLASS_ID.test(body.classId || '') && STUDENT_NUM.test(body.studentNum || '');
+}
 function scopeFor(session, classId, studentNum) { return `${session.attemptId}:${classId}:${studentNum}`; }
 
 module.exports = async (req, res) => {

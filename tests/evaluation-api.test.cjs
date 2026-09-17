@@ -61,6 +61,18 @@ test('V4 rejects another student identity before returning question content', as
   assert.equal(result.body.questions, undefined);
 });
 
+test('V4 accepts numeric or unpadded studentNum (e.g., 1 or "1") and normalizes to "01"', async () => {
+  // Test numeric 1
+  const resultNum = await harness({ studentStatus: 'in_progress' }).request({ action: 'questions', classId: '2-1', studentNum: 1 }, 'student');
+  assert.equal(resultNum.status, 200, 'Numeric studentNum 1 must be normalized to "01" and accepted');
+  assert.equal(resultNum.body.questions.part1.length, 10);
+
+  // Test single digit string '1'
+  const resultStr = await harness({ studentStatus: 'in_progress' }).request({ action: 'questions', classId: '2-1', studentNum: '1' }, 'student');
+  assert.equal(resultStr.status, 200, 'String studentNum "1" must be normalized to "01" and accepted');
+  assert.equal(resultStr.body.questions.part1.length, 10);
+});
+
 test('V4 exposes score and complete review only to the scoped teacher after submission', async () => {
   const h = harness();
   const assigned = bank.assignQuestions(bank.parseEvaluationBank(bankJson()), 's'.repeat(32), 'round-4:2-1:01');

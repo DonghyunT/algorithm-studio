@@ -7,13 +7,13 @@
 | 구분 | 인수인계 기준 |
 |---|---|
 | 현재 운영 브랜치 | main |
-| 현재 작업 브랜치 | fix/eval-v4-entry-and-lobby-status (실전평가 V4 입장 및 로비 상태 확인 불가 해결, 84개 테스트 완료) |
-| 인수인계 전달 기준 | 1) 실전평가(V4) 학생 대기실 정상 입장(클라이언트 answers.assignedQuestions 제거로 Firestore 규칙 충족), 2) 학생 로비 '상태 확인 불가' 배지 수정(선제적 익명 로그인 확보), 3) 재난 복구(재접속/결시생 추가 응시) 무결성 유지, 84개 전체 단위 테스트 100% 통과 |
-| 최신 제품 코드 | `firestore.rules`, `api/evaluation.js`, `js/core/eval-service.js`, `js/core/classroom.js`, `js/labs/lab-eval.js`, `index.html`, `tests/rounds.test.cjs` |
+| 현재 작업 브랜치 | fix/v4-student-num-padding (실전평가 문항 조회 400 Bad Request 해결, 85개 테스트 완료) |
+| 인수인계 전달 기준 | 1) 실전평가(V4) 학생 대기실 정상 입장(클라이언트 answers.assignedQuestions 제거), 2) 학생 로비 '상태 확인 불가' 배지 수정, 3) 실전평가 문항 조회 400 에러 해결(studentNum 패딩 및 정규화 지원), 85개 전체 단위 테스트 100% 통과 |
+| 최신 제품 코드 | `api/evaluation.js`, `js/core/ai-service.js`, `firestore.rules`, `js/core/eval-service.js`, `js/core/classroom.js`, `js/labs/lab-eval.js`, `index.html`, `tests/evaluation-api.test.cjs` |
 | 배포 기록 | Vercel Production (`https://algorithm-studio-ten.vercel.app/`) 배포 대기 중 |
-| 현재 평가 UI | 교사 관제탑 빈 좌석 클릭 시 [결시생 개별 30분 추가 응시 허용] 모달 노출, 풀이 중 학생 클릭 시 [풀던 답안 유지하며 재접속 허용] 및 [답안 초기화 후 처음부터 다시 풀기] 분리 제공, 학생 대기실 [개별 평가 시작하기 (30분)] 버튼 연동, 로비 학급 세션 실시간 상태('대기실 열림' 녹색 배지) 정상 표출 |
-| 이번 구현 완료 내용 | 1) **실전평가(V4) 학생 대기실 입장 오류 수정**: `eval-service.js`에서 클라이언트의 `answers.assignedQuestions` 주입을 모의평가(V3) 전용으로 격리하여 Firestore 보안 규칙(`validAnswers()`) 완벽 충족<br>2) **학생 로비 학급 상태 배지 정상화**: `openLobby` 및 `checkSelectedClassStatus`에서 선제적 익명 로그인(`authService.student()`)을 수행하여 Firestore 권한 거부 없이 '대기실 열림 (입장 가능)' 정상 표출<br>3) **데이터 침범 오류 제로화**: 84개 단위 테스트 100% 통과 |
-| 최신 운영 의도 | 교사가 '실전평가'로 대기실을 열었을 때, 학생들이 오류 메시지나 상태 확인 불가 없이 자연스럽게 대기실로 입장하고 시험을 치를 수 있도록 현장 안정성을 100% 확보 |
+| 현재 평가 UI | 교사 관제탑 빈 좌석 클릭 시 [결시생 개별 30분 추가 응시 허용] 모달 노출, 풀이 중 학생 클릭 시 [풀던 답안 유지하며 재접속 허용] 및 [답안 초기화 후 처음부터 다시 풀기] 분리 제공, 학생 대기실 [개별 평가 시작하기 (30분)] 버튼 연동, 교사가 [평가 시작] 클릭 시 학생 화면에서 400 에러 없이 즉시 V4 실전 문항 수신 및 시험 화면 전환 |
+| 이번 구현 완료 내용 | 1) **V4 문항 조회 400 에러 해결**: `js/core/ai-service.js`에서 `studentNum`을 2자리(`"01"`)로 강제하고, `api/evaluation.js`에서도 숫자 1 또는 문자열 '1'을 자동으로 2자리 정규화하도록 개선<br>2) **실전평가 학생 대기실 입장 및 로비 상태 배지 정상화**<br>3) **85개 단위 테스트 100% 통과** |
+| 최신 운영 의도 | 교사가 '실전평가'를 시작했을 때 학생 화면이 400 팝업 없이 80문항 비공개 문제은행에서 개별 문항을 즉시 불러와 CBT 화면으로 매끄럽게 진입하도록 완벽 보장 |
 
 - 저장소: [DonghyunT/algorithm-studio](https://github.com/DonghyunT/algorithm-studio)
 - 운영 웹: [정보 알고리즘 스튜디오](https://algorithm-studio-ten.vercel.app/)
@@ -23,7 +23,7 @@
 ## 2. 읽는 순서와 다음 작업
 
 1. [AGENTS](../AGENTS.md) → [INTENT](../INTENT.md) → [PRD](../PRD.md) → 이 문서를 읽습니다.
-2. **실전평가(V4) 입장 및 로비 상태 배지 수정 완료:** 단위 테스트 84개 전원 통과 완료.
+2. **실전평가 V4 문항 조회 패딩 수정 완료:** 단위 테스트 85개 전원 통과 완료.
 3. **다음 작업:**
    - `main` 브랜치에 병합 및 GitHub 원격 push.
    - Vercel Production 자동 배포 확인 및 라이브 검증.

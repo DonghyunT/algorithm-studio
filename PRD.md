@@ -245,9 +245,15 @@ AI 의견, 구조 검사, 실행 결과를 구분합니다. AI 미응답을 합�
 2. **로비 학급 상태 배지 '상태 확인 불가' 회색 배지 방지**:
    - **문제 원인**: Firestore 보안 규칙 상 `classrooms/{classId}` 세션 문서는 익명 학생(`anonymousStudent()`) 이상의 권한이 있어야 `listenSession` 조회가 허용됨. 이전에는 대기실 입장 버튼을 누르기 전까지 익명 로그인이 호출되지 않아 로비에서 학급 선택 시 `permission-denied`가 발생하며 '상태 확인 불가'로 떨어짐.
    - **해결책**: `js/labs/lab-eval.js`의 `openLobby` 및 `checkSelectedClassStatus`에서 선제적으로 `authService.student()`를 호출하여 익명 인증 토큰을 확보한 뒤 Firestore 리스너를 연결하도록 개선. 로비 진입 즉시 '대기실 열림 (입장 가능)' 녹색 배지가 정상 표출됨.
-3. **단위 테스트 및 무결성 검증**:
+3. **실전평가 문항 조회 API 학생 번호 2자리 패딩(`studentNum` 정규화)**:
+   - **문제 원인**: 교사가 [평가 시작]을 눌러 학생이 `requestSecureEvaluationQuestions(classId, studentNum)`을 호출할 때, 학생 화면 내부 변수(`this.studentNum`)가 숫자 1(`1`)로 전달되어 `api/evaluation.js`의 `STUDENT_NUM` 정규식(`/^(?:0[1-9]|1[0-9]|2[0-7])$/`, 2자리 문자열 필수) 검사에서 400 Bad Request (`'요청 내용을 확인해 주세요.'`) 에러가 발생하며 시험 진입이 차단됨.
+   - **해결책**:
+     - 클라이언트 `js/core/ai-service.js`: `requestSecureEvaluationQuestions/Grade/Review`에서 `String(Number(studentNum)).padStart(2, '0')`으로 2자리 포맷팅 강제.
+     - 서버 `api/evaluation.js`: `validTarget(body)`에서 `studentNum`이 숫자이거나 1자리 문자열이라도 1~27 범위 내 정수이면 자동으로 `'01'`~`'27'`로 정규화(Normalize)하도록 보강하여 완벽한 호환성 확보.
+4. **단위 테스트 및 무결성 검증**:
    - `tests/rounds.test.cjs`: V4 환경에서 student 문서의 answers에 `assignedQuestions` 키가 절대 포함되지 않음을 검증하는 전용 테스트 추가.
-   - 총 84개 단위 테스트 100% 통과.
+   - `tests/evaluation-api.test.cjs`: 숫자 1 및 문자열 '1' 등 unpadded `studentNum`이 정상 정규화되어 문항을 수신함을 검증하는 단위 테스트 추가.
+   - 총 85개 단위 테스트 100% 통과.
 
 ## 4. 기술·화면 방향
 
