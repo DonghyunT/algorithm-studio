@@ -121,3 +121,18 @@ test('V4 domain-balanced assignment guarantees exact domain and difficulty distr
   }
 });
 
+test('V4 parses both plain JSON and gzip-base64 encoded bank format', () => {
+  const zlib = require('node:zlib');
+  const raw = bankJson();
+  const bank1 = parseEvaluationBank(raw);
+  assert.equal(bank1.version, 4);
+  assert.equal(bank1.part1.length, 10);
+
+  const compressed = zlib.gzipSync(Buffer.from(raw)).toString('base64');
+  const bank2 = parseEvaluationBank(compressed);
+  assert.equal(bank2.version, 4);
+  assert.equal(bank2.part1.length, 10);
+  assert.deepEqual(bank1, bank2);
+});
+
+
