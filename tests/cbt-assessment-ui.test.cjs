@@ -704,3 +704,43 @@ test('CBT round 6: formatCbtPrompt extracts condition/algorithm boxes from embed
   assert.ok(q31Formatted.includes('[라면 조리법]'), '태그 타이틀이 유지되어야 함');
   assert.ok(q31Formatted.includes('1. 냄비에 물 붓기 ➔ 2. 면과 스프 넣기 ➔ 3. 4분간 끓이기'), '단계 내용이 상자에 들어가야 함');
 });
+
+test('syncStudentProgress: dirty-checks answers and skips redundant remote writes', async () => {
+  const ctx = createAssessmentContext();
+  const StudentEvalApp = ctx.window.studentEvalApp.constructor;
+  const app = new StudentEvalApp();
+  ctx.window.studentEvalApp = app;
+
+  let updateCallCount = 0;
+  ctx.window.evalService = {
+    isDemo: () => false,
+    updateStudentProgress: async () => {
+      updateCallCount++;
+      return Promise.resolve();
+    }
+  };
+
+  app.joined = true;
+  app.sessionStatus = 'in_progress';
+  app.currentClass = '2-1';
+  app.studentNum = 1;
+  app.answers = { part1: {}, part2: {}, part3: { blocks: [], connections: [] } };
+
+  // 1. First immediate sync with answers
+  app.answers.part1.p1_q1 = 0;
+  app.syncStudentProgress(true);
+  await app.progressPromise;
+  assert.equal(updateCallCount, 1, '답안이 변경되었을 때 첫 즉시 동기화가 호출되어야 함');
+
+  // 2. Second immediate sync with UNCHANGED answers (should be skipped by dirty check!)
+  app.syncStudentProgress(true);
+  await app.progressPromise;
+  assert.equal(updateCallCount, 1, '답안이 바뀌지 않은 경우 Firestore 원격 쓰기가 건너뛰어져야 함 (중복 쓰기 0회)');
+
+  // 3. Answers change again
+  app.answers.part1.p1_q2 = 2;
+  app.syncStudentProgress(true);
+  await app.progressPromise;
+  assert.equal(updateCallCount, 2, '새 답안이 추가되면 정상적으로 원격 동기화가 실행되어야 함');
+});
+

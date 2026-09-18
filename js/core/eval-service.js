@@ -57,7 +57,7 @@ class EvalService {
   }
   listenSession(classId, callback, onError = error => alert(error.message)) {
     const db = this.getDb();
-    if (db) return db.collection('classrooms').doc(classId).onSnapshot({includeMetadataChanges:true}, doc => callback(doc.exists ? doc.data() : this.defaultSession(classId), doc.metadata), onError);
+    if (db) return db.collection('classrooms').doc(classId).onSnapshot(doc => callback(doc.exists ? doc.data() : this.defaultSession(classId), doc.metadata), onError);
     return this.demoListen(classId, () => callback(this.read('EVAL_SESSION_' + classId, this.defaultSession(classId))));
   }
   checkSessionExpectation(session, expected) {

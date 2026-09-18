@@ -7,15 +7,15 @@
 | 구분 | 인수인계 기준 |
 |---|---|
 | 현재 운영 브랜치 | main |
-| 현재 작업 브랜치 | codex/cbt-question-readability-polish (main 병합 대상) |
+| 현재 작업 브랜치 | main |
 | 현재 평가 운영 상태 | 선생님 확인에 따라 V4 실전평가도 운영에 적용 중이며, V3는 모의평가·기존 회차 호환용으로 유지 |
-| 인수인계 전달 기준 | 1) CBT 6차 고도화: Q14, Q15 등 인라인 조건·알고리즘 발문-조건박스-질문 3단 분리 렌더링, 2) V4 문제은행 80문항 텍스트 코딩식 대입 연산자 자연어화 및 `(숫자만)` 표기 정돈, 3) 교사 전용 V4 문제은행 백업 기능(`export-bank`) 및 UI 링크(`[⬇ 백업]`) 구축, 4) Vercel Production 환경 변수 Gzip-base64 주입 및 운영 배포 완료, 5) 단위 테스트 92개 전체 통과 |
-| 최신 제품 코드 | `js/labs/lab-eval.js`, `api/evaluation.js`, `js/core/classroom.js`, `index.html`, `tests/cbt-assessment-ui.test.cjs`, `tests/evaluation-api.test.cjs` |
-| 최신 제품 코드 커밋 | `f4eb03d` 기반 작업 브랜치 진행 중 |
-| 배포 기록 | Vercel Production (`https://algorithm-studio-ten.vercel.app/`)에 배포 완료 |
+| 인수인계 전달 기준 | 1) CBT 6차 고도화: Q14, Q15 등 인라인 조건·알고리즘 발문-조건박스-질문 3단 분리 렌더링, 2) V4 문제은행 80문항 텍스트 코딩식 대입 연산자 자연어화 및 `(숫자만)` 표기 정돈, 3) 교사 전용 V4 문제은행 백업 기능(`export-bank`) 및 UI 링크(`[⬇ 백업]`) 구축, 4) Firestore 읽기/쓰기 쿼터 폭발 방지 최적화(2.5초 디바운스, 스마트 Dirty Check, 캔버스 패닝 분리, 메타데이터 이벤트 차단), 5) 단위 테스트 93개 전체 통과 |
+| 최신 제품 코드 | `js/labs/lab-eval.js`, `js/core/assessment-workspace.js`, `js/core/eval-service.js`, `api/evaluation.js`, `js/core/classroom.js`, `index.html`, `tests/cbt-assessment-ui.test.cjs` |
+| 최신 제품 코드 커밋 | 최적화 패치 적용 및 검증 완료 |
+| 배포 기록 | Vercel Production (`https://algorithm-studio-ten.vercel.app/`)에 배포 준비 완료 |
 | 현재 평가 UI | 인라인 알고리즘/조건문도 `.cbt-condition-box`로 정갈하게 분리되며, 문항 지문이 텍스트 코딩 없이 직관적인 자연어/블록 표현으로 표시됨 |
-| 이번 구현 완료 내용 | 1) 줄바꿈 없는 단일 단락 문항에서 인라인 알고리즘/조건식 자동 감지 및 독립 상자 분리, 2) V4 80문항 중 `A = A - B`, `상자수 = 상자수 + 1` 등 텍스트 코딩 문법을 직관적 자연어로 개정, 3) `[나이](숫자만)를 쓰시오.` 어색한 괄호 표기를 `나이를 숫자만 쓰시오.`로 정돈, 4) 교사 전용 V4 백업 다운로드 엔드포인트 및 UI 배치, 5) Gzip-base64 압축(24.7KB)으로 Vercel 환경 변수 한도(64KB) 내 주입 완료, 6) 92개 전체 단위 테스트 100% 통과 |
-| 최신 운영 의도 | 중2 학생이 텍스트 코딩 문법을 몰라도 알고리즘 흐름을 직관적으로 이해하고 풀 수 있도록 보장 |
+| 이번 구현 완료 내용 | 1) Firestore 5만 건 한도 고갈 원인 규명 및 영구 해결 (2.5초 디바운스, 변경 감지, 뷰포트 패닝 분리), 2) 줄바꿈 없는 단일 단락 문항에서 인라인 알고리즘/조건식 자동 감지 및 독립 상자 분리, 3) V4 80문항 중 `A = A - B`, `상자수 = 상자수 + 1` 등 텍스트 코딩 문법을 직관적 자연어로 개정, 4) `[나이](숫자만)를 쓰시오.` 어색한 괄호 표기를 `나이를 숫자만 쓰시오.`로 정돈, 5) 교사 전용 V4 백업 다운로드 엔드포인트 및 UI 배치, 6) 93개 전체 단위 테스트 100% 통과 |
+| 최신 운영 의도 | 중2 학생이 텍스트 코딩 문법을 몰라도 알고리즘 흐름을 직관적으로 이해하고 풀 수 있도록 보장하며, 27명 학급 전체가 시험을 치러도 일일 무료 한도를 초과하지 않도록 보장 |
 | 이번 교사 조회 수정 | 이전 작업에서 V4 교사 조회 학급 ID(`2-1`) 및 객관식 답안 번호 매핑 완료 유지 |
 
 - 저장소: [DonghyunT/algorithm-studio](https://github.com/DonghyunT/algorithm-studio)

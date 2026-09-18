@@ -80,8 +80,10 @@ class AssessmentWorkspace {
     if(graphChanged){
       this.stop();this.element.querySelectorAll('.execution-issue,.flowchart-block-simulating').forEach(el=>el.classList.remove('execution-issue','flowchart-block-simulating'));
       const summary=document.getElementById('execution-summary');summary.textContent='현재 작성한 순서도를 실행해 결과를 확인해 보세요.';summary.classList.remove('execution-summary-error');
+      this.app.syncStudentProgress();
+    } else {
+      this.app.saveDraft();
     }
-    this.app.syncStudentProgress();
   }
   leave() {
     if(!this.active)return;

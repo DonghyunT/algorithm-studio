@@ -51,6 +51,7 @@ class StudentEvalApp {
     this.joined = false;
     this.lastResetAt = null;
     this.deadlineMs = null;
+    this.lastServerSyncedAnswers = null;
     window.addEventListener("beforeunload", () => this.saveDraft());
     try { window.pendingAssessmentResume=!!sessionStorage.getItem('ALGO_ACTIVE_EXAM'); } catch {}
     window.addEventListener('DOMContentLoaded',()=>this.resumeAssessment());
@@ -321,6 +322,7 @@ class StudentEvalApp {
           delete this.answers.part3.plan;
           this.scores = { part1: 0, part2: 0, part3: 0, total: 0, teacherOverride: null };
           this.resetServerScoreState();
+          this.lastServerSyncedAnswers = null;
 
           this.isSubmitting=false;
           if (this.latestSession?.status === 'in_progress') this.startExam(this.latestSession);
@@ -426,6 +428,7 @@ class StudentEvalApp {
     }
     this.sessionStatus = 'in_progress';
     this.startingExam = false;
+    this.lastServerSyncedAnswers = null;
     window.pendingAssessmentResume=false;this.rememberAssessment();
     switchUnit('eval');
     document.body.classList.add('assessment-active');
@@ -1439,18 +1442,26 @@ class StudentEvalApp {
     this.updatePartNavigation();this.saveDraft();
     if(!this.joined||this.isSubmitted||this.isSubmitting||this.sessionStatus!=="in_progress")return;
     const status=document.getElementById('eval-save-status');
-    if(status)status.textContent='이 창에 임시 저장 · 서버 저장 중';
     clearTimeout(this.progressTimeout);
     const executeSync = () => {
       if(this.isSubmitted||this.isSubmitting)return;
+      const currentPayloadStr = JSON.stringify(this.answers || {});
+      if(currentPayloadStr === this.lastServerSyncedAnswers) {
+        if(status)status.textContent=window.evalService.isDemo()?'로컬 시연에 저장됨':'서버에 저장됨';
+        return;
+      }
+      if(status)status.textContent='이 창에 임시 저장 · 서버 저장 중';
       this.progressPromise=window.evalService.updateStudentProgress(this.currentClass,this.studentNum,{part1:Object.keys(this.answers.part1).length,part2:Object.values(this.answers.part2).filter(v=>String(v).trim()).length,part3:this.answers.part3.blocks.length>1?1:0},this.answers)
-        .then(()=>{if(status)status.textContent=window.evalService.isDemo()?'로컬 시연에 저장됨':'서버에 저장됨';})
+        .then(()=>{
+          this.lastServerSyncedAnswers = currentPayloadStr;
+          if(status)status.textContent=window.evalService.isDemo()?'로컬 시연에 저장됨':'서버에 저장됨';
+        })
         .catch(error=>{if(status)status.textContent='서버 저장 실패 · 이 창을 유지해 주세요';console.warn("서버 임시 저장 실패",error);});
     };
     if (immediate) {
       executeSync();
     } else {
-      this.progressTimeout=setTimeout(executeSync,500);
+      this.progressTimeout=setTimeout(executeSync,2500);
     }
   }
   // V4의 객관·단답 점수는 학생 브라우저가 계산하지 않는다. 교사만 서버 결과를 확인한다.
