@@ -681,6 +681,13 @@ test('CBT round 6: formatCbtPrompt extracts condition/algorithm boxes from embed
   assert.ok(q15Formatted.includes('남은 귤 >= 3') || q15Formatted.includes('남은 귤 &gt;= 3'), '알고리즘 내용이 조건 상자에 들어가야 함');
   assert.ok(q15Formatted.includes('알고리즘이 종료되었을 때, 최종적으로 완성된 [상자수](숫자만)를 쓰시오.'), '질문 문장이 자연스럽게 박스 하단에 분리되어야 함');
 
+  // 2-1. Q15 자연어 개정 유형: 귤 14개를 3개씩 상자에 담는 알고리즘([남은 귤 >= 3]인 동안 [상자수 1 증가, 남은 귤 3개 감소] 실행)이 종료되었을 때...
+  const q15NaturalPrompt = '귤 14개를 3개씩 상자에 담는 알고리즘([남은 귤 >= 3]인 동안 [상자수 1 증가, 남은 귤 3개 감소] 실행)이 종료되었을 때, 최종 완성된 상자의 개수를 숫자만 쓰시오.';
+  const q15NaturalFormatted = app.formatCbtPrompt(q15NaturalPrompt);
+  assert.ok(q15NaturalFormatted.includes('cbt-condition-box'), '개정 Q15 조건 상자가 생성되어야 함');
+  assert.ok(q15NaturalFormatted.includes('상자수 1 증가'), '자연어 알고리즘 본문이 상자에 들어가야 함');
+  assert.ok(q15NaturalFormatted.includes('최종 완성된 상자의 개수를 숫자만 쓰시오.'), '하단 질문 문장이 자연스럽게 분리되어야 함');
+
   // 3. Q13 유형: 스마트 에어컨 알고리즘에 [현재 실내 온도 > 28℃] 라는 판단 기호가 있습니다. ...
   const q13Prompt = '스마트 에어컨 알고리즘에 [현재 실내 온도 > 28℃] 라는 판단 기호가 있습니다. 현재 실내 온도가 30℃일 때, 판단 기호에서 이어질 올바른 분기 방향은 무엇인가요?';
   const q13Formatted = app.formatCbtPrompt(q13Prompt);
