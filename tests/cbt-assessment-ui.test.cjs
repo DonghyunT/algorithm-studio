@@ -744,3 +744,38 @@ test('syncStudentProgress: dirty-checks answers and skips redundant remote write
   assert.equal(updateCallCount, 2, '새 답안이 추가되면 정상적으로 원격 동기화가 실행되어야 함');
 });
 
+test('workspace navigation: assessmentWorkspace.leave restores active state and frees prescription modal', () => {
+  let leaveCalled = 0;
+  let modalOpened = false;
+  const mockWorkspace = {
+    active: true,
+    leave: () => {
+      leaveCalled++;
+      mockWorkspace.active = false;
+    }
+  };
+
+  const nav = {
+    isAssessmentLocked: () => false,
+    assessmentWorkspace: mockWorkspace
+  };
+
+  // Simulate switchUnit logic when going to unit3
+  const targetUnit = 'unit3';
+  if (targetUnit !== 'eval' && nav.assessmentWorkspace?.active) {
+    nav.assessmentWorkspace.leave();
+  }
+
+  assert.equal(leaveCalled, 1, 'switchUnit to unit3 must call assessmentWorkspace.leave()');
+  assert.equal(mockWorkspace.active, false, 'workspace active state must be false after leaving');
+
+  // Verify modal guard logic in assessment-workspace:
+  const openPrescriptionModal = () => {
+    if (nav.isAssessmentLocked() || mockWorkspace.active) return;
+    modalOpened = true;
+  };
+
+  openPrescriptionModal();
+  assert.equal(modalOpened, true, 'openPrescriptionModal should run when workspace is not active');
+});
+

@@ -89,17 +89,30 @@ class AssessmentWorkspace {
     if(!this.active)return;
     this.capture();this.stop();pauseDebugger();clearPaletteDrag();
     isDraggingBlock=false;draggedBlockObj=null;isConnecting=false;connectionSource=null;isPanningCanvas=false;
-    document.getElementById('eval-shared-workspace').after(this.guide);this.guide.hidden=true;
-    this.anchor.replaceWith(this.element);
-    this.element.className=this.saved.className;this.element.firstElementChild.className=this.saved.containerClass;
-    nlCards=this.saved.cards;freeBlocks=this.saved.blocks;freeConnections=this.saved.connections;nextBlockId=this.saved.nextBlockId;
-    canvasPanX=this.saved.panX;canvasPanY=this.saved.panY;currentCanvasZoom=this.saved.zoom;isNlPanelCollapsed=this.saved.panel;
+    if(this.guide) {
+      document.getElementById('eval-shared-workspace')?.after(this.guide);
+      this.guide.hidden=true;
+    }
+    if(this.anchor && this.anchor.parentNode && this.element) {
+      this.anchor.replaceWith(this.element);
+    }
+    if(this.saved) {
+      this.element.className=this.saved.className;
+      if(this.element.firstElementChild) this.element.firstElementChild.className=this.saved.containerClass;
+      nlCards=this.saved.cards;freeBlocks=this.saved.blocks;freeConnections=this.saved.connections;nextBlockId=this.saved.nextBlockId;
+      canvasPanX=this.saved.panX;canvasPanY=this.saved.panY;currentCanvasZoom=this.saved.zoom;isNlPanelCollapsed=this.saved.panel;
+      window.isFlowchartAiPassed=this.saved.aiPassed;window.isFlowchartSimValidated=this.saved.simPassed;selectedBlockId=this.saved.selection;
+      const stage = document.getElementById('free-flowchart-stage');
+      if(stage && this.saved.stageTransform) stage.style.transform=this.saved.stageTransform;
+      this.saved=null;
+    }
     this.setReadOnly(false);this.active=false;document.body.classList.remove('assessment-workspace-mode');
-    const collapsed=this.element.firstElementChild.classList.contains('debugger-collapsed');
-    document.querySelector('.debugger-panel-full-view').classList.toggle('hidden',collapsed);
-    document.querySelector('.debugger-panel-collapsed-view').classList.toggle('hidden',!collapsed);
-    window.isFlowchartAiPassed=this.saved.aiPassed;window.isFlowchartSimValidated=this.saved.simPassed;selectedBlockId=this.saved.selection;
-    renderNlCards();renderFreeCanvas();applyCanvasPan();document.getElementById('free-flowchart-stage').style.transform=this.saved.stageTransform;this.saved=null;
+    const collapsed=this.element.firstElementChild?.classList.contains('debugger-collapsed');
+    const fullView = document.querySelector('.debugger-panel-full-view');
+    const collView = document.querySelector('.debugger-panel-collapsed-view');
+    if(fullView) fullView.classList.toggle('hidden',!!collapsed);
+    if(collView) collView.classList.toggle('hidden',!collapsed);
+    renderNlCards();renderFreeCanvas();applyCanvasPan();
   }
   setReadOnly(value) {
     this.readOnly=value;

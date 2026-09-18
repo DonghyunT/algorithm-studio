@@ -81,9 +81,13 @@ async function switchUnit(unitId, targetStep = null) {
     }
   }
   if(unitId === 'classroom') {
+    if(window.assessmentWorkspace?.active) window.assessmentWorkspace.leave();
     closeMegaMenu();
     if(typeof openClassroomTab === 'function')await openClassroomTab(request);
     return;
+  }
+  if(unitId !== 'eval' && window.assessmentWorkspace?.active) {
+    window.assessmentWorkspace.leave();
   }
   if(unitId !== 'classroom' && typeof stopLiveEvalDashboard === 'function') stopLiveEvalDashboard();
   closeMegaMenu();
@@ -169,6 +173,7 @@ switchUnit.request = 0;
  */
 function switchUnitStep(unitIdOrKey, stepName) {
   if(isAssessmentLocked())return;
+  if(window.assessmentWorkspace?.active) window.assessmentWorkspace.leave();
   document.body.classList.toggle('reading-mode',stepName!=='lab');
   ["view-classroom", "view-eval"].forEach(id => document.getElementById(id)?.classList.add("hidden"));
   // unitId 표준화 ('abstraction' -> 'unit1')
@@ -310,6 +315,7 @@ function updateAllUnitStepHeaders(activeUnitId, activeStep) {
  */
 function activateLabContent(activity) {
   if(isAssessmentLocked())return;
+  if(window.assessmentWorkspace?.active) window.assessmentWorkspace.leave();
   const isAbs = (activity === 'abstraction');
   const isSand = (activity === 'sandwich');
   const isFlow = (activity === 'flowchart');

@@ -57,6 +57,9 @@ function switchFlowchartStep(stepNum) {
     enableStudioMode();
     initLevel2Walkthrough();
   } else if (isL3) {
+    if (window.assessmentWorkspace?.active && (typeof isAssessmentLocked !== 'function' || !isAssessmentLocked())) {
+      window.assessmentWorkspace.leave();
+    }
     enableStudioMode();
     initLevel3FreeStudio();
   }
@@ -1978,8 +1981,14 @@ function switchPrescriptionTab(tabKey) {
     if (panelCustom) panelCustom.classList.remove('hidden');
 
     const curInp = document.getElementById('pres-custom-cur');
+    const goalInp = document.getElementById('pres-custom-goal');
     if (curInp && !curInp.value) {
-      setCustomIdeaPreset('vending');
+      if (window.latestAbstractionPrescription?.currentStatus) {
+        curInp.value = window.latestAbstractionPrescription.currentStatus;
+        if (goalInp) goalInp.value = window.latestAbstractionPrescription.goalStatus || '';
+      } else {
+        setCustomIdeaPreset('vending');
+      }
     }
   }
   if (typeof playSfx === 'function') playSfx('btn');
