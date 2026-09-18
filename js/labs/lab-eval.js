@@ -958,15 +958,6 @@ class StudentEvalApp {
     const safeEsc = typeof escapeHtml === 'function' ? escapeHtml : (str => String(str || ''));
     let text = String(rawDesc).trim();
 
-    // 단일 \n으로만 구분된 경우 중 [조건...] 또는 [규칙...] 또는 [순서도...] 또는 [알고리즘...]이 있으면 \n\n으로 정규화
-    if (!text.includes('\n\n') && text.includes('\n')) {
-      if (/\[(?:조건|규칙|상황|조리법|순서도|알고리즘)/.test(text)) {
-        text = text.replace(/([^\n])\n(\[(?:조건|규칙|상황|조리법|순서도|알고리즘))/g, '$1\n\n$2')
-                   .replace(/(\n[^\n]+)\n([가-힣A-Za-z0-9]+.*(?:쓰시오|얼마|무엇|몇|구하시오|출력되는|결과는|\?))/g, '$1\n\n$2');
-      }
-    }
-
-
     const cleanCondition = (s) => {
       let trimmed = s.trim();
       // 단일 감싸기 [규칙: ...] 또는 [조건: ...] 인 경우 대괄호 및 머리말 정리
@@ -975,6 +966,111 @@ class StudentEvalApp {
       }
       return trimmed;
     };
+
+    const renderBox = (intro, cond, question) => {
+      const cleanIntro = intro ? intro.trim() : '';
+      const cleanQ = question ? question.trim() : '';
+      return `
+        ${cleanIntro ? `<div class="font-extrabold text-slate-900 mb-2 leading-snug">${safeEsc(cleanIntro)}</div>` : ''}
+        <div class="cbt-condition-box">
+          <div class="cbt-condition-title"><i class="fa-solid fa-clipboard-list text-blue-500"></i> <span>지켜야 할 규칙 / 조건</span></div>
+          <div class="cbt-condition-content">${safeEsc(cleanCondition(cond))}</div>
+        </div>
+        ${cleanQ ? `<div class="font-black text-slate-900 mt-2.5 leading-snug">${safeEsc(cleanQ)}</div>` : ''}
+      `.trim();
+    };
+
+    // 0. 단락이 하나이거나 지문 전체에서 조건/알고리즘을 추출할 수 있는지 선제 검사
+    const tryExtract = (target) => {
+      // 0-1. 알고리즘(...) 형태 (예: 귤 14개를 3개씩 상자에 담는 알고리즘(남은 귤 >= 3 인 동안 [상자수 = 상자수 + 1, 남은 귤 = 남은 귤 - 3])이 종료되었을 때...)
+      const mAlgoParen = target.match(/^([가-힣0-9\s]+?(?:알고리즘|순서도(?:\s*흐름)?))\s*\(([\s\S]+?)\)\s*(?:(이|을|은|에서)\s*)?([\s\S]*)$/);
+      if (mAlgoParen) {
+        let intro = mAlgoParen[1].trim();
+        if (!intro.endsWith('입니다.') && !intro.endsWith(':')) intro += '입니다.';
+        let cond = mAlgoParen[2].trim();
+        let particle = mAlgoParen[3] || '이';
+        let q = mAlgoParen[4].trim();
+        if (/^(?:종료|실행|끝|완료|수행)/.test(q)) {
+          q = '알고리즘' + particle + ' ' + q;
+        }
+        return { intro, cond, q };
+      }
+
+      // 0-2. 알고리즘[...] 형태
+      const mAlgoBracket = target.match(/^([가-힣0-9\s]+?(?:알고리즘|순서도(?:\s*흐름)?))\s*\[([\s\S]+?)\]\s*(?:(이|을|은|에서)\s*)?([\s\S]*)$/);
+      if (mAlgoBracket) {
+        let intro = mAlgoBracket[1].trim();
+        if (!intro.endsWith('입니다.') && !intro.endsWith(':')) intro += '입니다.';
+        let cond = mAlgoBracket[2].trim();
+        let particle = mAlgoBracket[3] || '이';
+        let q = mAlgoBracket[4].trim();
+        if (/^(?:종료|실행|끝|완료|수행)/.test(q)) {
+          q = '알고리즘' + particle + ' ' + q;
+        }
+        return { intro, cond, q };
+      }
+
+      // 0-3. [조건이/조건은/조건: [식] 입니다. 질문] 형태 (예: 청소년 요금 적용 조건이 [나이 >= 14 이고 나이 < 19]입니다. 이 조건의...)
+      const mCondBracket = target.match(/^([가-힣0-9\s]+?(?:조건|규칙)(?:이|은|:)?)\s*\[([^\]]+)\]\s*(?:입니다|이다|일 때|인 경우)?\.?\s*([\s\S]*)$/);
+      if (mCondBracket) {
+        let rawIntro = mCondBracket[1].replace(/[이은:]$/, '').trim();
+        let intro = (rawIntro === '조건' || rawIntro === '규칙') ? '' : (rawIntro.endsWith('입니다') || rawIntro.endsWith('이다') ? rawIntro + '.' : rawIntro + '입니다.');
+        let cond = mCondBracket[2].trim();
+        let q = mCondBracket[3].trim();
+        return { intro, cond, q };
+      }
+
+      // 0-4. ...에 [식] 라는 판단 기호가 있습니다. 질문
+      const mDecision = target.match(/^([가-힣0-9\s]+?)\s*에\s*\[([^\]]+)\]\s*(?:라[는고]|인)\s*(?:판단\s*기호[가이]?\s*있습니다\.?|조건[이은]?\s*(?:있습니다|적용됩니다)\.?)\s*([\s\S]*)$/);
+      if (mDecision) {
+        let intro = mDecision[1].trim() + '의 판단 기호입니다.';
+        let cond = mDecision[2].trim();
+        let q = mDecision[3].trim();
+        return { intro, cond, q };
+      }
+
+      // 0-5. [태그] '내용'와 같이 ... (제어 구조 식별)
+      const mTagQuote = target.match(/^(\[[^\]]+\])\s*['"]([^'"]+)['"]\s*와\s*같이\s*([\s\S]*)$/);
+      if (mTagQuote) {
+        let intro = mTagQuote[1].trim();
+        let cond = mTagQuote[2].trim();
+        let q = '위와 같이 ' + mTagQuote[3].trim();
+        return { intro, cond, q };
+      }
+
+      // 0-6. 단일 단락 내 [조건: ...] 또는 [규칙: ...] 블록 분리
+      if (/\[(?:조건|규칙|상황|조리법|반복 규칙|순서도|알고리즘)[^\]]*\]/.test(target)) {
+        const parts = target.split(/(?=\[(?:조건|규칙|상황|조리법|반복 규칙|순서도|알고리즘)[^\]]*\])/);
+        if (parts.length >= 2) {
+          const intro = parts[0].trim();
+          const rest = parts.slice(1).join('');
+          const mBlock = rest.match(/^(\[(?:조건|규칙|상황|조리법|반복 규칙|순서도|알고리즘)[^\]]*\][\s\S]*?)(?=[가-힣A-Za-z0-9]+[가-힣A-Za-z0-9\s'"]*?(?:쓰시오|얼마|무엇|몇|구하시오|출력되는|결과는|\?).*|$)/);
+          if (mBlock) {
+            const cond = mBlock[1].trim();
+            const q = rest.slice(mBlock[1].length).trim();
+            return { intro, cond, q };
+          }
+        }
+      }
+
+      return null;
+    };
+
+    // 단일 단락인 경우 선제 추출
+    if (!text.includes('\n\n')) {
+      const extracted = tryExtract(text);
+      if (extracted) {
+        return renderBox(extracted.intro, extracted.cond, extracted.q);
+      }
+    }
+
+    // 단일 \n으로만 구분된 경우 중 [조건...] 또는 [규칙...] 또는 [순서도...] 또는 [알고리즘...]이 있으면 \n\n으로 정규화
+    if (!text.includes('\n\n') && text.includes('\n')) {
+      if (/\[(?:조건|규칙|상황|조리법|순서도|알고리즘)/.test(text)) {
+        text = text.replace(/([^\n])\n(\[(?:조건|규칙|상황|조리법|순서도|알고리즘))/g, '$1\n\n$2')
+                   .replace(/(\n[^\n]+)\n([가-힣A-Za-z0-9]+.*(?:쓰시오|얼마|무엇|몇|구하시오|출력되는|결과는|\?))/g, '$1\n\n$2');
+      }
+    }
 
     // 여러 단락(\n\n)으로 구성된 경우 분할 처리
     const paragraphs = text.split(/\n{2,}/);
@@ -989,31 +1085,13 @@ class StudentEvalApp {
             </div>
           `;
         }
+        const pExtracted = tryExtract(trimmed);
+        if (pExtracted && pExtracted.cond) {
+          return renderBox(pExtracted.intro, pExtracted.cond, pExtracted.q);
+        }
         const isLast = (pIdx === paragraphs.length - 1);
         return `<div class="${isLast ? 'font-black text-slate-900 mt-2.5' : 'font-extrabold text-slate-900'}">${safeEsc(trimmed)}</div>`;
       }).join('');
-    }
-
-    // 단일 단락 내에 [조건: ...] 또는 [규칙: ...] 또는 [순서도: ...] 또는 [알고리즘: ...] 블록이 포함된 경우 분리
-    if (/\[(?:조건|규칙|상황|조리법|반복 규칙|순서도|알고리즘)[^\]]*\]/.test(text)) {
-      const parts = text.split(/(?=\[(?:조건|규칙|상황|조리법|반복 규칙|순서도|알고리즘)[^\]]*\])/);
-      if (parts.length >= 2) {
-        const intro = parts[0].trim();
-        const rest = parts.slice(1).join('');
-        const qSplit = rest.split(/(?=[가-힣A-Za-z0-9]+.*(?:쓰시오|얼마|무엇|몇|구하시오|출력되는|결과는|\?))/);
-        if (qSplit.length >= 2 && qSplit[0].includes(']')) {
-          const condition = qSplit[0].trim();
-          const question = qSplit.slice(1).join('').trim();
-          return `
-            ${intro ? `<div class="font-extrabold text-slate-900 mb-2">${safeEsc(intro)}</div>` : ''}
-            <div class="cbt-condition-box">
-              <div class="cbt-condition-title"><i class="fa-solid fa-clipboard-list text-blue-500"></i> <span>지켜야 할 규칙 / 조건</span></div>
-              <div class="cbt-condition-content">${safeEsc(cleanCondition(condition))}</div>
-            </div>
-            ${question ? `<div class="font-black text-slate-900 mt-2">${safeEsc(question)}</div>` : ''}
-          `;
-        }
-      }
     }
 
     return safeEsc(text);

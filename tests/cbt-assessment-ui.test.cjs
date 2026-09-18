@@ -658,8 +658,42 @@ test('CBT round 5: flow-validation accepts flexible terminal names and gives det
   assert.ok(hasSpecificMsg, '문제가 발생한 구체적인 블록 이름(창문 닫기)이 메시지에 포함되어야 함');
 });
 
+test('CBT round 6: formatCbtPrompt extracts condition/algorithm boxes from embedded single-paragraph questions (Q14, Q15)', () => {
+  const ctx = createAssessmentContext();
+  const StudentEvalApp = ctx.window.studentEvalApp.constructor;
+  const app = new StudentEvalApp();
 
+  // 1. Q14 유형: 청소년 요금 적용 조건이 [나이 >= 14 이고 나이 < 19]입니다. ...
+  const q14Prompt = '청소년 요금 적용 조건이 [나이 >= 14 이고 나이 < 19]입니다. 이 조건의 거짓(아니오) 분기에 해당하는 나이 중, 10대(10~19세)에 속하면서 청소년 요금을 받지 못하는 가장 많은 나이(숫자만)를 쓰시오.';
+  const q14Formatted = app.formatCbtPrompt(q14Prompt);
 
+  assert.ok(q14Formatted.includes('cbt-condition-box'), 'Q14 조건 상자(cbt-condition-box)가 생성되어야 함');
+  assert.ok(q14Formatted.includes('청소년 요금 적용 조건입니다.'), '발문이 정돈되어 상단에 분리되어야 함');
+  assert.ok(q14Formatted.includes('나이 >= 14') || q14Formatted.includes('나이 &gt;= 14'), '조건식이 박스 내부에 안전하게 들어가야 함');
+  assert.ok(q14Formatted.includes('이 조건의 거짓(아니오) 분기에 해당하는 나이 중'), '질문 문장이 박스 하단에 분리되어야 함');
 
+  // 2. Q15 유형: 귤 14개를 3개씩 상자에 담는 알고리즘(남은 귤 >= 3 인 동안 [상자수 = 상자수 + 1, 남은 귤 = 남은 귤 - 3])이 종료되었을 때, ...
+  const q15Prompt = '귤 14개를 3개씩 상자에 담는 알고리즘(남은 귤 >= 3 인 동안 [상자수 = 상자수 + 1, 남은 귤 = 남은 귤 - 3])이 종료되었을 때, 최종적으로 완성된 [상자수](숫자만)를 쓰시오.';
+  const q15Formatted = app.formatCbtPrompt(q15Prompt);
 
+  assert.ok(q15Formatted.includes('cbt-condition-box'), 'Q15 알고리즘 상자(cbt-condition-box)가 생성되어야 함');
+  assert.ok(q15Formatted.includes('귤 14개를 3개씩 상자에 담는 알고리즘입니다.'), '알고리즘 소개 발문이 상단에 분리되어야 함');
+  assert.ok(q15Formatted.includes('남은 귤 >= 3') || q15Formatted.includes('남은 귤 &gt;= 3'), '알고리즘 내용이 조건 상자에 들어가야 함');
+  assert.ok(q15Formatted.includes('알고리즘이 종료되었을 때, 최종적으로 완성된 [상자수](숫자만)를 쓰시오.'), '질문 문장이 자연스럽게 박스 하단에 분리되어야 함');
 
+  // 3. Q13 유형: 스마트 에어컨 알고리즘에 [현재 실내 온도 > 28℃] 라는 판단 기호가 있습니다. ...
+  const q13Prompt = '스마트 에어컨 알고리즘에 [현재 실내 온도 > 28℃] 라는 판단 기호가 있습니다. 현재 실내 온도가 30℃일 때, 판단 기호에서 이어질 올바른 분기 방향은 무엇인가요?';
+  const q13Formatted = app.formatCbtPrompt(q13Prompt);
+
+  assert.ok(q13Formatted.includes('cbt-condition-box'), 'Q13 판단 기호 조건 상자가 생성되어야 함');
+  assert.ok(q13Formatted.includes('스마트 에어컨 알고리즘의 판단 기호입니다.'), '발문이 상단에 분리되어야 함');
+  assert.ok(q13Formatted.includes('현재 실내 온도 > 28℃') || q13Formatted.includes('현재 실내 온도 &gt; 28℃'), '판단 조건이 상자에 들어가야 함');
+
+  // 4. Q31 유형: [라면 조리법] '1. 냄비에 물 붓기 ➔ 2. 면과 스프 넣기 ➔ 3. 4분간 끓이기'와 같이 ...
+  const q31Prompt = "[라면 조리법] '1. 냄비에 물 붓기 ➔ 2. 면과 스프 넣기 ➔ 3. 4분간 끓이기'와 같이 이전 단계가 완료되면 다음 단계 명령이 순서대로 차례차례 한 번씩 실행되는 제어 구조의 이름을 쓰시오.";
+  const q31Formatted = app.formatCbtPrompt(q31Prompt);
+
+  assert.ok(q31Formatted.includes('cbt-condition-box'), 'Q31 조리법 상자가 생성되어야 함');
+  assert.ok(q31Formatted.includes('[라면 조리법]'), '태그 타이틀이 유지되어야 함');
+  assert.ok(q31Formatted.includes('1. 냄비에 물 붓기 ➔ 2. 면과 스프 넣기 ➔ 3. 4분간 끓이기'), '단계 내용이 상자에 들어가야 함');
+});

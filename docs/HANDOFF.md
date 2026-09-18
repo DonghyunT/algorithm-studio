@@ -7,16 +7,16 @@
 | 구분 | 인수인계 기준 |
 |---|---|
 | 현재 운영 브랜치 | main |
-| 현재 작업 브랜치 | main (codex/eval-score-reveal-ui-polish 병합 완료) |
+| 현재 작업 브랜치 | codex/cbt-question-readability-polish |
 | 현재 평가 운영 상태 | 선생님 확인에 따라 V4 실전평가도 운영에 적용 중이며, V3는 모의평가·기존 회차 호환용으로 유지 |
-| 인수인계 전달 기준 | 1) [순서도 흐름]/[알고리즘] 단락이 cbt-condition-box 섬으로 렌더링되도록 formatCbtPrompt 정규식 확장, 2) V4 교사 상세 조회의 학급 ID 전달 오류 수정, 3) V4 객관식 답안의 선지 번호·문구 표시 보완, 4) 학생 본인 전용 V4 객관·단답 점수 API 및 누르는 동안만 표시 UI, 5) 관련 권한·평가 API·UI 38개 테스트 및 운영 정적 파일·화면 확인 |
-| 최신 제품 코드 | `api/evaluation.js`(`student-score` 본인 전용 서버 점수 조회), `js/core/ai-service.js`(보안 점수 요청), `js/labs/lab-eval.js`(V4 점수 폴링·누르는 동안 표시), `index.html`(점수 보기 UI), `js/core/classroom.js`(V4 교사 답안 표시), `css/common.css`(조건 카드 들여쓰기 보존) |
-| 최신 제품 코드 커밋 | `3a4575b` — feat: polish evaluation score reveal layout and masking interaction |
-| 배포 기록 | Vercel Production (`https://algorithm-studio-ten.vercel.app/`)에 반영 완료 |
-| 현재 평가 UI | 평소에는 점수판과 세부 카드가 `🔒 • •`로 보호되고, 버튼을 누르고 있는 동안에만 제자리에서 선명하게 열리는 토스/애플 스타일 프라이버시 카드 적용 |
-| 이번 구현 완료 내용 | 1) 학생 점수 확인 화면에서 '점수 보기' 중복 노출 및 하단 덜컹거림 패널 개선, 2) 대형 점수판 및 Part 1·2 카드를 `🔒 • • / 60점`, `🔒 •• / 30점`으로 마스킹하고 누르는 동안에만 해당 영역에 직접 점수 표시, 3) 긴 안내문구를 간결화하고 하단 중복 텍스트 박스를 스크린리더용(`sr-only`)으로 전환, 4) 관련 단위 테스트 90개 100% 통과 |
-| 최신 운영 의도 | 점수판과 카드 자체가 블라인드 마스킹되어 시각적 위계와 카드 높이가 흔들림 없이 고정됨 |
-| 이번 교사 조회 수정 | `currentSelectedClass` 표시명(`2학년 1반`)을 V4 보안 API가 요구하는 ID(`2-1`)로 변환하고, 0-based 객관식 답안을 `1번 (선지 내용)` 형식으로 표시. 기존 답안·Firestore 자료·채점 로직은 변경하지 않음 |
+| 인수인계 전달 기준 | 1) CBT 6차 고도화: Q14, Q15 등 단일 단락 및 인라인 조건·알고리즘 지문을 발문-조건박스-질문 3단 구조로 분리 렌더링, 2) Firestore 및 채점 로직 100% 불변 유지, 3) 단위 테스트 91개 전체 통과 |
+| 최신 제품 코드 | `js/labs/lab-eval.js`(`formatCbtPrompt` 내 `tryExtract` 및 `renderBox`), `tests/cbt-assessment-ui.test.cjs` |
+| 최신 제품 코드 커밋 | `7ab1f63` (main 최신) 기반 작업 브랜치 진행 중 |
+| 배포 기록 | Vercel Production (`https://algorithm-studio-ten.vercel.app/`)에 직전 main 반영 완료 |
+| 현재 평가 UI | 단일 단락 인라인 문항도 `.cbt-condition-box`로 깔끔하게 분리되어 상단 발문, 중앙 파란색 규칙 박스, 하단 질문으로 시각적 위계 명확화 |
+| 이번 구현 완료 내용 | 1) 줄바꿈(`\n\n`) 없는 단일 단락 문항에서 인라인 알고리즘식(`알고리즘(...)`), 조건식(`...조건이 [식]입니다`), 판단기호(`[식] 라는 판단 기호가 있습니다`), 조리법(`[라면 조리법] '...'와 같이...`) 자동 감지 및 분리, 2) 상단 발문, 중앙 독립 `.cbt-condition-box`, 하단 질문 3단 분리로 중2 학생 가독성 개선, 3) 91개 전체 단위 테스트 100% 통과 및 문법 검사 완료 |
+| 최신 운영 의도 | 복잡한 수식이나 실행 흐름이 평문에 섞이지 않고 독립된 조건 상자에 격리되어 직관적으로 파악 가능 |
+| 이번 교사 조회 수정 | 이전 작업에서 V4 교사 조회 학급 ID(`2-1`) 및 객관식 답안 번호 매핑 완료 유지 |
 
 - 저장소: [DonghyunT/algorithm-studio](https://github.com/DonghyunT/algorithm-studio)
 - 운영 웹: [정보 알고리즘 스튜디오](https://algorithm-studio-ten.vercel.app/)
@@ -26,11 +26,13 @@
 ## 2. 읽는 순서와 다음 작업
 
 1. [AGENTS](../AGENTS.md) → [INTENT](../INTENT.md) → [PRD](../PRD.md) → 이 문서를 읽습니다.
-2. **실전평가 V4 운영 적용·교사 상세 조회·학생 점수 표시 수정 완료:** Vercel Production에 V4 운영 설정과 `559fc09` 수정이 반영되어 사용 중입니다. `node tools/check.cjs`와 관련 인증·학급 권한·평가 API·V4 결과 UI 테스트 38개를 통과했고, 운영 정적 JS·HTML HTTP 200 및 학생 탭 콘솔 오류 없음을 확인했습니다. 학생 점수 API는 본인 제출 자료의 Part 1·2 소계만 반환하고, 결과 화면의 `점수 보기`를 누르는 동안에만 표시합니다. 샘플 V4 답안의 교사 객관식 번호·문구 매핑은 앞선 작업에서 확인했습니다. 현재 읽기 전용 운영 탭에는 새 V4 제출 카드가 없어 학생 버튼의 운영 실데이터 조작 확인은 하지 않았으며, 다음 V4 제출 자료에서 이어갑니다. 관련 최신 기록은 선생님 운영 확인과 [배포 기록](DEPLOYMENT.md)을 기준으로 합니다.
+2. **CBT 6차 문항 가독성 정밀 고도화 (작업 브랜치: `codex/cbt-question-readability-polish`):**
+   - Q14("청소년 요금 적용 조건이 [나이 >= 14 이고 나이 < 19]입니다..."), Q15("귤 14개를 3개씩 상자에 담는 알고리즘(...)이 종료되었을 때...") 등 한 단락으로 뭉쳐 있던 문항들을 `formatCbtPrompt`가 광학적으로 파싱하여 `.cbt-condition-box` 섬으로 자동 분리하도록 처리 완료.
+   - `node tools/check.cjs`(66개 스크립트 구문 정상) 및 `node --test tests/*.test.cjs`(91개 테스트 전체 통과) 확인 완료.
 3. **다음 작업:**
-   - 다른 PC에서는 `git switch main && git pull --ff-only origin main`으로 최신 커밋을 받아서 작업을 시작합니다.
-   - 교실 환경에서 모의평가(V3) 및 실전평가(V4) 라이브 시험을 원활히 진행하고 관찰합니다.
-   - 선생님의 추가 UI/UX 요청이나 운영 피드백이 있을 경우 새 작업 브랜치를 생성하여 진행합니다.
+   - 선생님 검토 후 `codex/cbt-question-readability-polish` 브랜치를 main에 병합하고 배포 확인.
+   - 교실 환경에서 모의평가(V3) 및 실전평가(V4) 라이브 시험을 원활히 진행하고 관찰.
+   - 추가적인 문항 가독성 피드백이 있을 경우 유연하게 대응.
 
 ## 3. 다른 PC에서 받기
 
