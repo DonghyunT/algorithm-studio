@@ -111,3 +111,7 @@ async function requestSecureEvaluationReview(classId, studentNum) {
   const numStr = String(Number(studentNum)).padStart(2, '0');
   return requestSecureEvaluation('review', {classId, studentNum: numStr}, true);
 }
+
+async function requestSecureEvaluationBankExport() {
+  return requestSecureEvaluation('export-bank', {}, true);
+}

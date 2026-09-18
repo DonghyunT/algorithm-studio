@@ -30,7 +30,8 @@ module.exports = async (req, res) => {
   const fail = (status, error) => res.status(status).json({ error });
   if (req.method !== 'POST') return fail(405, 'POST 요청만 사용할 수 있습니다.');
   const body = req.body || {};
-  if (!['questions', 'student-score', 'grade', 'review'].includes(body.action) || !validTarget(body) || JSON.stringify(body).length > 1000) return fail(400, '요청 내용을 확인해 주세요.');
+  const isBankExport = body.action === 'export-bank';
+  if (!['questions', 'student-score', 'grade', 'review', 'export-bank'].includes(body.action) || (!isBankExport && !validTarget(body)) || JSON.stringify(body).length > 1000) return fail(400, '요청 내용을 확인해 주세요.');
   const token = (req.headers.authorization || '').match(/^Bearer (.+)$/)?.[1];
   const project = process.env.FIREBASE_PROJECT_ID || 'donghyun-algo';
   let claims;
@@ -85,6 +86,20 @@ module.exports = async (req, res) => {
       if (error.message === 'round') return fail(409, '현재 실전평가 회차가 아니거나 회차 정보가 바뀌었습니다. 새로고침한 뒤 다시 확인해 주세요.');
       return fail(403, '학생 점수를 확인할 권한이 없거나 제출 상태를 확인할 수 없습니다.');
     }
+  }
+
+  if (body.action === 'export-bank') {
+    if (claims.firebase?.sign_in_provider === 'anonymous') return fail(403, '교사 로그인으로만 문항 은행을 내보낼 수 있습니다.');
+    let role;
+    try {
+      role = await read('teachers/' + encodeURIComponent(claims.sub));
+      const allowed = role.enabled === true && (role.allClasses === true || (Array.isArray(role.classIds) && role.classIds.length > 0));
+      if (!allowed) return fail(403, '문항 은행을 내보낼 권한이 없습니다. 관리자에게 교사 권한을 확인해 주세요.');
+    } catch { return fail(403, '교사 권한을 확인하지 못했습니다.'); }
+    return res.status(200).json({
+      ok: true,
+      bank: { version: bank.version, part1: bank.part1, part2: bank.part2 }
+    });
   }
 
   let role;

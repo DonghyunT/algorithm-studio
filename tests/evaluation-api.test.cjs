@@ -115,3 +115,21 @@ test('V4 exposes score and complete review only to the scoped teacher after subm
   assert.equal(review.body.review.part2[0].answers[0], '정답');
   assert.ok(review.body.review.part1[0].teacherNote.includes('교사'));
 });
+
+test('V4 allows only authorized teacher to export bank and denies students', async () => {
+  const h = harness();
+  const studentReq = await h.request({ action: 'export-bank' }, 'student');
+  assert.equal(studentReq.status, 403);
+
+  const teacherReq = await h.request({ action: 'export-bank' }, 'teacher');
+  assert.equal(teacherReq.status, 200);
+  assert.equal(teacherReq.body.ok, true);
+  assert.equal(teacherReq.body.bank.version, 4);
+  assert.equal(teacherReq.body.bank.part1.length, 10);
+  assert.equal(teacherReq.body.bank.part2.length, 6);
+
+  // Disabled teacher gets 403
+  h.documents.teacher.enabled = false;
+  const disabledReq = await h.request({ action: 'export-bank' }, 'teacher');
+  assert.equal(disabledReq.status, 403);
+});

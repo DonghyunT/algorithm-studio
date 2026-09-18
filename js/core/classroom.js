@@ -681,6 +681,39 @@ function handleTeacherExportCSV() {
   }
 }
 
+// 실전평가 V4 80문항 비공개 문제은행 JSON 백업 다운로드
+async function handleTeacherExportV4Bank() {
+  const btn = document.getElementById('btn-export-v4-bank');
+  const originalHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>다운로드 중...</span>';
+  }
+  try {
+    const data = await requestSecureEvaluationBankExport();
+    if (!data || !data.bank) throw new Error('문제은행 데이터를 수신하지 못했습니다.');
+    const jsonStr = JSON.stringify(data.bank, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'eval_bank_v4.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    alert('실전평가 V4 80문항 문제은행(eval_bank_v4.json) 다운로드가 완료되었습니다!\n\n로컬 개발 환경에서 작업하시려면 다운로드된 파일을 프로젝트의 scratch/ 폴더에 넣어주세요.');
+  } catch (err) {
+    console.error('[EXPORT_BANK_FAIL]', err);
+    alert(err.message || '문제은행 백업 다운로드에 실패했습니다. 교사 로그인 상태를 확인해 주세요.');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalHtml;
+    }
+  }
+}
+
 /**
  * 순서도 블록을 실행 흐름(시작 ➔ 다음 블록 ➔ ... ➔ 종료) 순서대로 정렬
  * - 시작 블록('eblk_start' 또는 단말 '시작' 또는 진입 차수 0)에서 출발
