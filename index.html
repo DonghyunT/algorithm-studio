@@ -2447,9 +2447,15 @@
             <span>모든 대기실 닫기</span>
           </button>
         </div>
-        <div class="text-xs text-slate-500 font-bold flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-          <span id="classroom-connection-status">서버 응답 확인 중</span>
+        <div class="text-xs text-slate-500 font-bold flex items-center gap-3">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span id="classroom-connection-status">서버 응답 확인 중</span>
+          </div>
+          <button id="btn-export-v4-bank" type="button" onclick="handleTeacherExportV4Bank()" class="text-slate-300 hover:text-slate-600 transition text-[11px] p-1 flex items-center gap-1 cursor-pointer" title="실전평가 V4 80문항 비공개 문제은행 JSON 백업">
+            <i class="fa-solid fa-download text-[10px] text-slate-300"></i>
+            <span class="text-[10px] text-slate-300 hover:text-slate-500">백업</span>
+          </button>
         </div>
       </div>
 
@@ -2483,9 +2489,6 @@
             <button id="teacher-session-close-waiting" type="button" onclick="handleCloseWaitingRoom()" class="teacher-session-sub-action hidden" title="현재 학급의 대기실을 닫아 학생 입장을 차단합니다">대기실 닫기</button>
             <button type="button" onclick="handleTeacherExportCSV()" class="teacher-export-action">
               <i class="fa-solid fa-file-excel" aria-hidden="true"></i> <span>성적표 CSV</span>
-            </button>
-            <button id="btn-export-v4-bank" type="button" onclick="handleTeacherExportV4Bank()" class="teacher-export-action" title="실전평가 V4 80문항 비공개 문제은행 JSON을 백업 파일로 다운로드합니다">
-              <i class="fa-solid fa-download" aria-hidden="true"></i> <span>V4 문항 백업</span>
             </button>
           </div>
         </div>
