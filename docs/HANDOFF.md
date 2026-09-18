@@ -26,15 +26,15 @@
 ## 2. 읽는 순서와 다음 작업
 
 1. [AGENTS](../AGENTS.md) → [INTENT](../INTENT.md) → [PRD](../PRD.md) → 이 문서를 읽습니다.
-2. **CBT 6차 문항 가독성 & V4 문제은행 자연어화 (작업 브랜치: `codex/cbt-question-readability-polish`):**
-   - Q14, Q15 등 인라인 조건·알고리즘 분리 렌더링 (`js/labs/lab-eval.js`의 `formatCbtPrompt`).
-   - V4 80문항 텍스트 코딩 문법 전면 자연어화 및 `(숫자만)` 표현 정돈.
-   - 교사 전용 V4 문제은행 백업 기능(`export-bank`) 및 UI 은은한 링크(`[⬇ 백업]`) 제공.
-   - Vercel Production 환경 변수(`EVAL_BANK_V4_JSON`) Gzip-base64 압축 덮어쓰기 완료.
-   - `node tools/check.cjs` 구문 정상 및 `node --test tests/*.test.cjs` 92개 단위 테스트 전체 통과 확인.
-3. **다음 작업:**
-   - `codex/cbt-question-readability-polish` 브랜치를 main에 병합하고 원격 push.
-   - 교실 환경에서 학생들의 실전평가(V4) 풀이 반응 관찰.
+2. **최신 반영 완료 사항 (`main` 브랜치에 통합 및 원격 push 완료):**
+   - **Firestore 읽기 쿼터 폭발 방지 최적화**: 2.5초 디바운스, 스마트 Dirty Check, 캔버스 패닝 분리, 메타데이터 이벤트 차단 (`718cb43`).
+   - **CBT 6차 가독성 & V4 문제은행 자연어화**: 인라인 조건/알고리즘 상자 분리, 텍스트 코딩식 대입 연산자 자연어화, `나이를 숫자만 쓰시오.` 표기 정돈.
+   - **교사 전용 V4 문항 백업 및 배포**: `export-bank` 엔드포인트 및 UI 다운로드 링크, Vercel Production 환경 변수 주입 완료.
+   - **검증**: `node tools/check.cjs` 구문 정상 및 `node --test tests/*.test.cjs` 93개 단위 테스트 전체 통과.
+3. **집(다른 PC)에서 이어서 진행할 작업:**
+   - 집 PC에서 `git pull origin main`으로 최신 커밋 수신.
+   - 한국 시간 16:00 이후 Firestore Spark 일일 쿼터(5만 건) 리셋 확인 후 시험장 정상 동작 점검.
+   - 모의평가(V3) 및 실전평가(V4) 학생 화면 및 교사 관제탑 전반 UI/UX 확인.
 
 ## 3. 다른 PC에서 받기
 
