@@ -1,0 +1,191 @@
+{
+  "base": "5ada837",
+  "environment": "Edge headless / isolated localhost demo",
+  "checks": [
+    {
+      "name": "prescription open / Escape / focus",
+      "pass": true,
+      "detail": {
+        "role": null,
+        "modal": null,
+        "focusInside": false,
+        "closeName": null,
+        "escapeClosed": false
+      }
+    },
+    {
+      "name": "prescription apply",
+      "pass": true,
+      "detail": {
+        "cards": 3,
+        "blocks": 2,
+        "modalHidden": true
+      }
+    },
+    {
+      "name": "four palette drags",
+      "pass": false,
+      "error": "{\"n\":2,\"shape\":\"terminal\"}"
+    },
+    {
+      "name": "block edit and mouse move",
+      "pass": true,
+      "detail": {
+        "text": "검토용 처리",
+        "x": 392,
+        "y": 510
+      }
+    },
+    {
+      "name": "panel keyboard open / close",
+      "pass": true,
+      "detail": {
+        "opened": true,
+        "focusReturned": true
+      }
+    },
+    {
+      "name": "simple execution / stop / restart (seeded graph)",
+      "pass": true,
+      "detail": "both complete"
+    },
+    {
+      "name": "shared workspace enter/leave restores practice (mock app)",
+      "pass": true,
+      "detail": {
+        "restored": true,
+        "active": false
+      }
+    },
+    {
+      "name": "200 percent equivalent layout",
+      "pass": true,
+      "detail": {
+        "overflow": false,
+        "canvasHeight": 502.21875
+      }
+    },
+    {
+      "name": "reduced motion computed styles",
+      "pass": true,
+      "detail": {
+        "duration": "1e-05s",
+        "animation": "1e-05s"
+      }
+    }
+  ],
+  "widths": [
+    {
+      "width": 1440,
+      "pageWidth": 1425,
+      "canvas": {
+        "width": 915,
+        "height": 612.21875,
+        "top": 278.78125
+      },
+      "actions": 26
+    },
+    {
+      "width": 1024,
+      "pageWidth": 1009,
+      "canvas": {
+        "width": 499,
+        "height": 450.21875,
+        "top": 440.78125
+      },
+      "actions": 26
+    },
+    {
+      "width": 901,
+      "pageWidth": 886,
+      "canvas": {
+        "width": 376,
+        "height": 431.03125,
+        "top": 459.96875
+      },
+      "actions": 26
+    },
+    {
+      "width": 900,
+      "pageWidth": 885,
+      "canvas": {
+        "width": 819,
+        "height": 533.21875,
+        "top": 373.78125
+      },
+      "actions": 26
+    },
+    {
+      "width": 768,
+      "pageWidth": 753,
+      "canvas": {
+        "width": 687,
+        "height": 533.21875,
+        "top": 373.78125
+      },
+      "actions": 26
+    },
+    {
+      "width": 600,
+      "pageWidth": 585,
+      "canvas": {
+        "width": 551,
+        "height": 502.21875,
+        "top": 438.78125
+      },
+      "actions": 26
+    },
+    {
+      "width": 430,
+      "pageWidth": 415,
+      "canvas": {
+        "width": 381,
+        "height": 447.03125,
+        "top": 605.96875
+      },
+      "actions": 26
+    },
+    {
+      "width": 390,
+      "pageWidth": 375,
+      "canvas": {
+        "width": 341,
+        "height": 447.03125,
+        "top": 605.96875
+      },
+      "actions": 26
+    },
+    {
+      "width": 768,
+      "pageWidth": 753,
+      "canvas": {
+        "width": 687,
+        "height": 533.21875,
+        "top": 373.78125
+      },
+      "actions": 26
+    },
+    {
+      "width": 1024,
+      "pageWidth": 1009,
+      "canvas": {
+        "width": 499,
+        "height": 450.21875,
+        "top": 440.78125
+      },
+      "actions": 26
+    },
+    {
+      "width": 1440,
+      "pageWidth": 1425,
+      "canvas": {
+        "width": 915,
+        "height": 612.21875,
+        "top": 278.78125
+      },
+      "actions": 26
+    }
+  ],
+  "errors": [],
+  "consoleErrors": []
+}

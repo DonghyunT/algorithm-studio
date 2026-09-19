@@ -1,0 +1,20 @@
+{
+  "checks": [
+    {
+      "name": "port connection",
+      "result": [
+        {
+          "from": "s",
+          "fromPort": "out",
+          "to": "e",
+          "toPort": "in"
+        }
+      ]
+    },
+    {
+      "name": "input and manual decision",
+      "result": "completed after input and choice"
+    }
+  ],
+  "errors": []
+}
