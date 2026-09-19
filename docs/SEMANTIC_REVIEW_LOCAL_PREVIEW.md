@@ -1,5 +1,9 @@
 # 의미 기반 AI 설계 점검과 로컬 체험
 
+> 이 문서는 2026-09-14 당시 구현·검증 기록입니다. 이후 운영 반영은 [배포 기록](DEPLOYMENT.md), 현재 실행 안내는 [HANDOFF](HANDOFF.md)를 따릅니다. 아래 로컬·미배포 표현은 당시 상태입니다.
+
+> 이 문서는 제목 아래 명시된 날짜·버전의 검토 기록입니다. 당시 정책·미배포 표현을 현재 상태로 해석하지 않습니다. 최신 기능은 [PRD](../PRD.md), 운영 반영은 [배포 기록](DEPLOYMENT.md), 이어갈 작업은 [HANDOFF](HANDOFF.md)를 따릅니다.
+
 2026-09-14 KST. 현재 작업 브랜치 `codex/semantic-flowchart-review`, 기준 커밋 `46b644b`. 이번 변경과 직전 튜터·교사 진입 변경은 로컬 상태이며 원격 푸시·병합·배포하지 않았습니다.
 
 ## 변경 이유와 동작
@@ -37,4 +41,3 @@ Windows/Edge, 2026-09-14 KST, 위 기준 커밋에 이번 변경을 적용하여
 * 실제 Solar 총 5개 사례: 입력→출력 통과, 출력→입력 보완, 자연어 두 동작을 처리 기호 하나로 표현 통과, 종료 분기가 있는 비밀번호 반복 통과, 예/아니오 동작이 뒤바뀐 선택 보완. 지정 사례의 결과이며 모든 자연어·복잡한 그래프의 정확성을 보장하지 않습니다.
 
 근거: `tests/results/semantic-review/`, `tests/results/semantic-review-live/`, `tests/results/semantic-regression/`. 실제 응답은 `io-review.txt`, `reversed-review.txt`, `extended.json`에 보존했습니다. `tests/semantic-review-ui.cjs --live`와 `tests/semantic-live-cases.cjs`는 실제 사용량을 소비하므로 일반 모의 회귀와 구분해서 실행합니다.
-
