@@ -202,3 +202,47 @@ test('eval-entry-guard: permits makeupAllowed student even after session ended',
   assert.equal(student.num, 7);
   assert.equal(student.makeupAllowed, true);
 });
+
+test('eval-entry-guard: allowStudentMakeup resets submitted student and binds to any new PC', async () => {
+  const { records, service, setStudentUid } = setup();
+
+  records.set('classrooms/2-1', {
+    classId: '2-1',
+    status: 'ended',
+    attemptId: 'att-ended-1',
+    deadlineMs: Date.now() - 10000
+  });
+
+  // Previously auto-submitted with 0 points (absent student)
+  records.set('classrooms/2-1/students/10', {
+    num: 10,
+    numStr: '10',
+    name: '결시생',
+    ownerUid: 'old-absent-pc-uid',
+    status: 'submitted',
+    submittedAt: new Date().toISOString(),
+    scores: { part1: 0, part2: 0, total: 0 }
+  });
+
+  // 1. Without forceReset, allowStudentMakeup fails on submitted student
+  await assert.rejects(
+    service.allowStudentMakeup('2-1', 10, 30, false),
+    /이미 정상 제출된 학생입니다/
+  );
+
+  // 2. With forceReset, teacher successfully resets the student for makeup
+  await service.allowStudentMakeup('2-1', 10, 30, { forceReset: true });
+  const updatedDoc = records.get('classrooms/2-1/students/10');
+  assert.equal(updatedDoc.status, 'waiting');
+  assert.equal(updatedDoc.makeupAllowed, true);
+  assert.equal(updatedDoc.ownerUid, null, 'ownerUid must be null so any PC can join');
+  assert.equal(updatedDoc.scores, null, 'Previous scores must be cleared');
+
+  // 3. Student joins from a completely new PC with new anonymous UID
+  setStudentUid('brand-new-pc-uid-999');
+  const student = await service.joinWaitingRoom('2-1', 10, '결시생');
+  assert.equal(student.num, 10);
+  assert.equal(student.makeupAllowed, true);
+  assert.equal(student.ownerUid, 'brand-new-pc-uid-999', 'Should bind to new PC UID');
+});
+
