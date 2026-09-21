@@ -6,16 +6,16 @@
 
 | 구분 | 인수인계 기준 |
 |---|---|
-| 운영 기준 | `main` |
-| 작업 브랜치 | `codex/block-ended-evaluation-entry` (통합 준비 완료) |
-| 마지막 제품 수정 | 수행평가 '시험 종료' 및 시간 만료 시 방 입장 차단(`js/core/eval-service.js`, `js/labs/lab-eval.js`), 좌석 생성 규칙 강화(`firestore.rules`), 교사 관제탑 만료 동기화(`js/core/classroom.js`), 가드 단위 테스트 6건 구축(`tests/eval-entry-guard.test.cjs`) |
-| 전달 기준 | `main` 머지 및 배포 준비 완료 (단위 테스트 108개 100% 통과, 구문 검사 OK) |
+| 운영 기준 | `main` (`070dac9`) |
+| 작업 브랜치 | `main` (배포 완료) |
+| 마지막 제품 수정 | 교사 관제탑 좌석 바둑판(그리드 카드) 실시간 서버 채점 성적 캐시(`currentLiveClassGrades`) 연동 및 V4 서버 채점/Part 3 AI·교사 확정 점수 표시 개선(`js/core/classroom.js`, `js/core/ai-service.js`, `js/core/assessment-review-ui.js`), 단위 테스트 6건 구축(`tests/classroom-score-grid.test.cjs`) |
+| 전달 기준 | `main` 머지 및 Vercel 자동 배포 완료 (단위 테스트 114개 100% 통과, 구문 검사 OK) |
 | 평가 운영 | V4 실전평가 운영 중, V3 모의평가·기존 회차 호환 유지 |
 | 운영 프로젝트 | Firebase `donghyun-algo`, Vercel `algorithm-studio` · 새 PC에서 재생성하지 않음 |
 | 운영 웹 | [정보 알고리즘 스튜디오](https://algorithm-studio-ten.vercel.app/) |
 | 저장소 | [DonghyunT/algorithm-studio](https://github.com/DonghyunT/algorithm-studio) |
 
-최근 완료한 제품 변경은 수행평가 마감 시간 경과(`Date.now() >= deadlineMs`) 또는 시험 종료(`status === 'ended'`) 시 미응시 학생(전출생 번호 등)이나 외부 사용자가 대기실/시험 화면에 진입하거나 기존 좌석을 덮어씌우지 못하도록 `evalService.isSessionOpen()` 판정 도입, Firestore rules `create` 규칙 강화, 로비 및 시험장 타이머 차단, 교사 관제탑 시간 만료 자동 세션 동기화를 완료한 작업입니다. (단위 테스트 108/108 통과, tools/check.cjs 69개 스크립트 정적 검사 통과)
+최근 완료한 제품 변경은 V4 실전평가 시 교사 관제탑 전체 화면(좌석 바둑판)에서 서버 채점 학생이 `소계 0점 (검토대기)`로 잘못 표시되던 버그를 해결한 작업입니다. V4는 보안상 클라이언트 임시 점수를 비워두므로 서버 채점 API(`class-grades`)를 자동 조회·캐싱하도록 연동하고, 좌석 카드 점수 렌더링에서 지필 소계(`serverScore`), AI 제안(`review.proposal`), 교사 확정(`review.confirmed`) 점수를 단계별로 올바르게 표시하도록 개선했습니다. (단위 테스트 114/114 통과, tools/check.cjs 70개 스크립트 정적 검사 통과)
 
 ## 2. 읽는 순서와 다음 작업
 
