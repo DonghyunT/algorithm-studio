@@ -169,12 +169,15 @@
     { id: 'flow', label: '4. 순서도 구조·동작의 타당성', defaultScore: 10, defaultEv: '순서도 제어 흐름 및 분기가 타당함' }
   ];
 
-  function extractPart3Scores(review = {}, score = {}) {
+  function extractPart3Scores(review = {}, score = {}, student = {}) {
+    const sReview = student?.review || {};
+    const sScore = student?.scores || student?.score || {};
+
     const calcCriteriaTotal = (crit) => {
       if (Array.isArray(crit) && crit.length > 0) {
         return crit.reduce((sum, c) => sum + (Number(c.score) || 0), 0);
       }
-      if (crit && typeof crit === 'object') {
+      if (crit && typeof crit === 'object' && crit !== null) {
         const p = Number(crit.planScore);
         const t = Number(crit.terminalScore);
         const s = Number(crit.structureScore);
@@ -185,25 +188,62 @@
       return null;
     };
 
-    const propCrit = calcCriteriaTotal(review?.proposal?.criteria);
+    const propCrit = calcCriteriaTotal(review?.proposal?.criteria) ?? calcCriteriaTotal(sReview?.proposal?.criteria) ?? calcCriteriaTotal(review?.criteria);
     const propTotal = review?.proposal?.score !== undefined && review.proposal.score !== null
       ? Number(review.proposal.score)
-      : (review?.proposal?.total !== undefined && review.proposal.total !== null
-          ? Number(review.proposal.total)
-          : (propCrit !== null ? propCrit : (typeof score.part3 === 'number' ? score.part3 : null)));
+      : (sReview?.proposal?.score !== undefined && sReview.proposal.score !== null
+          ? Number(sReview.proposal.score)
+          : (review?.proposal?.total !== undefined && review.proposal.total !== null
+              ? Number(review.proposal.total)
+              : (sReview?.proposal?.total !== undefined && sReview.proposal.total !== null
+                  ? Number(sReview.proposal.total)
+                  : (propCrit !== null ? propCrit : (typeof score.part3 === 'number' ? score.part3 : (typeof sScore.part3 === 'number' ? sScore.part3 : null))))));
 
-    const confCrit = calcCriteriaTotal(review?.confirmed?.criteria);
+    const confCrit = calcCriteriaTotal(review?.confirmed?.criteria) ?? calcCriteriaTotal(sReview?.confirmed?.criteria);
     const confTotal = review?.confirmed?.score !== undefined && review.confirmed.score !== null
       ? Number(review.confirmed.score)
-      : (review?.confirmed?.total !== undefined && review.confirmed.total !== null
-          ? Number(review.confirmed.total)
-          : (confCrit !== null ? confCrit : (typeof score.teacherOverride === 'number' ? score.teacherOverride : null)));
+      : (sReview?.confirmed?.score !== undefined && sReview.confirmed.score !== null
+          ? Number(sReview.confirmed.score)
+          : (review?.confirmed?.total !== undefined && review.confirmed.total !== null
+              ? Number(review.confirmed.total)
+              : (sReview?.confirmed?.total !== undefined && sReview.confirmed.total !== null
+                  ? Number(sReview.confirmed.total)
+                  : (confCrit !== null ? confCrit : (typeof score.teacherOverride === 'number' ? score.teacherOverride : (typeof sScore.teacherOverride === 'number' ? sScore.teacherOverride : null))))));
 
     return {
       proposal: propTotal,
       confirmed: confTotal,
       final: confTotal !== null ? confTotal : (propTotal !== null ? propTotal : null)
     };
+  }
+
+  /**
+   * 학생 원본 데이터(Firestore s)와 서버 채점 데이터(classGrades g)를 안전하게 병합
+   * - g.review는 Part 1·2 문항 검토 데이터만 포함하므로, s.review의 Part 3 AI 제안/교사 확정이 덮어씌워지지 않도록 깊은 병합
+   */
+  function mergeStudentGradeData(student = {}, gradeInfo = {}) {
+    const s = student || {};
+    const g = gradeInfo || {};
+    const sScore = s.scores || s.score || {};
+    const gScore = g.scores || g.score || {};
+    const mergedScore = { ...sScore, ...gScore };
+
+    const sReview = s.review || {};
+    const gReview = g.review || {};
+
+    const proposal = gReview.proposal || sReview.proposal || g.proposal || s.proposal || null;
+    const confirmed = gReview.confirmed || sReview.confirmed || g.confirmed || s.confirmed || null;
+
+    const mergedReview = {
+      ...sReview,
+      ...gReview,
+      proposal,
+      confirmed,
+      part1: (Array.isArray(gReview.part1) && gReview.part1.length > 0) ? gReview.part1 : (sReview.part1 || []),
+      part2: (Array.isArray(gReview.part2) && gReview.part2.length > 0) ? gReview.part2 : (sReview.part2 || [])
+    };
+
+    return { score: mergedScore, review: mergedReview };
   }
 
   const STYLES_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -397,8 +437,7 @@
       for (const s of studentList) {
         const numStr = s.numStr || String(s.num).padStart(2, '0');
         const g = (classGrades && classGrades[numStr]) ? classGrades[numStr] : {};
-        const score = g.scores || g.score || s.scores || {};
-        const review = g.review || s.review || {};
+        const { score, review } = mergeStudentGradeData(s, g);
 
         const statusMap = { submitted: '제출완료', in_progress: '풀이중', waiting: '대기중' };
         const statusText = statusMap[s.status] || s.status || '미접속';
@@ -409,7 +448,7 @@
         let writtenSub = (typeof part1 === 'number' && typeof part2 === 'number') ? (part1 + part2) : (typeof score.writtenSubtotal === 'number' ? score.writtenSubtotal : '-');
 
         // 1차 채점 및 교사 확정 점수 (Part 3)
-        const p3Scores = extractPart3Scores(review, score);
+        const p3Scores = extractPart3Scores(review, score, s);
         const part3Proposal = p3Scores.proposal !== null ? p3Scores.proposal : (s.status === 'submitted' ? '대기' : '-');
         const teacherConfirmed = p3Scores.confirmed !== null ? p3Scores.confirmed : '-';
 
@@ -474,14 +513,13 @@
       const displayClass = className || `${classId}반`;
       const s = student;
       const g = gradeInfo || {};
-      const score = g.scores || g.score || s.scores || {};
-      const review = g.review || s.review || {};
+      const { score, review } = mergeStudentGradeData(s, g);
 
       // 점수 계산
       const part1Score = typeof score.part1 === 'number' ? score.part1 : (Number(score.part1) || 0);
       const part2Score = typeof score.part2 === 'number' ? score.part2 : (Number(score.part2) || 0);
       const writtenSubtotal = (typeof score.writtenSubtotal === 'number') ? score.writtenSubtotal : (part1Score + part2Score);
-      const p3Scores = extractPart3Scores(review, score);
+      const p3Scores = extractPart3Scores(review, score, s);
       const part3Proposal = p3Scores.proposal;
       const part3Confirmed = p3Scores.confirmed;
       const part3Final = p3Scores.final !== null ? p3Scores.final : 0;
@@ -808,10 +846,10 @@
   </sheetPr>
   <cols>
     <col min="1" max="1" width="8" customWidth="1"/>
-    <col min="2" max="2" width="30" customWidth="1"/>
+    <col min="2" max="2" width="29" customWidth="1"/>
     <col min="3" max="3" width="12" customWidth="1"/>
-    <col min="4" max="4" width="8" customWidth="1"/>
-    <col min="5" max="5" width="30" customWidth="1"/>
+    <col min="4" max="4" width="11" customWidth="1"/>
+    <col min="5" max="5" width="28" customWidth="1"/>
     <col min="6" max="6" width="14" customWidth="1"/>
   </cols>
   <sheetData>${rows}</sheetData>
@@ -865,8 +903,7 @@
       for (const s of studentList) {
         const numStr = s.numStr || String(s.num).padStart(2, '0');
         const g = (classGrades && classGrades[numStr]) ? classGrades[numStr] : {};
-        const score = g.scores || g.score || s.scores || {};
-        const review = g.review || s.review || {};
+        const { score, review } = mergeStudentGradeData(s, g);
 
         const statusMap = { submitted: '제출완료', in_progress: '풀이중', waiting: '대기중' };
         const statusText = statusMap[s.status] || s.status || '미접속';
@@ -875,7 +912,7 @@
         let part2 = s.status === 'submitted' ? (score.part2 !== undefined && score.part2 !== null ? Number(score.part2) : '') : '';
         let writtenSub = (typeof part1 === 'number' && typeof part2 === 'number') ? (part1 + part2) : (typeof score.writtenSubtotal === 'number' ? score.writtenSubtotal : '');
 
-        const p3Scores = extractPart3Scores(review, score);
+        const p3Scores = extractPart3Scores(review, score, s);
         const part3Proposal = p3Scores.proposal !== null ? p3Scores.proposal : '';
         const teacherConfirmed = p3Scores.confirmed !== null ? p3Scores.confirmed : '';
 

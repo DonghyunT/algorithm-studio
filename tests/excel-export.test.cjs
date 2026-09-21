@@ -333,3 +333,83 @@ test('excel-export: Part 3 labels (현재상태/목표상태/조건), official r
   assert.ok(neisSheet.includes('88'), 'NEIS sheet should include final score 88');
 });
 
+test('excel-export: merges server objective review with student Firestore proposal without shadowing Part 3 criteria', () => {
+  const ctx = createSandbox();
+  const exportService = ctx.excelExportService;
+
+  const classId = '2-6';
+  // Real Firestore student document representation (강수아 from teacher screenshot)
+  const studentList = [
+    {
+      num: 1,
+      numStr: '01',
+      name: '강수아',
+      status: 'submitted',
+      submittedAt: '2026-09-18T12:29:00.000Z',
+      scores: {
+        serverGraded: true,
+        part1: 27,
+        part2: 30,
+        objectiveTotal: 57
+      },
+      // Student doc holds the AI review proposal!
+      review: {
+        proposal: {
+          criteria: [
+            { id: 'problem', score: 9, evidence: '현재 상태와 목표가 명확히 서술됨' },
+            { id: 'logic', score: 7, evidence: '자연어 알고리즘 단계가 타당함' },
+            { id: 'consistency', score: 7, evidence: '기획서와 순서도 블록 일치' },
+            { id: 'flow', score: 8, evidence: '시작과 종료 단말 존재 및 제어 흐름 타당' }
+          ],
+          feedback: '선생님께서 최종 검토 중입니다.'
+        }
+      },
+      answers: {
+        part3: {
+          situation: '좋아하는 남사애랑 연락을 해보고싶은 상황',
+          goal: '좋아하는 남자애와',
+          conditions: '답장이 안오면 무리하게 계속'
+        }
+      }
+    }
+  ];
+
+  // Real class-grades API response from server (contains ONLY part1 & part2 review)
+  const classGrades = {
+    '01': {
+      score: {
+        part1: 27,
+        part2: 30,
+        objectiveTotal: 57
+      },
+      review: {
+        part1: [
+          { qnum: 1, studentAnswer: 3, correctAnswer: 3, isCorrect: true, score: 3 }
+        ],
+        part2: [
+          { qnum: 11, studentAnswer: '3', answers: ['3'], isCorrect: true, score: 5 }
+        ]
+      }
+    }
+  };
+
+  const files = exportService.generateWorkbookFiles(classId, studentList, classGrades);
+
+  // 1. Summary sheet check
+  const summarySheet = files.find(f => f.name === 'xl/worksheets/sheet1.xml')?.content;
+  assert.ok(summarySheet.includes('31'), 'Summary sheet should reflect Part 3 1st grade score 31');
+  assert.ok(summarySheet.includes('88'), 'Summary sheet should reflect final total score 88');
+
+  // 2. Individual student sheet check
+  const studentSheet = files.find(f => f.name === 'xl/worksheets/sheet2.xml')?.content;
+  assert.ok(studentSheet, 'sheet2.xml should exist');
+  assert.ok(studentSheet.includes('<t>31점 / 40점</t>'), 'Summary card should show 31점 / 40점, not 0점');
+  assert.ok(studentSheet.includes('<t>88점 / 100점</t>'), 'Summary card should show 88점 / 100점, not 57점');
+  assert.ok(studentSheet.includes('Part 3. 알고리즘 및 순서도 설계 평가 (40점 만점) — 1차 채점: 31점 (1차 채점 반영)'), 'Part 3 header must show 31점 (1차 채점 반영), not 0점 (검토 대기)');
+
+  // 3. NEIS sheet check
+  const neisSheet = files.find(f => f.name === 'xl/worksheets/sheet3.xml')?.content;
+  assert.ok(neisSheet.includes('31'), 'NEIS sheet should include Part 3 score 31');
+  assert.ok(neisSheet.includes('88'), 'NEIS sheet should include final score 88');
+});
+
