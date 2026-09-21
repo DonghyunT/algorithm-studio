@@ -230,8 +230,8 @@
     <xf numFmtId="0" fontId="6" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
     <!-- 9: 긴 줄바꿈 텍스트 좌측정렬 -->
     <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf>
-    <!-- 10: 라벨 셀 (연회색 배경, 볼드, 우측 또는 중앙) -->
-    <xf numFmtId="0" fontId="1" fillId="7" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+    <!-- 10: 라벨 셀 (연회색 배경, 볼드, 중앙, 자동 줄바꿈) -->
+    <xf numFmtId="0" fontId="1" fillId="7" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
     <!-- 11: 소계/합계 행 볼드 중앙 -->
     <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
   </cellXfs>
@@ -434,16 +434,7 @@
       const score = g.scores || g.score || s.scores || {};
       const review = g.review || s.review || {};
 
-      let rows = '';
-      let r = 1;
-
-      // 1. 대제목 (행 1)
-      rows += `<row r="${r}" ht="32" customHeight="1">
-        <c r="A${r}" s="3" t="inlineStr"><is><t>정보 알고리즘 스튜디오 수행평가 개인 성적표</t></is></c>
-      </row>`;
-      r++;
-
-      // 2. 학생 기본 정보 카드 (행 2~3)
+      // 점수 계산
       const part1Score = typeof score.part1 === 'number' ? score.part1 : (Number(score.part1) || 0);
       const part2Score = typeof score.part2 === 'number' ? score.part2 : (Number(score.part2) || 0);
       const writtenSubtotal = (typeof score.writtenSubtotal === 'number') ? score.writtenSubtotal : (part1Score + part2Score);
@@ -453,141 +444,222 @@
       const totalScore = (typeof score.finalScore === 'number') ? score.finalScore : (writtenSubtotal + part3Final);
       const gradeStatusLabel = part3Confirmed !== null ? '(교사 확정)' : (part3Proposal !== null ? '(1차 채점 반영)' : '(검토 대기)');
 
-      rows += `<row r="${r}" ht="22" customHeight="1">
-        <c r="A${r}" s="10" t="inlineStr"><is><t>학급</t></is></c>
-        <c r="B${r}" s="1" t="inlineStr"><is><t>${escapeXml(displayClass)}</t></is></c>
-        <c r="C${r}" s="10" t="inlineStr"><is><t>번호 / 이름</t></is></c>
-        <c r="D${r}" s="1" t="inlineStr"><is><t>${s.num}번  ${escapeXml(s.name)}</t></is></c>
-        <c r="E${r}" s="10" t="inlineStr"><is><t>제출시각</t></is></c>
-        <c r="F${r}" s="1" t="inlineStr"><is><t>${formatTime(s.submittedAt)}</t></is></c>
-      </row>`;
-      r++;
-
-      rows += `<row r="${r}" ht="26" customHeight="1">
-        <c r="A${r}" s="10" t="inlineStr"><is><t>지필평가 소계</t></is></c>
-        <c r="B${r}" s="1" t="inlineStr"><is><t>${writtenSubtotal} / 60점 (객관 ${part1Score} + 단답 ${part2Score})</t></is></c>
-        <c r="C${r}" s="10" t="inlineStr"><is><t>순서도 1차 채점</t></is></c>
-        <c r="D${r}" s="7" t="inlineStr"><is><t>${part3Final} / 40점 ${gradeStatusLabel}</t></is></c>
-        <c r="E${r}" s="10" t="inlineStr"><is><t>종합 최종 점수</t></is></c>
-        <c r="F${r}" s="8" t="inlineStr"><is><t>${totalScore}점 / 100점</t></is></c>
-      </row>`;
-      r += 2; // 여백
-
-      // 3. Part 1. 객관식 문항 상세 결과
-      rows += `<row r="${r}" ht="22" customHeight="1">
-        <c r="A${r}" s="4" t="inlineStr"><is><t>Part 1. 객관식 평가 결과 (30점 만점 / 10문항) — 획득 점수: ${part1Score}점</t></is></c>
-      </row>`;
-      r++;
-
-      rows += `<row r="${r}" ht="20" customHeight="1">
-        <c r="A${r}" s="2" t="inlineStr"><is><t>번호</t></is></c>
-        <c r="B${r}" s="2" t="inlineStr"><is><t>문항 내용 (지문)</t></is></c>
-        <c r="C${r}" s="2" t="inlineStr"><is><t>학생 선택 답안</t></is></c>
-        <c r="D${r}" s="2" t="inlineStr"><is><t>실제 정답</t></is></c>
-        <c r="E${r}" s="2" t="inlineStr"><is><t>채점</t></is></c>
-        <c r="F${r}" s="2" t="inlineStr"><is><t>배점</t></is></c>
-      </row>`;
-      r++;
-
-      const p1List = review.part1 || [];
-      if (p1List.length === 0) {
-        rows += `<row r="${r}" ht="20" customHeight="1"><c r="A${r}" s="1" t="inlineStr"><is><t>-</t></is></c><c r="B${r}" s="0" t="inlineStr"><is><t>답안 및 문항 검토 데이터 대기 중</t></is></c><c r="C${r}" s="1"/><c r="D${r}" s="1"/><c r="E${r}" s="1"/><c r="F${r}" s="1"/></row>`;
-        r++;
-      } else {
-        p1List.forEach((q, idx) => {
-          const isCorrect = q.isCorrect;
-          const studentAnsText = q.options && q.studentAnswer !== undefined && q.studentAnswer !== null ? `${q.studentAnswer + 1}번. ${q.options[q.studentAnswer] || ''}` : '미응답';
-          const correctAnsText = q.options && q.correctAnswer !== undefined ? `${q.correctAnswer + 1}번. ${q.options[q.correctAnswer] || ''}` : '';
-          const resultBadge = isCorrect ? 'O' : 'X';
-          const badgeStyle = isCorrect ? 5 : 6;
-          const pts = q.points || 3;
-
-          rows += `<row r="${r}" ht="20" customHeight="1">
-            <c r="A${r}" s="1"><v>${idx + 1}</v></c>
-            <c r="B${r}" s="0" t="inlineStr"><is><t>${escapeXml(q.title || '')}</t></is></c>
-            <c r="C${r}" s="0" t="inlineStr"><is><t>${escapeXml(studentAnsText)}</t></is></c>
-            <c r="D${r}" s="0" t="inlineStr"><is><t>${escapeXml(correctAnsText)}</t></is></c>
-            <c r="E${r}" s="${badgeStyle}" t="inlineStr"><is><t>${resultBadge}</t></is></c>
-            <c r="F${r}" s="1" t="inlineStr"><is><t>${isCorrect ? pts : 0} / ${pts}점</t></is></c>
-          </row>`;
-          r++;
+      // Part 1 & Part 2 문제 및 답안 목록 복원 (review 데이터 우선, 미존재 시 eval-questions 또는 answers 매핑)
+      let p1List = Array.isArray(review.part1) && review.part1.length > 0 ? review.part1 : [];
+      if (p1List.length === 0 && typeof EVAL_QUESTIONS !== 'undefined' && Array.isArray(EVAL_QUESTIONS.part1)) {
+        const sP1 = s.answers?.part1 || {};
+        p1List = EVAL_QUESTIONS.part1.map((eq, idx) => {
+          const studentAnsIdx = Array.isArray(sP1) ? sP1[idx] : (sP1[eq.id] !== undefined ? sP1[eq.id] : sP1[idx]);
+          const hasAnswered = studentAnsIdx !== undefined && studentAnsIdx !== null;
+          const isCorrect = hasAnswered && Number(studentAnsIdx) === eq.correctAnswer;
+          return {
+            qnum: idx + 1,
+            title: eq.title,
+            options: eq.options,
+            studentAnswer: hasAnswered ? Number(studentAnsIdx) : null,
+            correctAnswer: eq.correctAnswer,
+            isCorrect: isCorrect,
+            points: eq.points || 3
+          };
         });
       }
-      r++; // 여백
 
-      // 4. Part 2. 단답형 문항 상세 결과
-      rows += `<row r="${r}" ht="22" customHeight="1">
-        <c r="A${r}" s="4" t="inlineStr"><is><t>Part 2. 단답형 평가 결과 (30점 만점 / 6문항) — 획득 점수: ${part2Score}점</t></is></c>
-      </row>`;
-      r++;
-
-      rows += `<row r="${r}" ht="20" customHeight="1">
-        <c r="A${r}" s="2" t="inlineStr"><is><t>번호</t></is></c>
-        <c r="B${r}" s="2" t="inlineStr"><is><t>문항 내용 (질문)</t></is></c>
-        <c r="C${r}" s="2" t="inlineStr"><is><t>학생 작성 답안</t></is></c>
-        <c r="D${r}" s="2" t="inlineStr"><is><t>인정 정답 예시</t></is></c>
-        <c r="E${r}" s="2" t="inlineStr"><is><t>채점</t></is></c>
-        <c r="F${r}" s="2" t="inlineStr"><is><t>배점</t></is></c>
-      </row>`;
-      r++;
-
-      const p2List = review.part2 || [];
-      if (p2List.length === 0) {
-        rows += `<row r="${r}" ht="20" customHeight="1"><c r="A${r}" s="1" t="inlineStr"><is><t>-</t></is></c><c r="B${r}" s="0" t="inlineStr"><is><t>답안 및 문항 검토 데이터 대기 중</t></is></c><c r="C${r}" s="1"/><c r="D${r}" s="1"/><c r="E${r}" s="1"/><c r="F${r}" s="1"/></row>`;
-        r++;
-      } else {
-        p2List.forEach((q, idx) => {
-          const isCorrect = q.isCorrect;
-          const studentAnsText = q.studentAnswer || '미응답';
-          const correctAnsText = q.answers ? q.answers.join(', ') : '';
-          const resultBadge = isCorrect ? 'O' : 'X';
-          const badgeStyle = isCorrect ? 5 : 6;
-          const pts = q.points || 5;
-
-          rows += `<row r="${r}" ht="20" customHeight="1">
-            <c r="A${r}" s="1"><v>${idx + 11}</v></c>
-            <c r="B${r}" s="0" t="inlineStr"><is><t>${escapeXml(q.title || '')}</t></is></c>
-            <c r="C${r}" s="0" t="inlineStr"><is><t>${escapeXml(studentAnsText)}</t></is></c>
-            <c r="D${r}" s="0" t="inlineStr"><is><t>${escapeXml(correctAnsText)}</t></is></c>
-            <c r="E${r}" s="${badgeStyle}" t="inlineStr"><is><t>${resultBadge}</t></is></c>
-            <c r="F${r}" s="1" t="inlineStr"><is><t>${isCorrect ? pts : 0} / ${pts}점</t></is></c>
-          </row>`;
-          r++;
+      let p2List = Array.isArray(review.part2) && review.part2.length > 0 ? review.part2 : [];
+      if (p2List.length === 0 && typeof EVAL_QUESTIONS !== 'undefined' && Array.isArray(EVAL_QUESTIONS.part2)) {
+        const sP2 = s.answers?.part2 || {};
+        p2List = EVAL_QUESTIONS.part2.map((eq, idx) => {
+          const studentAnsText = (Array.isArray(sP2) ? sP2[idx] : (sP2[eq.id] || sP2[idx] || '')).trim();
+          const hasAnswered = studentAnsText.length > 0;
+          const cleaned = studentAnsText.toLowerCase().replace(/\s+/g, '');
+          const isCorrect = hasAnswered && Array.isArray(eq.answers) && eq.answers.some(ans => ans.toLowerCase().replace(/\s+/g, '') === cleaned);
+          return {
+            qnum: idx + 11,
+            title: eq.title,
+            answers: eq.answers,
+            studentAnswer: hasAnswered ? studentAnsText : null,
+            isCorrect: isCorrect,
+            points: eq.points || 5
+          };
         });
       }
-      r++; // 여백
 
-      // 5. Part 3. 순서도 설계 및 1차 채점 결과
-      rows += `<row r="${r}" ht="22" customHeight="1">
-        <c r="A${r}" s="4" t="inlineStr"><is><t>Part 3. 알고리즘 및 순서도 설계 평가 (40점 만점) — 1차 채점: ${part3Final}점 ${gradeStatusLabel}</t></is></c>
+      let rows = '';
+
+      // 1. 대제목 (행 1)
+      rows += `<row r="1" ht="30" customHeight="1">
+        <c r="A1" s="3" t="inlineStr"><is><t>정보 알고리즘 스튜디오 수행평가 개인 성적표</t></is></c>
+        <c r="B1" s="3"/><c r="C1" s="3"/><c r="D1" s="3"/><c r="E1" s="3"/><c r="F1" s="3"/>
       </row>`;
-      r++;
 
+      // 2. 학생 기본 정보 카드 (행 2)
+      rows += `<row r="2" ht="22" customHeight="1">
+        <c r="A2" s="10" t="inlineStr"><is><t>학급</t></is></c>
+        <c r="B2" s="1" t="inlineStr"><is><t>${escapeXml(displayClass)}</t></is></c>
+        <c r="C2" s="10" t="inlineStr"><is><t>번호 / 이름</t></is></c>
+        <c r="D2" s="1" t="inlineStr"><is><t>${s.num}번  ${escapeXml(s.name)}</t></is></c>
+        <c r="E2" s="10" t="inlineStr"><is><t>제출시각</t></is></c>
+        <c r="F2" s="1" t="inlineStr"><is><t>${formatTime(s.submittedAt)}</t></is></c>
+      </row>`;
+
+      // 3. 종합 성적 요약 카드 (행 3)
+      rows += `<row r="3" ht="26" customHeight="1">
+        <c r="A3" s="10" t="inlineStr"><is><t>지필평가 소계</t></is></c>
+        <c r="B3" s="1" t="inlineStr"><is><t>${writtenSubtotal}점 / 60점 (객관 ${part1Score} + 단답 ${part2Score})</t></is></c>
+        <c r="C3" s="10" t="inlineStr"><is><t>순서도 1차 채점</t></is></c>
+        <c r="D3" s="7" t="inlineStr"><is><t>${part3Final}점 / 40점</t></is></c>
+        <c r="E3" s="10" t="inlineStr"><is><t>종합 최종 점수</t></is></c>
+        <c r="F3" s="8" t="inlineStr"><is><t>${totalScore}점 / 100점</t></is></c>
+      </row>`;
+
+      // 4. 지필평가(Part 1 & 2) 통합 헤더 띠지 (행 4)
+      rows += `<row r="4" ht="22" customHeight="1">
+        <c r="A4" s="4" t="inlineStr"><is><t>Part 1 &amp; Part 2. 지필평가 문항별 상세 결과 (60점 만점 / 16문항) — 획득 점수: ${writtenSubtotal}점</t></is></c>
+        <c r="B4" s="4"/><c r="C4" s="4"/><c r="D4" s="4"/><c r="E4" s="4"/><c r="F4" s="4"/>
+      </row>`;
+
+      // 5. 좌우 2단 테이블 컬럼 헤더 (행 5)
+      rows += `<row r="5" ht="20" customHeight="1">
+        <c r="A5" s="2" t="inlineStr"><is><t>번호</t></is></c>
+        <c r="B5" s="2" t="inlineStr"><is><t>Part 1. 객관식 (내 선택 / 정답)</t></is></c>
+        <c r="C5" s="2" t="inlineStr"><is><t>채점 (3점)</t></is></c>
+        <c r="D5" s="2" t="inlineStr"><is><t>번호</t></is></c>
+        <c r="E5" s="2" t="inlineStr"><is><t>Part 2. 단답형 (내 작성답 / 정답)</t></is></c>
+        <c r="F5" s="2" t="inlineStr"><is><t>채점 (5점)</t></is></c>
+      </row>`;
+
+      // 6. 지필평가 좌우 2단 본문 (행 6 ~ 15, 총 10줄)
+      for (let i = 0; i < 10; i++) {
+        const r = 6 + i;
+        // --- [좌측: Part 1 객관식 Q1 ~ Q10] ---
+        const q1 = p1List[i];
+        let p1NumText = `Q${i + 1}`;
+        let p1AnsText = '답안 데이터 대기 중';
+        let p1ScoreBadge = '-';
+        let p1ScoreStyle = 1;
+
+        if (q1) {
+          const isCorrect = !!q1.isCorrect;
+          let myChoiceStr = '미응답';
+          if (q1.studentAnswer !== undefined && q1.studentAnswer !== null) {
+            myChoiceStr = typeof q1.studentAnswer === 'number' ? `${q1.studentAnswer + 1}번` : String(q1.studentAnswer);
+            if (q1.options && typeof q1.studentAnswer === 'number' && q1.options[q1.studentAnswer]) {
+              myChoiceStr += `(${q1.options[q1.studentAnswer]})`;
+            }
+          } else if (q1.myChoice !== undefined && q1.myChoice !== null) {
+            myChoiceStr = typeof q1.myChoice === 'number' ? `${q1.myChoice + 1}번` : String(q1.myChoice);
+          }
+
+          let correctStr = '';
+          if (q1.correctAnswer !== undefined && q1.correctAnswer !== null) {
+            correctStr = typeof q1.correctAnswer === 'number' ? `${q1.correctAnswer + 1}번` : String(q1.correctAnswer);
+            if (q1.options && typeof q1.correctAnswer === 'number' && q1.options[q1.correctAnswer]) {
+              correctStr += `(${q1.options[q1.correctAnswer]})`;
+            }
+          } else if (q1.answer !== undefined && q1.answer !== null) {
+            correctStr = typeof q1.answer === 'number' ? `${q1.answer + 1}번` : String(q1.answer);
+          }
+
+          if (isCorrect) {
+            p1AnsText = `선택: ${myChoiceStr} (정답)`;
+            p1ScoreBadge = '⭕ 3점';
+            p1ScoreStyle = 5;
+          } else {
+            p1AnsText = `선택: ${myChoiceStr}${correctStr ? ` (정답: ${correctStr})` : ''}`;
+            p1ScoreBadge = '❌ 0점';
+            p1ScoreStyle = 6;
+          }
+        }
+
+        // --- [우측: Part 2 단답형 Q11 ~ Q16 및 채점 안내 박스] ---
+        let p2ColsXml = '';
+        if (i < 6) {
+          const q2 = p2List[i];
+          let p2NumText = `Q${i + 11}`;
+          let p2AnsText = '답안 데이터 대기 중';
+          let p2ScoreBadge = '-';
+          let p2ScoreStyle = 1;
+
+          if (q2) {
+            const isCorrect = !!q2.isCorrect;
+            const myInputStr = q2.studentAnswer || q2.myInput || '미작성';
+            let correctStr = '';
+            if (Array.isArray(q2.answers) && q2.answers.length > 0) {
+              correctStr = q2.answers[0];
+            } else if (q2.answer) {
+              correctStr = q2.answer;
+            } else if (q2.correctAnswer) {
+              correctStr = q2.correctAnswer;
+            }
+
+            if (isCorrect) {
+              p2AnsText = `입력: ${myInputStr} (정답)`;
+              p2ScoreBadge = '⭕ 5점';
+              p2ScoreStyle = 5;
+            } else {
+              p2AnsText = `입력: ${myInputStr}${correctStr ? ` (정답: ${correctStr})` : ''}`;
+              p2ScoreBadge = '❌ 0점';
+              p2ScoreStyle = 6;
+            }
+          }
+
+          p2ColsXml = `
+            <c r="D${r}" s="1" t="inlineStr"><is><t>${p2NumText}</t></is></c>
+            <c r="E${r}" s="0" t="inlineStr"><is><t>${escapeXml(p2AnsText)}</t></is></c>
+            <c r="F${r}" s="${p2ScoreStyle}" t="inlineStr"><is><t>${p2ScoreBadge}</t></is></c>
+          `;
+        } else if (i === 6) {
+          // 행 12: 지필평가 채점 기준 안내 카드 시작 (D12:F15 병합)
+          p2ColsXml = `
+            <c r="D${r}" s="9" t="inlineStr"><is><t>※ 지필평가 배점 안내&#10;• 객관식(Q1~Q10): 문항당 3점 (총 30점)&#10;• 단답형(Q11~Q16): 문항당 5점 (총 30점)&#10;• 단답형은 띄어쓰기 및 유사 정답 기준 자동 반영</t></is></c>
+            <c r="E${r}" s="9"/><c r="F${r}" s="9"/>
+          `;
+        } else {
+          // 행 13, 14, 15: 안내 카드 병합 영역 하위 셀
+          p2ColsXml = `
+            <c r="D${r}" s="9"/><c r="E${r}" s="9"/><c r="F${r}" s="9"/>
+          `;
+        }
+
+        rows += `<row r="${r}" ht="20" customHeight="1">
+          <c r="A${r}" s="1" t="inlineStr"><is><t>${p1NumText}</t></is></c>
+          <c r="B${r}" s="0" t="inlineStr"><is><t>${escapeXml(p1AnsText)}</t></is></c>
+          <c r="C${r}" s="${p1ScoreStyle}" t="inlineStr"><is><t>${p1ScoreBadge}</t></is></c>
+          ${p2ColsXml}
+        </row>`;
+      }
+
+      // 7. Part 3. 순서도 설계 및 1차 채점 결과 (행 16)
+      rows += `<row r="16" ht="22" customHeight="1">
+        <c r="A16" s="4" t="inlineStr"><is><t>Part 3. 알고리즘 및 순서도 설계 평가 (40점 만점) — 1차 채점: ${part3Final}점 ${gradeStatusLabel}</t></is></c>
+        <c r="B16" s="4"/><c r="C16" s="4"/><c r="D16" s="4"/><c r="E16" s="4"/><c r="F16" s="4"/>
+      </row>`;
+
+      // 8. 문제 해결 계획 요약 (행 17)
       const p3Ans = s.answers?.part3 || {};
       const plan = p3Ans.plan || p3Ans;
       const curState = plan.situation || plan.current || '(미작성)';
       const goalState = plan.goal || '(미작성)';
       const condRules = plan.conditions || plan.variables || '(미작성)';
 
-      rows += `<row r="${r}" ht="20" customHeight="1">
-        <c r="A${r}" s="10" t="inlineStr"><is><t>상황/현재상태</t></is></c>
-        <c r="B${r}" s="0" t="inlineStr"><is><t>${escapeXml(curState)}</t></is></c>
-        <c r="C${r}" s="10" t="inlineStr"><is><t>해결 목표</t></is></c>
-        <c r="D${r}" s="0" t="inlineStr"><is><t>${escapeXml(goalState)}</t></is></c>
-        <c r="E${r}" s="10" t="inlineStr"><is><t>변수/규칙</t></is></c>
-        <c r="F${r}" s="0" t="inlineStr"><is><t>${escapeXml(condRules)}</t></is></c>
+      rows += `<row r="17" ht="22" customHeight="1">
+        <c r="A17" s="10" t="inlineStr"><is><t>상황/현재상태</t></is></c>
+        <c r="B17" s="0" t="inlineStr"><is><t>${escapeXml(curState)}</t></is></c>
+        <c r="C17" s="10" t="inlineStr"><is><t>해결 목표</t></is></c>
+        <c r="D17" s="0" t="inlineStr"><is><t>${escapeXml(goalState)}</t></is></c>
+        <c r="E17" s="10" t="inlineStr"><is><t>변수/규칙</t></is></c>
+        <c r="F17" s="0" t="inlineStr"><is><t>${escapeXml(condRules)}</t></is></c>
       </row>`;
-      r++;
 
-      // 1차 채점 4대 기준별 피드백 테이블
-      rows += `<row r="${r}" ht="20" customHeight="1">
-        <c r="A${r}" s="2" t="inlineStr"><is><t>번호</t></is></c>
-        <c r="B${r}" s="2" t="inlineStr"><is><t>평가 항목</t></is></c>
-        <c r="C${r}" s="2" t="inlineStr"><is><t>1차 채점 점수</t></is></c>
-        <c r="D${r}" s="2" t="inlineStr"><is><t>평가 근거 및 피드백 (AI 분석)</t></is></c>
+      // 9. 4대 평가 기준별 헤더 (행 18)
+      rows += `<row r="18" ht="20" customHeight="1">
+        <c r="A18" s="2" t="inlineStr"><is><t>번호</t></is></c>
+        <c r="B18" s="2" t="inlineStr"><is><t>평가 기준 항목 (각 10점 만점)</t></is></c>
+        <c r="C18" s="2" t="inlineStr"><is><t>1차 채점</t></is></c>
+        <c r="D18" s="2" t="inlineStr"><is><t>평가 근거 및 상세 피드백 (AI 분석)</t></is></c>
+        <c r="E18" s="2"/><c r="F18" s="2"/>
       </row>`;
-      r++;
 
+      // 10. 4대 평가 기준 본문 (행 19 ~ 22)
       const criteriaData = review.proposal?.criteria || review.confirmed?.criteria || s.review?.proposal?.criteria || {};
       let criteriaList = [];
       if (Array.isArray(criteriaData) && criteriaData.length > 0) {
@@ -605,49 +677,63 @@
         ];
       }
 
-      criteriaList.forEach((c, idx) => {
+      while (criteriaList.length < 4) {
+        criteriaList.push({
+          title: `항목 ${criteriaList.length + 1}`,
+          score: 0,
+          evidence: '평가 데이터 대기 중'
+        });
+      }
+
+      criteriaList.slice(0, 4).forEach((c, idx) => {
+        const crRow = 19 + idx;
         const sc = c.score !== undefined ? Number(c.score) : 0;
-        const ev = c.evidence || '';
+        const ev = c.evidence || '특이사항 없음';
 
-        rows += `<row r="${r}" ht="24" customHeight="1">
-          <c r="A${r}" s="1"><v>${idx + 1}</v></c>
-          <c r="B${r}" s="0" t="inlineStr"><is><t>${escapeXml(c.title)}</t></is></c>
-          <c r="C${r}" s="7" t="inlineStr"><is><t>${sc} / 10점</t></is></c>
-          <c r="D${r}" s="9" t="inlineStr"><is><t>${escapeXml(ev)}</t></is></c>
+        rows += `<row r="${crRow}" ht="34" customHeight="1">
+          <c r="A${crRow}" s="1"><v>${idx + 1}</v></c>
+          <c r="B${crRow}" s="0" t="inlineStr"><is><t>${escapeXml(c.title)}</t></is></c>
+          <c r="C${crRow}" s="7" t="inlineStr"><is><t>${sc} / 10점</t></is></c>
+          <c r="D${crRow}" s="9" t="inlineStr"><is><t>${escapeXml(ev)}</t></is></c>
+          <c r="E${crRow}" s="9"/><c r="F${crRow}" s="9"/>
         </row>`;
-        r++;
       });
-      r++; // 여백
 
-      // 6. 교사 서명 및 종합 피드백란
+      // 11. 교사 서명 및 종합 피드백란 (행 23)
       const generalFeedback = review.confirmed?.feedback || review.proposal?.feedback || s.review?.proposal?.feedback || (part3Confirmed !== null ? `선생님 최종 확정 점수: ${part3Confirmed}점 / 40점` : '선생님께서 최종 검토 중입니다.');
-      rows += `<row r="${r}" ht="28" customHeight="1">
-        <c r="A${r}" s="10" t="inlineStr"><is><t>교사 확인 및 종합 의견</t></is></c>
-        <c r="B${r}" s="0" t="inlineStr"><is><t>${escapeXml(generalFeedback)}</t></is></c>
-        <c r="E${r}" s="10" t="inlineStr"><is><t>교사 서명(인)</t></is></c>
-        <c r="F${r}" s="1" t="inlineStr"><is><t>(인)</t></is></c>
+      rows += `<row r="23" ht="28" customHeight="1">
+        <c r="A23" s="10" t="inlineStr"><is><t>교사 종합 의견</t></is></c>
+        <c r="B23" s="9" t="inlineStr"><is><t>${escapeXml(generalFeedback)}</t></is></c>
+        <c r="C23" s="9"/><c r="D23" s="9"/>
+        <c r="E23" s="10" t="inlineStr"><is><t>교사 서명(인)</t></is></c>
+        <c r="F23" s="1" t="inlineStr"><is><t>(인)</t></is></c>
       </row>`;
-
-      const mergeCount = 6 + p1List.length + p2List.length;
 
       return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <sheetPr>
+    <pageSetUpPr fitToPage="1"/>
+  </sheetPr>
   <cols>
-    <col min="1" max="1" width="8" customWidth="1"/>
-    <col min="2" max="2" width="32" customWidth="1"/>
-    <col min="3" max="3" width="22" customWidth="1"/>
-    <col min="4" max="4" width="22" customWidth="1"/>
-    <col min="5" max="5" width="10" customWidth="1"/>
-    <col min="6" max="6" width="14" customWidth="1"/>
+    <col min="1" max="1" width="14" customWidth="1"/>
+    <col min="2" max="2" width="28" customWidth="1"/>
+    <col min="3" max="3" width="14" customWidth="1"/>
+    <col min="4" max="4" width="12" customWidth="1"/>
+    <col min="5" max="5" width="26" customWidth="1"/>
+    <col min="6" max="6" width="18" customWidth="1"/>
   </cols>
   <sheetData>${rows}</sheetData>
-  <mergeCells count="6">
+  <mergeCells count="10">
     <mergeCell ref="A1:F1"/>
-    <mergeCell ref="A5:F5"/>
-    <mergeCell ref="A${5 + (p1List.length || 1) + 2}:F${5 + (p1List.length || 1) + 2}"/>
-    <mergeCell ref="A${5 + (p1List.length || 1) + 2 + (p2List.length || 1) + 2}:F${5 + (p1List.length || 1) + 2 + (p2List.length || 1) + 2}"/>
-    <mergeCell ref="D${5 + (p1List.length || 1) + 2 + (p2List.length || 1) + 4}:F${5 + (p1List.length || 1) + 2 + (p2List.length || 1) + 4}"/>
-    <mergeCell ref="B${r}:D${r}"/>
+    <mergeCell ref="A4:F4"/>
+    <mergeCell ref="D12:F15"/>
+    <mergeCell ref="A16:F16"/>
+    <mergeCell ref="D18:F18"/>
+    <mergeCell ref="D19:F19"/>
+    <mergeCell ref="D20:F20"/>
+    <mergeCell ref="D21:F21"/>
+    <mergeCell ref="D22:F22"/>
+    <mergeCell ref="B23:D23"/>
   </mergeCells>
   <pageSetup orientation="portrait" paperSize="9" fitToWidth="1" fitToHeight="1"/>
 </worksheet>`;

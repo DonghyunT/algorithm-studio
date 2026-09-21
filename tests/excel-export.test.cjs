@@ -182,6 +182,14 @@ test('excel-export: buildWorkbookXmls produces multi-sheet structure with summar
   assert.ok(studentSheet.includes('매우 훌륭한 알고리즘 설계입니다'), 'Student sheet should contain general feedback');
   assert.ok(studentSheet.includes('1차 채점'), 'Student sheet should use 1차 채점 terminology');
 
+  // A4 1장 최적화 및 좌우 2단 배치 검증
+  assert.ok(studentSheet.includes('Part 1. 객관식 (내 선택 / 정답)'), 'Should have Part 1 column header');
+  assert.ok(studentSheet.includes('Part 2. 단답형 (내 작성답 / 정답)'), 'Should have Part 2 column header');
+  assert.ok(studentSheet.includes('ref="D12:F15"'), 'Should merge D12:F15 for written exam scoring guidance card');
+  assert.ok(studentSheet.includes('fitToPage="1"'), 'Should enable fitToPage for seamless 1-page printing');
+  assert.ok(studentSheet.includes('<row r="23"'), 'Should have row 23 as final row');
+  assert.ok(!studentSheet.includes('<row r="24"'), 'Should NOT exceed 23 rows to guarantee single A4 page print');
+
   // 4. Check NEIS sheet (last sheet, sheet 4)
   const neisSheet = files.find(f => f.name === 'xl/worksheets/sheet4.xml')?.content;
   assert.ok(neisSheet, 'sheet4.xml should be NEIS sheet');
