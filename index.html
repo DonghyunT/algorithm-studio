@@ -2389,12 +2389,71 @@
             <p id="eval-result-score-reveal-status" class="text-[11px] text-slate-500" role="status">누르는 동안만 표시됩니다.</p>
             <div id="eval-result-score-reveal-panel" class="sr-only" aria-live="polite" hidden></div>
           </div>
+
+          <!-- Part 3 순서도 설계 1차 채점 안내 카드 -->
+          <div id="eval-result-part3-card" class="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 text-left space-y-2 hidden">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
+                <i class="fa-solid fa-wand-magic-sparkles text-emerald-600"></i>
+                <span id="eval-result-part3-title">Part 3 순서도 설계 1차 채점</span>
+              </span>
+              <span id="eval-result-part3-badge" class="text-[11px] font-black px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-900">1차 채점 완료</span>
+            </div>
+            <div class="flex items-baseline justify-between">
+              <span id="eval-result-part3-score-display" class="text-xl sm:text-2xl font-black text-emerald-950 font-mono">
+                -- / 40점
+              </span>
+              <span id="eval-result-grand-total-display" class="text-xs font-bold text-slate-600">
+                총 참고 점수: <strong id="eval-result-grand-total-score" class="text-indigo-900 text-sm font-black font-mono">--점</strong> / 100점
+              </span>
+            </div>
+            <p id="eval-result-part3-notice" class="text-[11px] text-emerald-700 leading-relaxed">
+              ※ 본 점수는 1차 채점(AI 분석) 결과이며, 선생님의 최종 검토 및 확인 후 최종 확정됩니다.
+            </p>
+          </div>
         </div>
 
-        <button type="button" onclick="finishSharedSession()" class="px-6 py-3 text-slate-600 text-sm font-bold">로그아웃 · 사용 종료</button>
-        <button type="button" onclick="window.studentEvalApp.exitExam()" class="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs sm:text-sm rounded-2xl transition cursor-pointer shadow-md">
-          확인 및 학습 로드맵으로 나가기
-        </button>
+        <div class="flex flex-wrap items-center justify-center gap-3 pt-2">
+          <button id="btn-student-open-review" type="button" onclick="window.studentEvalApp.openReviewModal()" class="px-5 py-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-black text-xs sm:text-sm rounded-2xl transition cursor-pointer shadow-xs flex items-center gap-2">
+            <i class="fa-solid fa-clipboard-list"></i>
+            <span>문항별 내 답안과 정답 확인</span>
+          </button>
+          <button type="button" onclick="finishSharedSession()" class="px-5 py-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 text-xs sm:text-sm font-bold rounded-2xl transition cursor-pointer">
+            로그아웃 · 사용 종료
+          </button>
+          <button type="button" onclick="window.studentEvalApp.exitExam()" class="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs sm:text-sm rounded-2xl transition cursor-pointer shadow-md">
+            학습 로드맵으로 나가기
+          </button>
+        </div>
+      </div>
+
+      <!-- 📋 [학생용 문항별 내 답안 및 정답 확인 모달] -->
+      <div id="student-eval-review-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 hidden" role="dialog" aria-modal="true" aria-labelledby="student-review-modal-title">
+        <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden animate-scale-in">
+          <!-- 모달 헤더 -->
+          <div class="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+            <div class="flex items-center gap-2.5">
+              <span class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-black">📋</span>
+              <div>
+                <h3 id="student-review-modal-title" class="font-black text-slate-800 text-base sm:text-lg">문항별 내 답안과 정답 확인</h3>
+                <p id="student-review-modal-sub" class="text-xs text-slate-500">내가 선택한 답안과 정답, 채점 기준을 확인합니다.</p>
+              </div>
+            </div>
+            <button type="button" onclick="window.studentEvalApp.closeReviewModal()" class="w-8 h-8 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 flex items-center justify-center transition cursor-pointer" aria-label="닫기">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+          <!-- 모달 본문 (스크롤) -->
+          <div id="student-review-modal-content" class="p-6 overflow-y-auto space-y-6 flex-1 text-left text-sm">
+            <!-- JS에서 동적 렌더링 -->
+          </div>
+          <!-- 모달 푸터 -->
+          <div class="p-4 border-t border-slate-100 bg-slate-50 flex justify-end">
+            <button type="button" onclick="window.studentEvalApp.closeReviewModal()" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold text-sm transition cursor-pointer">
+              닫기
+            </button>
+          </div>
+        </div>
       </div>
 
     </main>
@@ -2487,8 +2546,8 @@
             </select>
             <button id="teacher-session-action" type="button" onclick="handleTeacherSessionAction()" class="teacher-session-action" aria-describedby="teacher-session-hint" disabled>상태 확인 중</button>
             <button id="teacher-session-close-waiting" type="button" onclick="handleCloseWaitingRoom()" class="teacher-session-sub-action hidden" title="현재 학급의 대기실을 닫아 학생 입장을 차단합니다">대기실 닫기</button>
-            <button type="button" onclick="handleTeacherExportCSV()" class="teacher-export-action">
-              <i class="fa-solid fa-file-excel" aria-hidden="true"></i> <span>성적표 CSV</span>
+            <button id="btn-export-excel" type="button" onclick="handleTeacherExportExcel()" class="teacher-export-action" title="학급종합, 학생별 개별 성적표, 나이스 양식이 포함된 단일 엑셀 파일을 다운로드합니다">
+              <i class="fa-solid fa-file-excel" aria-hidden="true"></i> <span>성적표 엑셀 다운로드</span>
             </button>
           </div>
         </div>
@@ -2699,6 +2758,7 @@
   <script src="js/core/navigation.js"></script>
   <script src="js/core/concept.js"></script>
   <script src="js/core/ai-tutor.js"></script>
+  <script src="js/core/excel-export.js"></script>
   <script src="js/core/eval-service.js"></script>
   <script src="js/core/classroom.js"></script>
 

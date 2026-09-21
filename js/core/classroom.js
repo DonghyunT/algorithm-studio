@@ -673,7 +673,53 @@ function toggleScoreBlindMode() {
   renderLiveGrid(currentLiveStudents);
 }
 
-// 나이스 CSV 다운로드
+// 성적표 엑셀(Multi-Sheet XLSX: 학급종합 + 개별학생 + 나이스) 다운로드
+async function handleTeacherExportExcel() {
+  const classId = getClassIdFromSelected();
+  const btn = document.getElementById('btn-export-excel');
+  const originalHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>성적표 생성 중...</span>';
+  }
+
+  try {
+    let classGrades = {};
+    // V4 평가이거나 서버 채점 데이터가 필요한 경우 class-grades API 호출
+    const isV4 = currentAssessmentSession && currentAssessmentSession.version === 'v4';
+    const hasServerGradedStudents = currentLiveStudents.some(s => s.scores && s.scores.serverGraded);
+
+    if ((isV4 || hasServerGradedStudents) && typeof requestSecureEvaluationClassGrades === 'function' && !window.authService.isDemo()) {
+      try {
+        const res = await requestSecureEvaluationClassGrades(classId);
+        if (res && res.grades) {
+          classGrades = res.grades;
+        }
+      } catch (apiErr) {
+        console.warn('[EXPORT_EXCEL] class-grades API 조회 실패 (로컬 데이터로 대체):', apiErr);
+      }
+    }
+
+    if (window.excelExportService) {
+      window.excelExportService.exportAssessmentWorkbook(classId, currentLiveStudents, classGrades);
+    } else if (window.evalService) {
+      // Fallback: evalService
+      window.evalService.exportAssessmentExcel(classId, currentLiveStudents, classGrades);
+    } else {
+      throw new Error('엑셀 내보내기 모듈을 찾을 수 없습니다.');
+    }
+  } catch (err) {
+    console.error('[EXPORT_EXCEL_ERROR]', err);
+    alert(err.message || '성적표 엑셀 생성 중 오류가 발생했습니다. 새로고침 후 다시 시도해 주세요.');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalHtml;
+    }
+  }
+}
+
+// 나이스 CSV 다운로드 (호환용)
 function handleTeacherExportCSV() {
   const classId = getClassIdFromSelected();
   if (window.evalService) {

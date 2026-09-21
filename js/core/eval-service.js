@@ -575,7 +575,7 @@ class EvalService {
       const review=update(student,session);this.mergeLocalStudent(classId,{...student,review});this.notify(classId,{students:[{...student,review}]});
     }
   }
-  formatNeisCSVRows(classId, studentList=[]) {
+  formatNeisCSVRows(classId, studentList=[], classGrades={}) {
     const statusMap = {
       submitted: '제출완료',
       in_progress: '풀이중',
@@ -594,8 +594,10 @@ class EvalService {
     };
     const rows = [['학급','번호','이름','응시상태','객관식/30','단답형/30','지필소계/60','순서도/40','자동채점 총점','교사 조정','최종 점수','제출시각']];
     [...studentList].sort((a,b)=>a.num-b.num).forEach(student=>{
-      const score=student.scores||{};
-      const serverPending=score.serverGraded === true;
+      const numStr = student.numStr || String(Number(student.num)).padStart(2, '0');
+      const grade = classGrades[numStr] || {};
+      const score = (grade && grade.scores) ? grade.scores : (student.scores || {});
+      const serverPending = !grade.scores && score.serverGraded === true;
       const statusText = statusMap[student.status] || student.status || '';
       const part1 = serverPending ? '서버 채점 확인' : (Number(score.part1) || 0);
       const part2 = serverPending ? '서버 채점 확인' : (Number(score.part2) || 0);
@@ -609,12 +611,18 @@ class EvalService {
     });
     return rows;
   }
-  exportNeisCSV(classId, studentList=[]) {
+  exportNeisCSV(classId, studentList=[], classGrades={}) {
     const cell=value=>'"'+String(value??'').replace(/^[=+@-]/,"'$&").replace(/"/g,'""')+'"';
-    const rows=this.formatNeisCSVRows(classId, studentList);
+    const rows=this.formatNeisCSVRows(classId, studentList, classGrades);
     const blob=new Blob(['\uFEFF'+rows.map(row=>row.map(cell).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'});
     const url=URL.createObjectURL(blob),link=document.createElement('a');
     link.href=url;link.download=classId+'_평가.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
+  exportAssessmentExcel(classId, studentList=[], classGrades={}) {
+    if (typeof window !== 'undefined' && window.excelExportService) {
+      return window.excelExportService.exportAssessmentWorkbook(classId, studentList, classGrades);
+    }
+    throw new Error('엑셀 내보내기 모듈이 로드되지 않았습니다.');
   }
 }
 window.evalService = new EvalService();
