@@ -241,3 +241,95 @@ test('excel-export: exportAssessmentWorkbook triggers download', () => {
   assert.ok(clicked, 'Download link click should have been triggered');
   assert.ok(downloadedName.includes('2-6') && downloadedName.endsWith('.xlsx'), 'File name should contain class ID and .xlsx extension');
 });
+
+test('excel-export: Part 3 labels (현재상태/목표상태/조건), official rubrics, and V4 criteria summation when unconfirmed', () => {
+  const ctx = createSandbox();
+  const exportService = ctx.excelExportService;
+
+  const classId = '2-6';
+  const studentList = [
+    {
+      num: 3,
+      numStr: '03',
+      name: '이도윤',
+      status: 'submitted',
+      submittedAt: '2026-09-21T09:35:00.000Z',
+      scores: {
+        serverGraded: true,
+        part1: 27,
+        part2: 30,
+        writtenSubtotal: 57,
+        total: 57
+      },
+      answers: {
+        part3: {
+          situation: '교실 온도가 28도 이상일 때',
+          goal: '에어컨을 24도로 켜고 알림을 보낸다',
+          conditions: '사람이 재실 중이어야 함'
+        }
+      }
+    }
+  ];
+
+  // Simulating V4 AI evaluation response where only criteria array is present without top-level proposal.score
+  const classGrades = {
+    '03': {
+      scores: {
+        part1: 27,
+        part2: 30,
+        writtenSubtotal: 57,
+        pendingReview: true // Teacher has not confirmed yet!
+      },
+      review: {
+        proposal: {
+          criteria: [
+            { id: 'problem', score: 9, evidence: '현재 상태와 목표가 명확히 서술됨' },
+            { id: 'logic', score: 7, evidence: '온도 측정 후 분기 조건이 논리적으로 제시됨' },
+            { id: 'consistency', score: 7, evidence: '자연어 설명과 순서도 기호 간의 대응이 확인됨' },
+            { id: 'flow', score: 8, evidence: '루프 및 종료 분기가 정상 동작함' }
+          ],
+          feedback: '전반적으로 완성도가 높은 순서도입니다.'
+        }
+      }
+    }
+  };
+
+  const files = exportService.generateWorkbookFiles(classId, studentList, classGrades);
+
+  // 1. Check summary sheet (sheet 1)
+  const summarySheet = files.find(f => f.name === 'xl/worksheets/sheet1.xml')?.content;
+  assert.ok(summarySheet.includes('31'), 'Summary sheet should reflect Part 3 1st grade score (9+7+7+8=31)');
+  assert.ok(summarySheet.includes('88'), 'Summary sheet should reflect total score (57+31=88)');
+
+  // 2. Check individual student sheet (sheet 2)
+  const studentSheet = files.find(f => f.name === 'xl/worksheets/sheet2.xml')?.content;
+  assert.ok(studentSheet, 'sheet2.xml should exist');
+  // Labels: 현재상태, 목표상태, 조건
+  assert.ok(studentSheet.includes('현재상태'), 'Row 17 should contain label "현재상태"');
+  assert.ok(studentSheet.includes('목표상태'), 'Row 17 should contain label "목표상태"');
+  assert.ok(studentSheet.includes('조건'), 'Row 17 should contain label "조건"');
+  assert.ok(!studentSheet.includes('상황/현재상태'), 'Row 17 should not contain old label "상황/현재상태"');
+  assert.ok(!studentSheet.includes('해결 목표'), 'Row 17 should not contain old label "해결 목표"');
+
+  // Official rubric titles (ASSESSMENT_RUBRIC)
+  assert.ok(studentSheet.includes('1. 문제·조건의 명확성'), 'Should include official rubric 1 title');
+  assert.ok(studentSheet.includes('2. 자연어 알고리즘의 논리성'), 'Should include official rubric 2 title');
+  assert.ok(studentSheet.includes('3. 자연어와 순서도의 일치'), 'Should include official rubric 3 title');
+  assert.ok(studentSheet.includes('4. 순서도 구조·동작의 타당성'), 'Should include official rubric 4 title');
+  assert.ok(!studentSheet.includes('항목 1'), 'Should not contain generic "항목 1" title');
+
+  // Unconfirmed Part 3 score reflection (not 0점)
+  assert.ok(studentSheet.includes('Part 3. 알고리즘 및 순서도 설계 평가 (40점 만점) — 1차 채점: 31점'), 'Part 3 header should show 31 points');
+  assert.ok(studentSheet.includes('(1차 채점 반영)'), 'Part 3 header should show 1차 채점 반영 status');
+  assert.ok(studentSheet.includes('<t>31점 / 40점</t>'), 'Top summary should show 31 points / 40 points');
+  assert.ok(studentSheet.includes('<t>88점 / 100점</t>'), 'Top summary should show 88 total points / 100 points');
+
+  // Feedback style and dynamic height
+  assert.ok(studentSheet.includes('s="12"'), 'Evidence cell should use style s="12" for top-left aligned feedback');
+
+  // 3. Check NEIS sheet (sheet 3)
+  const neisSheet = files.find(f => f.name === 'xl/worksheets/sheet3.xml')?.content;
+  assert.ok(neisSheet.includes('31'), 'NEIS sheet should include Part 3 score 31');
+  assert.ok(neisSheet.includes('88'), 'NEIS sheet should include final score 88');
+});
+
