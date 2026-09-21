@@ -6,20 +6,19 @@
 
 | 구분 | 인수인계 기준 |
 |---|---|
-| 운영 기준 | `main` (`87ebe27`) |
+| 운영 기준 | `main` (`f23e667`) |
 | 작업 브랜치 | `main` (배포 완료) |
-| 마지막 제품 수정 | 학생 성적표(Excel) Part 3 채점 점수 섀도잉 버그 수정: `class-grades` API 검토 객체(`g.review`, Part 1·2 지필 전용)가 학생 문서의 AI 제안(`s.review.proposal`, Part 3 전용)을 덮어씌워 0점으로 떨어지던 문제 해결(`mergeStudentGradeData`), Column 4(D) 너비 11 확장으로 상단 요약 셀 잘림 방지, 실전 환경 모사 단위 테스트 신설(`js/core/excel-export.js`, `tests/excel-export.test.cjs`) |
-| 전달 기준 | `main` 머지 및 Vercel 자동 배포 완료 (단위 테스트 116개 100% 통과, 구문 검사 OK) |
+| 마지막 제품 수정 | 결시생 개별 추가 응시(Makeup) 플로우 복원: 1) 학생 로비(`lab-eval.js`)의 조기 일괄 차단 제거 및 `joinWaitingRoom` 트랜잭션을 통한 `makeupAllowed` 권한 검증 일원화, 2) 교사 관제탑(`classroom.js`)에서 이미 0점 자동 마감된 결시생이라도 확인 후 개별 30분 추가 응시 허용(`forceReset`), 3) 추가 응시 승인 시 `ownerUid: null` 초기화로 어느 PC/노트북에서든 결시생 로그인 보장(`eval-service.js`), 단위 테스트 7건 검증(`tests/eval-entry-guard.test.cjs`) |
+| 전달 기준 | `main` 머지 및 Vercel 자동 배포 완료 (단위 테스트 117개 100% 통과, 구문 검사 OK) |
 | 평가 운영 | V4 실전평가 운영 중, V3 모의평가·기존 회차 호환 유지 |
 | 운영 프로젝트 | Firebase `donghyun-algo`, Vercel `algorithm-studio` · 새 PC에서 재생성하지 않음 |
 | 운영 웹 | [정보 알고리즘 스튜디오](https://algorithm-studio-ten.vercel.app/) |
 | 저장소 | [DonghyunT/algorithm-studio](https://github.com/DonghyunT/algorithm-studio) |
 
-최근 완료한 제품 변경은 엑셀 학생 개인 성적표(시트 2~N)의 Part 3(순서도 및 알고리즘 설계 평가) 서식 및 채점 점수 연동 개선입니다.
-1. 문제 해결 계획 요약(행 17)의 라벨을 '현재상태', '목표상태', '조건'으로 명확히 표기했습니다.
-2. V4 AI 채점 결과의 criteria 배열(problem, logic, consistency, flow) 점수를 자동 합산하도록 구현했으나, 실전 운영 시 `class-grades` API에서 반환된 지필 문항 검토 객체(`g.review`)가 객체 참조 단락 평가(`g.review || s.review`)로 인해 학생 Firestore 문서의 Part 3 AI 제안(`s.review.proposal`)을 덮어씌워 0점으로 떨어지던 근본 원인을 규명하고, `mergeStudentGradeData` 헬퍼를 통해 지필 검토와 서술 AI 제안/확정을 안전하게 심층 병합하도록 수정했습니다.
-3. 이에 따라 학생 성적표 상단 요약 카드(`순서도 1차 채점 31점 / 40점`, `종합 최종 점수 88점 / 100점`), Part 3 헤더(`1차 채점: 31점 (1차 채점 반영)`), 학급종합 및 NEIS 시트 모두에 31점 및 88점이 완벽하게 합산되어 출력됩니다.
-4. 상단 요약 카드 순서도 점수(D3) 셀의 텍스트가 잘리지 않도록 열 너비를 11로 보강하고, 평가 기준 항목명을 공식 루브릭 명칭으로 자동 매핑했으며, 긴 피드백 행 높이 동적 계산(`rowHt`) 및 상단 정렬을 적용했습니다. (단위 테스트 116/116 통과, tools/check.cjs 71개 스크립트 정적 검사 통과)
+최근 완료한 제품 변경은 시험 종료 후 결시생(결석/지각/미응시 학생)에 대한 개별 30분 추가 응시(Makeup) 복원 및 임의 PC 접속 허용 조치입니다.
+1. 학생 화면 로비(`lab-eval.js`): 브라우저 로비 단계에서 세션 종료만 보고 결시생 여부를 조회하기도 전에 튕겨내던 조기 차단 코드를 제거하고, `joinWaitingRoom` 트랜잭션을 통해 승인된 결시생(`makeupAllowed: true`)은 대기실로 통과시켜 `[개별 평가 시작하기 (30분)]` 버튼을 띄우고, 미승인 일반 학생은 차단하도록 일원화했습니다.
+2. 교사 관제탑(`classroom.js`): 시험 종료 시 0점으로 자동 마감(`status: 'submitted'`)된 결시생이라도 좌석 모달에서 `[결시생 개별 30분 추가 응시 허용]` 버튼을 눌러 기존 기록을 안전하게 초기화(`forceReset`)하고 30분 권한을 다시 부여할 수 있도록 개선했습니다.
+3. 기기 무관 접속 보장: 추가 응시 승인 시 `ownerUid`를 `null`로 초기화하여, 결시생이 교실 PC, 도서관 컴퓨터, 노트북 등 어느 기기에서 접속하더라도 "다른 기록에 연결됨" 오류 없이 즉시 바인딩되어 정상 응시할 수 있게 했습니다. (단위 테스트 117/117 통과, tools/check.cjs 71개 스크립트 정적 검사 통과)
 
 ## 2. 읽는 순서와 다음 작업
 
