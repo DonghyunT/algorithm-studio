@@ -538,7 +538,17 @@
         let p1ScoreStyle = 1;
 
         if (q1) {
-          const isCorrect = !!q1.isCorrect;
+          let isCorrect = false;
+          if (typeof q1.isCorrect === 'boolean') {
+            isCorrect = q1.isCorrect;
+          } else if (typeof q1.score === 'number' && q1.score > 0) {
+            isCorrect = true;
+          } else if (q1.studentAnswer !== undefined && q1.studentAnswer !== null && q1.correctAnswer !== undefined && q1.correctAnswer !== null) {
+            isCorrect = Number(q1.studentAnswer) === Number(q1.correctAnswer);
+          } else if (q1.myChoice !== undefined && q1.myChoice !== null && q1.answer !== undefined && q1.answer !== null) {
+            isCorrect = Number(q1.myChoice) === Number(q1.answer);
+          }
+
           let myChoiceStr = '미응답';
           if (q1.studentAnswer !== undefined && q1.studentAnswer !== null) {
             myChoiceStr = typeof q1.studentAnswer === 'number' ? `${q1.studentAnswer + 1}번` : String(q1.studentAnswer);
@@ -559,9 +569,10 @@
             correctStr = typeof q1.answer === 'number' ? `${q1.answer + 1}번` : String(q1.answer);
           }
 
+          const pts = q1.points || 3;
           if (isCorrect) {
             p1AnsText = `선택: ${myChoiceStr} (정답)`;
-            p1ScoreBadge = '⭕ 3점';
+            p1ScoreBadge = `⭕ ${pts}점`;
             p1ScoreStyle = 5;
           } else {
             p1AnsText = `선택: ${myChoiceStr}${correctStr ? ` (정답: ${correctStr})` : ''}`;
@@ -580,7 +591,25 @@
           let p2ScoreStyle = 1;
 
           if (q2) {
-            const isCorrect = !!q2.isCorrect;
+            let isCorrect = false;
+            if (typeof q2.isCorrect === 'boolean') {
+              isCorrect = q2.isCorrect;
+            } else if (typeof q2.score === 'number' && q2.score > 0) {
+              isCorrect = true;
+            } else {
+              const norm = str => typeof str === 'string' ? str.toLocaleLowerCase('ko-KR').replace(/\s+/g, '').trim() : String(str || '').replace(/\s+/g, '').trim();
+              const myInput = norm(q2.studentAnswer ?? q2.myInput ?? '');
+              if (myInput.length > 0) {
+                if (Array.isArray(q2.answers) && q2.answers.length > 0) {
+                  isCorrect = q2.answers.some(ans => norm(ans) === myInput);
+                } else if (q2.answer) {
+                  isCorrect = norm(q2.answer) === myInput;
+                } else if (q2.correctAnswer) {
+                  isCorrect = norm(q2.correctAnswer) === myInput;
+                }
+              }
+            }
+
             const myInputStr = q2.studentAnswer || q2.myInput || '미작성';
             let correctStr = '';
             if (Array.isArray(q2.answers) && q2.answers.length > 0) {
@@ -591,9 +620,10 @@
               correctStr = q2.correctAnswer;
             }
 
+            const pts = q2.points || 5;
             if (isCorrect) {
               p2AnsText = `입력: ${myInputStr} (정답)`;
-              p2ScoreBadge = '⭕ 5점';
+              p2ScoreBadge = `⭕ ${pts}점`;
               p2ScoreStyle = 5;
             } else {
               p2AnsText = `입력: ${myInputStr}${correctStr ? ` (정답: ${correctStr})` : ''}`;

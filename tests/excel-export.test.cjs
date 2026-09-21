@@ -147,6 +147,16 @@ test('excel-export: buildWorkbookXmls produces multi-sheet structure with summar
         part3: 40,
         total: 100,
         finalScore: 100
+      },
+      review: {
+        part1: [
+          { id: 'p1_1', title: '문제1', options: ['A', 'B', 'C', 'D'], studentAnswer: 1, correctAnswer: 1 }, // 정답 (1==1)
+          { id: 'p1_2', title: '문제2', options: ['A', 'B', 'C', 'D'], studentAnswer: 2, correctAnswer: 0 }  // 오답 (2!=0)
+        ],
+        part2: [
+          { id: 'p2_1', title: '문제11', answers: ['목표 상태', '목표상태'], studentAnswer: '목표 상태' }, // 정답 (공백무시 매칭)
+          { id: 'p2_2', title: '문제12', answers: ['송풍 모드', '송풍'], studentAnswer: '송풍 가동' }      // 오답
+        ]
       }
     }
   };
@@ -189,6 +199,15 @@ test('excel-export: buildWorkbookXmls produces multi-sheet structure with summar
   assert.ok(studentSheet.includes('fitToPage="1"'), 'Should enable fitToPage for seamless 1-page printing');
   assert.ok(studentSheet.includes('<row r="23"'), 'Should have row 23 as final row');
   assert.ok(!studentSheet.includes('<row r="24"'), 'Should NOT exceed 23 rows to guarantee single A4 page print');
+
+  // 3-1. Check student 2 (sheet 3) dynamic isCorrect evaluation without explicit isCorrect flag
+  const student2Sheet = files.find(f => f.name === 'xl/worksheets/sheet3.xml')?.content;
+  assert.ok(student2Sheet, 'sheet3.xml should exist for student 2');
+  assert.ok(student2Sheet.includes('⭕ 3점'), 'Student 2 Q1 should be evaluated as correct (⭕ 3점)');
+  assert.ok(student2Sheet.includes('❌ 0점'), 'Student 2 Q2 should be evaluated as incorrect (❌ 0점)');
+  assert.ok(student2Sheet.includes('⭕ 5점'), 'Student 2 Q11 should be evaluated as correct (⭕ 5점)');
+  assert.ok(student2Sheet.includes('입력: 목표 상태 (정답)'), 'Student 2 Q11 text should show correct answer without duplication');
+  assert.ok(student2Sheet.includes('입력: 송풍 가동 (정답: 송풍 모드)'), 'Student 2 Q12 text should show explanation on incorrect');
 
   // 4. Check NEIS sheet (last sheet, sheet 4)
   const neisSheet = files.find(f => f.name === 'xl/worksheets/sheet4.xml')?.content;
