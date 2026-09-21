@@ -6,10 +6,10 @@
 
 | 구분 | 인수인계 기준 |
 |---|---|
-| 운영 기준 | `main` · `5ada837` |
-| 작업 브랜치 | `codex/excel-export-and-student-review` |
-| 마지막 제품 수정 | 개별 학생 성적표 지필평가 좌우 2단 배치(Part 1 Q1~Q10, Part 2 Q11~Q16) 및 A4 1장 무수정 맞춤 인쇄(23행 압축, fitToPage) 최적화, 셀 너비/높이/줄바꿈 확충으로 문구 잘림 원천 해소 |
-| 전달 기준 | `codex/excel-export-and-student-review` 검증 완료 (단위 테스트 100개 100% 통과, 구문 검사 OK) |
+| 운영 기준 | `main` · `b49af24` |
+| 작업 브랜치 | `main` (통합 완료) |
+| 마지막 제품 수정 | 멀티 시트 엑셀 성적표(학급종합 + 학생별 A4 1장 출력 리포트 + 나이스 양식), 지필평가 좌우 2단 배치, V4 서버 채점 일괄 연동(`class-grades`), 학생용 문항별 답안/정답 확인 모달(`student-review`), 학생 제출 화면 Part 3 1차 채점 실시간 반영 |
+| 전달 기준 | `main` 검증 완료 (단위 테스트 100개 100% 통과, 구문 검사 OK) |
 | 평가 운영 | V4 실전평가 운영 중, V3 모의평가·기존 회차 호환 유지 |
 | 운영 프로젝트 | Firebase `donghyun-algo`, Vercel `algorithm-studio` · 새 PC에서 재생성하지 않음 |
 | 운영 웹 | [정보 알고리즘 스튜디오](https://algorithm-studio-ten.vercel.app/) |
