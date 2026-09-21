@@ -163,7 +163,7 @@ test('V4 student-review shields answers during in_progress and reveals after end
   const h = harness();
   const assigned = bank.assignQuestions(bank.parseEvaluationBank(bankJson()), 's'.repeat(32), 'round-4:2-1:01');
   assigned.part1.forEach(question => { h.documents.student.answers.part1[question.id] = question.correctAnswer; });
-  h.documents.student.review = { proposal: { total: 35, criteria: [{ id: 'problem', score: 9 }] } };
+  h.documents.student.review = { proposal: { total: 35, criteria: [{ id: 'problem', score: 9 }], feedback: '순서도 구성이 좋습니다.' } };
 
   // While in_progress: inProgress message, no answers revealed
   h.documents.classroom.status = 'in_progress';
@@ -182,6 +182,7 @@ test('V4 student-review shields answers during in_progress and reveals after end
   assert.equal(endedReq.body.review.part1.length, 10);
   assert.equal(endedReq.body.part3.total, 35);
   assert.equal(endedReq.body.part3.confirmed, false);
+  assert.equal(endedReq.body.part3.feedback, '순서도 구성이 좋습니다.');
 });
 
 test('V4 student-score includes part3 review when available', async () => {

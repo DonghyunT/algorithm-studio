@@ -114,9 +114,9 @@ module.exports = async (req, res) => {
       const score = gradeAssignment(assignment, student.answers);
       const review = teacherReview(assignment, student.answers);
       const part3Review = student.review?.confirmed
-        ? { total: Number(student.review.confirmed.total) || 0, confirmed: true, criteria: student.review.confirmed.criteria || [] }
+        ? { total: Number(student.review.confirmed.total) || 0, confirmed: true, criteria: student.review.confirmed.criteria || [], feedback: student.review.confirmed.feedback || '' }
         : (student.review?.proposal
-          ? { total: Number(student.review.proposal.total) || 0, confirmed: false, criteria: student.review.proposal.criteria || [] }
+          ? { total: Number(student.review.proposal.total) || 0, confirmed: false, criteria: student.review.proposal.criteria || [], feedback: student.review.proposal.feedback || '' }
           : null);
       return res.status(200).json({
         ready: true,

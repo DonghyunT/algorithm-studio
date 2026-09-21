@@ -6,6 +6,23 @@
 
 과거 본문의 “100% 무결성”, “원천 차단”은 지정 사례 밖의 보장으로 사용하지 않습니다. Git 제외는 유출 방지의 충분조건이 아니고, 요청 간격은 다른 탭·일일 한도에 따른 오류까지 막지 않습니다. 저장 요청 절감은 미전송 답안 보존이나 교실 전체 사용량을 보장하지 않습니다. 최신 제한과 확인 과제는 PRD를 따릅니다. 날짜별 배포·검사 사실은 아래 원문을 보존합니다.
 
+## 2026-09-21 학생용 문항별 답안/정답 확인 모달(V4) 렌더링 오류 수정 및 운영 배포
+
+선생님의 요청 및 승인에 따라 수행평가 종료 후 학생 화면에서 `[📋 문항별 내 답안과 정답 확인]` 모달을 열었을 때 데이터가 표시되지 않거나 비어있던 문제를 완벽히 해결하여 운영 배포했습니다.
+
+1. **치팅 방지 상태 체크 및 진행 안내 보정 (`js/labs/lab-eval.js`):**
+   - 서버 `api/evaluation.js`의 `in_progress` 응답 객체(`{ ready: false, inProgress: true, message: '...' }`)를 클라이언트에서 `res.inProgress || res.ready === false || res.sessionStatus === 'in_progress'`로 정확히 감지하도록 수정했습니다.
+   - 시험 진행 중에는 안내 문구와 지필 채점 참고 점수를 친절하게 표시하여 불필요한 혼란을 방지합니다.
+2. **V4 서버 데이터 스키마와 클라이언트 필드명 전면 일치:**
+   - `openReviewModal()` 호출부에서 `res.scores`, `res.studentAnswers` 대신 `res.score`, `res.answers`, `res.part3`를 방어적으로 바인딩했습니다.
+   - Part 1 객관식: 지문 필드(`desc || title || prompt`), 학생 선택(`studentAnswer || myChoice`, 선택지 텍스트 포함 렌더링), 실제 정답(`correctAnswer || answer`, 선택지 텍스트 포함 렌더링), 정오답 판정(`isCorrect`), 해설(`teacherNote || explanation`)을 통합 처리했습니다.
+   - Part 2 단답형: 지문 필드(`desc || title || prompt`), 학생 입력(`studentAnswer || myInput`), 인정 정답(`answers || acceptableAnswers`), 정오답 판정(`isCorrect`), 해설(`teacherNote || explanation`)을 통합 처리했습니다.
+   - Part 3 순서도: `part3` 데이터 구조(`confirmed`, `proposal`, `criteria`, `feedback`)를 안전하게 파싱하여 4대 평가 기준별 점수/피드백 및 총평을 온전히 렌더링합니다.
+   - 서버 `api/evaluation.js`에서도 `student-review` 액션 시 `part3Review`에 `feedback` 필드를 누락 없이 반환하도록 보강했습니다.
+3. **검증 및 배포:**
+   - 신규 단위 테스트 `tests/student-review-modal.test.cjs` (2건) 및 `tests/evaluation-api.test.cjs` 보강을 포함하여 전체 102개 단위 테스트 100% 통과.
+   - `tools/check.cjs` 68개 스크립트 정적 검사 통과.
+
 ## 2026-09-21 멀티 시트 엑셀 성적표(A4 맞춤 인쇄) 및 학생용 답안/정답 확인 모달 운영 배포
 
 선생님의 요청 및 승인에 따라 1) 순수 Vanilla JS OpenXML 기반 멀티 시트 엑셀(`.xlsx`) 성적표 생성기 구축, 2) 학생 개별 성적표 지필평가 좌우 2단 배치 및 A4 1장 무수정 맞춤 인쇄(23행 압축, fitToPage) 최적화, 3) V4 실전평가 서버 채점 일괄 연동(`class-grades` API), 4) 학생용 문항별 답안/정답 확인 모달(`student-eval-review-modal`) 및 치팅 방지 락, 5) 학생 화면 Part 3 1차 채점 실시간 반영을 main에 병합하고 운영 배포했습니다.
