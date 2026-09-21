@@ -7,20 +7,20 @@
 | 구분 | 인수인계 기준 |
 |---|---|
 | 운영 기준 | `main` |
-| 작업 브랜치 | `codex/fix-student-review-modal-rendering` (통합 준비 완료) |
-| 마지막 제품 수정 | 학생용 문항별 답안/정답 확인 모달(V4) 렌더링 오류 수정(`js/labs/lab-eval.js`), 서버 `student-review` part3 피드백 반환 보강(`api/evaluation.js`), 모달 단위 테스트 구축(`tests/student-review-modal.test.cjs`) |
-| 전달 기준 | `main` 머지 및 배포 준비 완료 (단위 테스트 102개 100% 통과, 구문 검사 OK) |
+| 작업 브랜치 | `codex/block-ended-evaluation-entry` (통합 준비 완료) |
+| 마지막 제품 수정 | 수행평가 '시험 종료' 및 시간 만료 시 방 입장 차단(`js/core/eval-service.js`, `js/labs/lab-eval.js`), 좌석 생성 규칙 강화(`firestore.rules`), 교사 관제탑 만료 동기화(`js/core/classroom.js`), 가드 단위 테스트 6건 구축(`tests/eval-entry-guard.test.cjs`) |
+| 전달 기준 | `main` 머지 및 배포 준비 완료 (단위 테스트 108개 100% 통과, 구문 검사 OK) |
 | 평가 운영 | V4 실전평가 운영 중, V3 모의평가·기존 회차 호환 유지 |
 | 운영 프로젝트 | Firebase `donghyun-algo`, Vercel `algorithm-studio` · 새 PC에서 재생성하지 않음 |
 | 운영 웹 | [정보 알고리즘 스튜디오](https://algorithm-studio-ten.vercel.app/) |
 | 저장소 | [DonghyunT/algorithm-studio](https://github.com/DonghyunT/algorithm-studio) |
 
-최근 완료한 제품 변경은 수행평가 종료 후 학생 화면의 **[📋 문항별 내 답안과 정답 확인]** 모달에서 본인 문항, 선택/입력값, 실제 정답, 정오답 여부, 해설, 그리고 Part 3 4대 기준 피드백과 총평이 온전히 렌더링되도록 V4 서버 스키마와 클라이언트 필드 매핑을 전면 일치시키고 치팅 방지 상태 감지를 보정한 작업입니다. (단위 테스트 102/102 통과, tools/check.cjs 68개 스크립트 정적 검사 통과)
+최근 완료한 제품 변경은 수행평가 마감 시간 경과(`Date.now() >= deadlineMs`) 또는 시험 종료(`status === 'ended'`) 시 미응시 학생(전출생 번호 등)이나 외부 사용자가 대기실/시험 화면에 진입하거나 기존 좌석을 덮어씌우지 못하도록 `evalService.isSessionOpen()` 판정 도입, Firestore rules `create` 규칙 강화, 로비 및 시험장 타이머 차단, 교사 관제탑 시간 만료 자동 세션 동기화를 완료한 작업입니다. (단위 테스트 108/108 통과, tools/check.cjs 69개 스크립트 정적 검사 통과)
 
 ## 2. 읽는 순서와 다음 작업
 
 1. [AGENTS](../AGENTS.md) → [INTENT](../INTENT.md) → [PRD](../PRD.md) → 이 문서를 읽습니다.
-2. 작업 브랜치 `codex/fix-student-review-modal-rendering` 검토 및 main 병합, Vercel 자동 배포 확인.
+2. 작업 브랜치 `codex/block-ended-evaluation-entry` 검토 및 main 병합, Vercel 자동 배포 확인.
 3. 다음 제품 점검은 로컬 시연에서 실습↔평가 왕복, 처방전·블록 조작, 학생·교사 대표 화면부터 진행합니다. 운영 평가를 임의로 개설하거나 기존 답안을 초기화하지 않습니다.
 4. V4 후속 설계는 [계획 8~11절](EVALUATION_V4_PLAN.md#8-다음-순서와-활성화-조건)의 회차 재현·버전 보관·복구 조건을 확인합니다. 이미 배포한 기반을 재구축하지 않습니다.
 

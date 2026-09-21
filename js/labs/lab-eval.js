@@ -151,13 +151,21 @@ class StudentEvalApp {
     }
 
     this.lobbySessionUnsub = window.evalService.listenSession(classId, (session) => {
-      const isOpen = session && ['waiting', 'in_progress'].includes(session.status) && !!session.attemptId;
-      if (session?.status === 'in_progress' && session.attemptId) {
-        statusBadge.textContent = "평가 진행 중";
+      this.latestLobbySession = session;
+      const isExpired = session?.status === 'in_progress' && Number.isFinite(session.deadlineMs) && Date.now() >= session.deadlineMs;
+      const isEnded = session?.status === 'ended' || isExpired;
+      const isWaiting = session?.status === 'waiting' && !!session.attemptId;
+      const isRunning = session?.status === 'in_progress' && !!session.attemptId && !isExpired;
+
+      if (isRunning) {
+        statusBadge.textContent = "평가 진행 중 (입장 가능)";
         statusBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800";
-      } else if (isOpen) {
+      } else if (isWaiting) {
         statusBadge.textContent = "대기실 열림 (입장 가능)";
         statusBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800";
+      } else if (isEnded) {
+        statusBadge.textContent = "평가 종료 (입장 불가)";
+        statusBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-black";
       } else {
         statusBadge.textContent = "대기실 닫힘 (선생님 준비 대기)";
         statusBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800";
@@ -216,13 +224,31 @@ class StudentEvalApp {
       return;
     }
 
+    // 로비에서 미리 확인된 세션이 이미 종료되었거나 만료된 경우 조기 차단
+    const isLobbyExpired = this.latestLobbySession?.status === 'in_progress' && Number.isFinite(this.latestLobbySession.deadlineMs) && Date.now() >= this.latestLobbySession.deadlineMs;
+    const isLobbyEnded = this.latestLobbySession?.status === 'ended' || isLobbyExpired;
+    if (isLobbyEnded && !this.makeupAllowed) {
+      alert(`⚠️ 현재 ${this.currentClass}반의 수행평가가 이미 종료되었습니다. 새로 입장할 수 없습니다.`);
+      return;
+    }
+
     // 서버/세션에 대기실 입장 등록
     if (window.evalService) {
       try {
         const student=await window.evalService.joinWaitingRoom(this.currentClass,this.studentNum,this.studentName);
         this.ownerUid=student.ownerUid; this.joined=true; this.restoreDraft(student);
         this.makeupAllowed = !!student.makeupAllowed;
+        this.latestStudent = student;
         this.sessionUnsub?.(); this.studentUnsub?.(); this.sessionUnsub=null; this.studentUnsub=null;
+
+        // 이미 제출 완료된 학생인 경우 바로 결과 화면으로 전환
+        if (student.status === 'submitted') {
+          this.isSubmitted = true;
+          this.answers = student.answers || this.answers;
+          this.sessionStatus = 'ended';
+          this.showScreen('result');
+          return;
+        }
       } catch(error) { alert(error.message); return; }
     }
 
@@ -245,6 +271,12 @@ class StudentEvalApp {
         attemptId: this.latestStudent.attemptId,
         deadlineMs: this.latestStudent.deadlineMs
       };
+      const isExpired = Number.isFinite(sessionInfo.deadlineMs) && Date.now() >= sessionInfo.deadlineMs;
+      if (isExpired && !this.makeupAllowed) {
+        this.sessionStatus = 'ended';
+        this.submitExam(true);
+        return;
+      }
       this.startExam(sessionInfo);
       return;
     }
@@ -255,12 +287,15 @@ class StudentEvalApp {
         const previous=this.latestSession;
         this.latestSession=sessionData;
         window.pendingAssessmentResume=false;
+        const isExpired = sessionData?.status === 'in_progress' && Number.isFinite(sessionData.deadlineMs) && Date.now() >= sessionData.deadlineMs;
+        const isEnded = sessionData?.status === 'ended' || isExpired;
+
         if(sessionData?.status==='waiting') {
           sessionStorage.removeItem('ALGO_ACTIVE_EXAM');
           if(previous?.attemptId && previous.attemptId!==sessionData.attemptId){sessionStorage.removeItem(this.draftKey());this.joined=false;location.reload();return;}
           this.sessionStatus='waiting';clearInterval(this.timerInterval);this.timerInterval=null;updateAssessmentNavigation();
         }
-        if(sessionData?.status==="ended" && !this.isSubmitted) {
+        if(isEnded && !this.isSubmitted) {
           if (this.makeupAllowed) {
             // 개별 추가 응시생은 전체 학급 세션 종료에 영향받지 않고 개별 30분 타이머 유지
             return;
@@ -269,7 +304,7 @@ class StudentEvalApp {
           switchUnit('eval'); this.renderPartQuestions(); this.showScreen('exam');
           this.submitExam(true); return;
         }
-        if (sessionData && sessionData.status === 'in_progress' && !this.isSubmitted) {
+        if (sessionData && sessionData.status === 'in_progress' && !this.isSubmitted && !isExpired) {
           this.startExam(sessionData);
         }
       });

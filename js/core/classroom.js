@@ -34,6 +34,7 @@ let teacherSessionPendingLabel = '';
 let isScoreBlindMode = true; // 프로젝터 투사 시 학생 실시간 점수 유출 방지 (기본 ON)
 let currentModalStudent = null;
 let teacherAutoReviewQueue = null;
+let autoEndHandledAttemptId = null;
 
 function getTeacherAutoReviewQueue() {
   if (!teacherAutoReviewQueue && typeof AssessmentAutoReviewQueue === 'function') {
@@ -332,6 +333,24 @@ function renderTeacherSessionControl() {
   const hint = document.getElementById('teacher-session-hint');
   const button = document.getElementById('teacher-session-action');
   const time = document.getElementById('teacher-session-time');
+
+  // 시험 시간 만료 시 백그라운드에서 미제출 일괄 마감 및 세션 종료(ended) 동기화
+  const isExpired = currentLiveSession?.status === 'in_progress' && Number.isFinite(currentLiveSession.deadlineMs) && Date.now() >= currentLiveSession.deadlineMs;
+  if (isExpired && autoEndHandledAttemptId !== currentLiveSession.attemptId && !teacherSessionPending && typeof getClassIdFromSelected === 'function') {
+    autoEndHandledAttemptId = currentLiveSession.attemptId;
+    const classId = getClassIdFromSelected();
+    const expected = { attemptId: currentLiveSession.attemptId, status: 'in_progress' };
+    (async () => {
+      try {
+        if (window.evalService && typeof window.evalService.autoSubmitRemainingStudents === 'function') {
+          await window.evalService.autoSubmitRemainingStudents(classId).catch(() => {});
+        }
+        await window.evalService.endSession(classId, expected);
+      } catch(e) {
+        console.warn('자동 마감 동기화 알림:', e.message);
+      }
+    })();
+  }
   // Pending writes are not presented as completed operations.
   if (!teacherSessionPending) {
     if (badge) { badge.textContent = model.label; badge.dataset.state = model.state; }

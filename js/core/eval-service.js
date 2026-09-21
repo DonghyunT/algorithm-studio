@@ -47,6 +47,14 @@ class EvalService {
     this.emit(classId);
     this.channel?.postMessage({ type: 'update', classId, ...data });
   }
+  isSessionOpen(session) {
+    if (!session || !session.attemptId) return false;
+    if (session.status === 'waiting') return true;
+    if (session.status === 'in_progress') {
+      return Number.isFinite(session.deadlineMs) && Date.now() < session.deadlineMs;
+    }
+    return false;
+  }
   async getSession(classId) {
     const db = this.getDb();
     if (db) {
@@ -148,6 +156,7 @@ class EvalService {
         const session=await transaction.get(db.collection('classrooms').doc(classId));
         const sessionData = session.exists ? session.data() : null;
         const assignFn = typeof assignQuestions === 'function' ? assignQuestions : (typeof window !== 'undefined' ? window.assignQuestions : null);
+        const isOpen = this.isSessionOpen(sessionData);
         if (existing.exists) {
           const existingData = existing.data();
           const canReconnect = existingData.allowReconnect === true;
@@ -169,6 +178,12 @@ class EvalService {
               throw new Error('이 번호는 다른 응시 기록에 연결되어 있습니다. 선생님께 확인해 주세요.');
             }
           }
+
+          // 세션이 마감/종료되었을 때 미제출 학생의 비정상 입장 차단 (개별 추가 응시생 makeupAllowed 제외)
+          if (!isOpen && !isMakeup && existingData.status !== 'submitted') {
+            throw new Error(`현재 ${classId}반은 수행평가가 종료되었습니다. 새로 입장할 수 없습니다.`);
+          }
+
           if (sessionData && sessionData.questionVersion === 3 && assignFn && !existingData.answers?.assignedQuestions) {
             existingData.answers = existingData.answers || {};
             existingData.answers.assignedQuestions = assignFn(`${existingData.attemptId || sessionData.attemptId}_${classId}_${studentNum}`);
@@ -176,8 +191,11 @@ class EvalService {
           }
           return existingData;
         }
-        if(!sessionData || !['waiting','in_progress'].includes(sessionData.status) || !sessionData.attemptId) {
-          throw Error(`현재 ${classId}반은 수행평가가 열려 있지 않습니다. 선생님께서 대기실을 연 후 입장해 주세요.`);
+        if (!isOpen) {
+          const isEndedOrExpired = sessionData?.status === 'ended' || (sessionData?.status === 'in_progress' && Number.isFinite(sessionData?.deadlineMs) && Date.now() >= sessionData.deadlineMs);
+          throw Error(isEndedOrExpired
+            ? `현재 ${classId}반은 수행평가가 종료되었습니다. 입장할 수 없습니다.`
+            : `현재 ${classId}반은 수행평가가 열려 있지 않습니다. 선생님께서 대기실을 연 후 입장해 주세요.`);
         }
         student.attemptId=sessionData.attemptId;
         student.answers.part3.questionVersion=sessionData.questionVersion||1;
@@ -193,6 +211,9 @@ class EvalService {
 
     }
     const existing = this.read('EVAL_STUDENTS_' + classId, []).find(item => item.numStr === docId);
+    const session = this.read('EVAL_SESSION_' + classId, this.defaultSession(classId));
+    const isLocalOpen = this.isSessionOpen(session);
+
     if (existing) {
       const user = await window.authService.student();
       const canReconnect = existing.allowReconnect === true;
@@ -213,7 +234,12 @@ class EvalService {
         this.mergeLocalStudent(classId, existing);
         this.notify(classId, { students: [existing] });
       }
-      const session=this.read('EVAL_SESSION_'+classId,this.defaultSession(classId));
+
+      // 세션이 마감/종료되었을 때 미제출 학생의 비정상 입장 차단 (개별 추가 응시생 makeupAllowed 제외)
+      if (!isLocalOpen && !isMakeup && existing.status !== 'submitted') {
+        throw new Error(`현재 ${classId}반은 수행평가가 종료되었습니다. 새로 입장할 수 없습니다.`);
+      }
+
       const assignFn = typeof assignQuestions === 'function' ? assignQuestions : (typeof window !== 'undefined' ? window.assignQuestions : null);
       if (session && session.questionVersion === 3 && assignFn && !existing.answers?.assignedQuestions) {
         existing.answers = existing.answers || {};
@@ -222,9 +248,11 @@ class EvalService {
       }
       return existing;
     }
-    const session=this.read('EVAL_SESSION_'+classId,this.defaultSession(classId));
-    if(!['waiting','in_progress'].includes(session?.status) || !session?.attemptId) {
-      throw Error(`현재 ${classId}반은 수행평가가 열려 있지 않습니다. 선생님께서 대기실을 연 후 입장해 주세요.`);
+    if (!isLocalOpen) {
+      const isEndedOrExpired = session?.status === 'ended' || (session?.status === 'in_progress' && Number.isFinite(session?.deadlineMs) && Date.now() >= session.deadlineMs);
+      throw Error(isEndedOrExpired
+        ? `현재 ${classId}반은 수행평가가 종료되었습니다. 입장할 수 없습니다.`
+        : `현재 ${classId}반은 수행평가가 열려 있지 않습니다. 선생님께서 대기실을 연 후 입장해 주세요.`);
     }
     student.answers.part3.questionVersion=session.questionVersion||1;student.attemptId=session.attemptId||'';
     const assignFn = typeof assignQuestions === 'function' ? assignQuestions : (typeof window !== 'undefined' ? window.assignQuestions : null);
