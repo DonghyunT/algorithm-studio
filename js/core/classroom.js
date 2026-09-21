@@ -686,8 +686,9 @@ async function handleTeacherExportExcel() {
   try {
     let classGrades = {};
     // V4 평가이거나 서버 채점 데이터가 필요한 경우 class-grades API 호출
-    const isV4 = currentAssessmentSession && currentAssessmentSession.version === 'v4';
-    const hasServerGradedStudents = currentLiveStudents.some(s => s.scores && s.scores.serverGraded);
+    const session = typeof currentLiveSession !== 'undefined' ? currentLiveSession : null;
+    const isV4 = session ? (session.questionVersion === 4 || session.version === 'v4') : false;
+    const hasServerGradedStudents = Array.isArray(currentLiveStudents) && currentLiveStudents.some(s => s.scores && s.scores.serverGraded);
 
     if ((isV4 || hasServerGradedStudents) && typeof requestSecureEvaluationClassGrades === 'function' && !window.authService.isDemo()) {
       try {
