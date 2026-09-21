@@ -162,6 +162,50 @@
     }
   }
 
+  const RUBRIC_DEF = [
+    { id: 'problem', label: '1. 문제·조건의 명확성', defaultScore: 10, defaultEv: '문제와 조건이 명확하게 정의됨' },
+    { id: 'logic', label: '2. 자연어 알고리즘의 논리성', defaultScore: 10, defaultEv: '해결 단계가 논리적으로 구성됨' },
+    { id: 'consistency', label: '3. 자연어와 순서도의 일치', defaultScore: 10, defaultEv: '기획서와 순서도 블록이 잘 대응됨' },
+    { id: 'flow', label: '4. 순서도 구조·동작의 타당성', defaultScore: 10, defaultEv: '순서도 제어 흐름 및 분기가 타당함' }
+  ];
+
+  function extractPart3Scores(review = {}, score = {}) {
+    const calcCriteriaTotal = (crit) => {
+      if (Array.isArray(crit) && crit.length > 0) {
+        return crit.reduce((sum, c) => sum + (Number(c.score) || 0), 0);
+      }
+      if (crit && typeof crit === 'object') {
+        const p = Number(crit.planScore);
+        const t = Number(crit.terminalScore);
+        const s = Number(crit.structureScore);
+        const e = Number(crit.executionScore);
+        const vals = [p, t, s, e].filter(v => !isNaN(v));
+        if (vals.length > 0) return vals.reduce((a, b) => a + b, 0);
+      }
+      return null;
+    };
+
+    const propCrit = calcCriteriaTotal(review?.proposal?.criteria);
+    const propTotal = review?.proposal?.score !== undefined && review.proposal.score !== null
+      ? Number(review.proposal.score)
+      : (review?.proposal?.total !== undefined && review.proposal.total !== null
+          ? Number(review.proposal.total)
+          : (propCrit !== null ? propCrit : (typeof score.part3 === 'number' ? score.part3 : null)));
+
+    const confCrit = calcCriteriaTotal(review?.confirmed?.criteria);
+    const confTotal = review?.confirmed?.score !== undefined && review.confirmed.score !== null
+      ? Number(review.confirmed.score)
+      : (review?.confirmed?.total !== undefined && review.confirmed.total !== null
+          ? Number(review.confirmed.total)
+          : (confCrit !== null ? confCrit : (typeof score.teacherOverride === 'number' ? score.teacherOverride : null)));
+
+    return {
+      proposal: propTotal,
+      confirmed: confTotal,
+      final: confTotal !== null ? confTotal : (propTotal !== null ? propTotal : null)
+    };
+  }
+
   const STYLES_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
   <fonts count="7">
@@ -209,7 +253,7 @@
   <cellStyleXfs count="1">
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
   </cellStyleXfs>
-  <cellXfs count="12">
+  <cellXfs count="13">
     <!-- 0: 일반 텍스트 좌측정렬 -->
     <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment vertical="center"/></xf>
     <!-- 1: 일반 텍스트 중앙정렬 -->
@@ -234,6 +278,8 @@
     <xf numFmtId="0" fontId="1" fillId="7" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
     <!-- 11: 소계/합계 행 볼드 중앙 -->
     <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+    <!-- 12: 피드백용 긴 줄바꿈 텍스트 좌측 상단정렬 -->
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="top" wrapText="1"/></xf>
   </cellXfs>
 </styleSheet>`;
 
@@ -362,13 +408,10 @@
         let part2 = s.status === 'submitted' ? (score.part2 !== undefined && score.part2 !== null ? Number(score.part2) : '-') : '-';
         let writtenSub = (typeof part1 === 'number' && typeof part2 === 'number') ? (part1 + part2) : (typeof score.writtenSubtotal === 'number' ? score.writtenSubtotal : '-');
 
-        // 1차 채점 (AI 초벌채점 proposal)
-        const proposalTotal = review?.proposal?.score ?? review?.proposal?.total;
-        const part3Proposal = proposalTotal !== undefined && proposalTotal !== null ? Number(proposalTotal) : (s.status === 'submitted' ? (typeof score.part3 === 'number' ? score.part3 : '대기') : '-');
-
-        // 교사 확정 점수
-        const confirmedTotal = review?.confirmed?.score ?? review?.confirmed?.total ?? score.teacherOverride;
-        const teacherConfirmed = confirmedTotal !== undefined && confirmedTotal !== null ? Number(confirmedTotal) : '-';
+        // 1차 채점 및 교사 확정 점수 (Part 3)
+        const p3Scores = extractPart3Scores(review, score);
+        const part3Proposal = p3Scores.proposal !== null ? p3Scores.proposal : (s.status === 'submitted' ? '대기' : '-');
+        const teacherConfirmed = p3Scores.confirmed !== null ? p3Scores.confirmed : '-';
 
         // 최종 점수: 확정점수가 있으면 확정+지필, 없으면 1차채점+지필
         let finalScore = '-';
@@ -438,10 +481,13 @@
       const part1Score = typeof score.part1 === 'number' ? score.part1 : (Number(score.part1) || 0);
       const part2Score = typeof score.part2 === 'number' ? score.part2 : (Number(score.part2) || 0);
       const writtenSubtotal = (typeof score.writtenSubtotal === 'number') ? score.writtenSubtotal : (part1Score + part2Score);
-      const part3Proposal = review.proposal?.score !== undefined ? Number(review.proposal.score) : (review.proposal?.total !== undefined ? Number(review.proposal.total) : (typeof score.part3 === 'number' ? score.part3 : null));
-      const part3Confirmed = review.confirmed?.score !== undefined ? Number(review.confirmed.score) : (review.confirmed?.total !== undefined ? Number(review.confirmed.total) : (typeof score.teacherOverride === 'number' ? score.teacherOverride : null));
-      const part3Final = part3Confirmed !== null ? part3Confirmed : (part3Proposal !== null ? part3Proposal : 0);
-      const totalScore = (typeof score.finalScore === 'number') ? score.finalScore : (writtenSubtotal + part3Final);
+      const p3Scores = extractPart3Scores(review, score);
+      const part3Proposal = p3Scores.proposal;
+      const part3Confirmed = p3Scores.confirmed;
+      const part3Final = p3Scores.final !== null ? p3Scores.final : 0;
+      const totalScore = (typeof score.finalScore === 'number' && part3Confirmed !== null)
+        ? score.finalScore
+        : (writtenSubtotal + part3Final);
       const gradeStatusLabel = part3Confirmed !== null ? '(교사 확정)' : (part3Proposal !== null ? '(1차 채점 반영)' : '(검토 대기)');
 
       // Part 1 & Part 2 문제 및 답안 목록 복원 (review 데이터 우선, 미존재 시 eval-questions 또는 answers 매핑)
@@ -658,9 +704,10 @@
         </row>`;
       }
 
-      // 7. Part 3. 순서도 설계 및 1차 채점 결과 (행 16)
+      // 7. Part 3. 순서도 설계 및 채점 결과 (행 16)
+      const p3HeaderLabel = part3Confirmed !== null ? '최종 채점' : '1차 채점';
       rows += `<row r="16" ht="22" customHeight="1">
-        <c r="A16" s="4" t="inlineStr"><is><t>Part 3. 알고리즘 및 순서도 설계 평가 (40점 만점) — 1차 채점: ${part3Final}점 ${gradeStatusLabel}</t></is></c>
+        <c r="A16" s="4" t="inlineStr"><is><t>Part 3. 알고리즘 및 순서도 설계 평가 (40점 만점) — ${p3HeaderLabel}: ${part3Final}점 ${gradeStatusLabel}</t></is></c>
         <c r="B16" s="4"/><c r="C16" s="4"/><c r="D16" s="4"/><c r="E16" s="4"/><c r="F16" s="4"/>
       </row>`;
 
@@ -671,45 +718,54 @@
       const goalState = plan.goal || '(미작성)';
       const condRules = plan.conditions || plan.variables || '(미작성)';
 
-      rows += `<row r="17" ht="22" customHeight="1">
-        <c r="A17" s="10" t="inlineStr"><is><t>상황/현재상태</t></is></c>
-        <c r="B17" s="0" t="inlineStr"><is><t>${escapeXml(curState)}</t></is></c>
-        <c r="C17" s="10" t="inlineStr"><is><t>해결 목표</t></is></c>
-        <c r="D17" s="0" t="inlineStr"><is><t>${escapeXml(goalState)}</t></is></c>
-        <c r="E17" s="10" t="inlineStr"><is><t>변수/규칙</t></is></c>
-        <c r="F17" s="0" t="inlineStr"><is><t>${escapeXml(condRules)}</t></is></c>
+      const planMaxLen = Math.max(curState.length, goalState.length, condRules.length);
+      const planRowHt = planMaxLen > 25 ? 30 : 22;
+
+      rows += `<row r="17" ht="${planRowHt}" customHeight="1">
+        <c r="A17" s="10" t="inlineStr"><is><t>현재상태</t></is></c>
+        <c r="B17" s="9" t="inlineStr"><is><t>${escapeXml(curState)}</t></is></c>
+        <c r="C17" s="10" t="inlineStr"><is><t>목표상태</t></is></c>
+        <c r="D17" s="9" t="inlineStr"><is><t>${escapeXml(goalState)}</t></is></c>
+        <c r="E17" s="10" t="inlineStr"><is><t>조건</t></is></c>
+        <c r="F17" s="9" t="inlineStr"><is><t>${escapeXml(condRules)}</t></is></c>
       </row>`;
 
       // 9. 4대 평가 기준별 헤더 (행 18)
+      const scoreColHeader = part3Confirmed !== null ? '확정 점수' : '1차 채점';
       rows += `<row r="18" ht="20" customHeight="1">
         <c r="A18" s="2" t="inlineStr"><is><t>번호</t></is></c>
         <c r="B18" s="2" t="inlineStr"><is><t>평가 기준 항목 (각 10점 만점)</t></is></c>
-        <c r="C18" s="2" t="inlineStr"><is><t>1차 채점</t></is></c>
+        <c r="C18" s="2" t="inlineStr"><is><t>${scoreColHeader}</t></is></c>
         <c r="D18" s="2" t="inlineStr"><is><t>평가 근거 및 상세 피드백 (AI 분석)</t></is></c>
         <c r="E18" s="2"/><c r="F18" s="2"/>
       </row>`;
 
       // 10. 4대 평가 기준 본문 (행 19 ~ 22)
-      const criteriaData = review.proposal?.criteria || review.confirmed?.criteria || s.review?.proposal?.criteria || {};
+      const criteriaData = review.confirmed?.criteria || review.proposal?.criteria || s.review?.confirmed?.criteria || s.review?.proposal?.criteria || {};
       let criteriaList = [];
       if (Array.isArray(criteriaData) && criteriaData.length > 0) {
-        criteriaList = criteriaData.map((c, idx) => ({
-          title: c.title || `항목 ${idx + 1}`,
-          score: c.score !== undefined ? Number(c.score) : 0,
-          evidence: c.evidence || c.feedback || ''
-        }));
+        criteriaList = criteriaData.map((c, idx) => {
+          const matchedDef = RUBRIC_DEF.find(r => r.id === c.id) || RUBRIC_DEF[idx] || { label: `항목 ${idx + 1}`, defaultEv: '특이사항 없음' };
+          const title = (c.title && !c.title.startsWith('항목')) ? c.title : matchedDef.label;
+          return {
+            title,
+            score: c.score !== undefined ? Number(c.score) : 0,
+            evidence: c.evidence || c.feedback || matchedDef.defaultEv
+          };
+        });
       } else if (typeof criteriaData === 'object' && criteriaData !== null) {
         criteriaList = [
-          { title: '1. 문제 해결 계획의 적절성', score: criteriaData.planScore ?? 10, evidence: criteriaData.planFeedback || '계획이 적절히 수립됨' },
-          { title: '2. 시작/종료 기호의 올바른 사용', score: criteriaData.terminalScore ?? 10, evidence: criteriaData.terminalFeedback || '단말 기호 정상 사용' },
-          { title: '3. 제어 구조(순차·선택·반복) 구현', score: criteriaData.structureScore ?? 10, evidence: criteriaData.structureFeedback || '제어 흐름 구조 적절' },
-          { title: '4. 실행 결과의 올바름', score: criteriaData.executionScore ?? 10, evidence: criteriaData.executionFeedback || '목표 상태 정상 도달' }
+          { title: RUBRIC_DEF[0].label, score: criteriaData.planScore ?? 10, evidence: criteriaData.planFeedback || RUBRIC_DEF[0].defaultEv },
+          { title: RUBRIC_DEF[1].label, score: criteriaData.terminalScore ?? 10, evidence: criteriaData.terminalFeedback || RUBRIC_DEF[1].defaultEv },
+          { title: RUBRIC_DEF[2].label, score: criteriaData.structureScore ?? 10, evidence: criteriaData.structureFeedback || RUBRIC_DEF[2].defaultEv },
+          { title: RUBRIC_DEF[3].label, score: criteriaData.executionScore ?? 10, evidence: criteriaData.executionFeedback || RUBRIC_DEF[3].defaultEv }
         ];
       }
 
       while (criteriaList.length < 4) {
+        const idx = criteriaList.length;
         criteriaList.push({
-          title: `항목 ${criteriaList.length + 1}`,
+          title: RUBRIC_DEF[idx]?.label || `항목 ${idx + 1}`,
           score: 0,
           evidence: '평가 데이터 대기 중'
         });
@@ -720,12 +776,18 @@
         const sc = c.score !== undefined ? Number(c.score) : 0;
         const ev = c.evidence || '특이사항 없음';
 
-        rows += `<row r="${crRow}" ht="34" customHeight="1">
+        // 텍스트 길이에 따른 동적 행 높이 계산 (글자 겹침 방지 및 1페이지 출력 조화)
+        const linesByBreak = ev.split(/\r?\n/).length;
+        const linesByLen = Math.ceil(ev.length / 38);
+        const totalLines = Math.max(1, linesByBreak, linesByLen);
+        const rowHt = Math.min(85, Math.max(28, totalLines * 14 + 6));
+
+        rows += `<row r="${crRow}" ht="${rowHt}" customHeight="1">
           <c r="A${crRow}" s="1"><v>${idx + 1}</v></c>
           <c r="B${crRow}" s="0" t="inlineStr"><is><t>${escapeXml(c.title)}</t></is></c>
           <c r="C${crRow}" s="7" t="inlineStr"><is><t>${sc} / 10점</t></is></c>
-          <c r="D${crRow}" s="9" t="inlineStr"><is><t>${escapeXml(ev)}</t></is></c>
-          <c r="E${crRow}" s="9"/><c r="F${crRow}" s="9"/>
+          <c r="D${crRow}" s="12" t="inlineStr"><is><t>${escapeXml(ev)}</t></is></c>
+          <c r="E${crRow}" s="12"/><c r="F${crRow}" s="12"/>
         </row>`;
       });
 
@@ -745,12 +807,12 @@
     <pageSetUpPr fitToPage="1"/>
   </sheetPr>
   <cols>
-    <col min="1" max="1" width="14" customWidth="1"/>
-    <col min="2" max="2" width="28" customWidth="1"/>
-    <col min="3" max="3" width="14" customWidth="1"/>
-    <col min="4" max="4" width="12" customWidth="1"/>
-    <col min="5" max="5" width="26" customWidth="1"/>
-    <col min="6" max="6" width="18" customWidth="1"/>
+    <col min="1" max="1" width="8" customWidth="1"/>
+    <col min="2" max="2" width="30" customWidth="1"/>
+    <col min="3" max="3" width="12" customWidth="1"/>
+    <col min="4" max="4" width="8" customWidth="1"/>
+    <col min="5" max="5" width="30" customWidth="1"/>
+    <col min="6" max="6" width="14" customWidth="1"/>
   </cols>
   <sheetData>${rows}</sheetData>
   <mergeCells count="10">
@@ -813,11 +875,9 @@
         let part2 = s.status === 'submitted' ? (score.part2 !== undefined && score.part2 !== null ? Number(score.part2) : '') : '';
         let writtenSub = (typeof part1 === 'number' && typeof part2 === 'number') ? (part1 + part2) : (typeof score.writtenSubtotal === 'number' ? score.writtenSubtotal : '');
 
-        const proposalTotal = review?.proposal?.score ?? review?.proposal?.total;
-        const part3Proposal = proposalTotal !== undefined && proposalTotal !== null ? Number(proposalTotal) : (typeof score.part3 === 'number' ? score.part3 : '');
-
-        const confirmedTotal = review?.confirmed?.score ?? review?.confirmed?.total ?? score.teacherOverride;
-        const teacherConfirmed = confirmedTotal !== undefined && confirmedTotal !== null ? Number(confirmedTotal) : '';
+        const p3Scores = extractPart3Scores(review, score);
+        const part3Proposal = p3Scores.proposal !== null ? p3Scores.proposal : '';
+        const teacherConfirmed = p3Scores.confirmed !== null ? p3Scores.confirmed : '';
 
         let finalScore = '';
         if (typeof teacherConfirmed === 'number' && typeof writtenSub === 'number') {
