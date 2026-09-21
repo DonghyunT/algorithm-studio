@@ -224,15 +224,7 @@ class StudentEvalApp {
       return;
     }
 
-    // 로비에서 미리 확인된 세션이 이미 종료되었거나 만료된 경우 조기 차단
-    const isLobbyExpired = this.latestLobbySession?.status === 'in_progress' && Number.isFinite(this.latestLobbySession.deadlineMs) && Date.now() >= this.latestLobbySession.deadlineMs;
-    const isLobbyEnded = this.latestLobbySession?.status === 'ended' || isLobbyExpired;
-    if (isLobbyEnded && !this.makeupAllowed) {
-      alert(`⚠️ 현재 ${this.currentClass}반의 수행평가가 이미 종료되었습니다. 새로 입장할 수 없습니다.`);
-      return;
-    }
-
-    // 서버/세션에 대기실 입장 등록
+    // 서버/세션에 대기실 입장 등록 (세션 종료 여부 및 결시생 makeupAllowed 여부는 joinWaitingRoom 트랜잭션에서 정확히 검증)
     if (window.evalService) {
       try {
         const student=await window.evalService.joinWaitingRoom(this.currentClass,this.studentNum,this.studentName);

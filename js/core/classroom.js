@@ -1350,14 +1350,14 @@ function openLiveStudentModal(studentNum) {
     if (makeupBox) makeupBox.classList.remove('hidden');
     if (makeupBtn) {
       makeupBtn.onclick = async () => {
-        if (!confirm(`⏱️ [${currentSelectedClass} ${studentNum}번] 학생에게 개별 30분 추가 응시 권한을 부여하시겠습니까?\n\n- 학생이 로그인하여 시작하는 순간 30분 개인 타이머가 작동합니다.\n- 기존 학생들의 시험 결과는 안전하게 보존되며 영향이 없습니다.`)) {
+        if (!confirm(`⏱️ [${currentSelectedClass} ${studentNum}번] 학생에게 개별 30분 추가 응시 권한을 부여하시겠습니까?\n\n- 학생이 로그인하여 시작하는 순간 30분 개인 타이머가 작동합니다.\n- 학생은 어느 컴퓨터(PC/노트북)에서든 접속하여 응시할 수 있습니다.\n- 다른 학생들의 시험 결과는 안전하게 보존되며 영향이 없습니다.`)) {
           return;
         }
         const classId = getClassIdFromSelected();
         if (window.evalService) {
           try {
-            await window.evalService.allowStudentMakeup(classId, studentNum, 30);
-            alert(`✅ ${studentNum}번 학생의 개별 30분 추가 응시가 승인되었습니다.\n학생이 로그인하여 [개별 평가 시작하기]를 누르면 시작됩니다.`);
+            await window.evalService.allowStudentMakeup(classId, studentNum, 30, { forceReset: true });
+            alert(`✅ ${studentNum}번 학생의 개별 30분 추가 응시가 승인되었습니다.\n학생이 아무 PC에서나 로그인하여 [개별 평가 시작하기]를 누르면 시작됩니다.`);
             closeLiveStudentModal();
           } catch (error) {
             alert('추가 응시 승인 실패: ' + error.message);
@@ -1380,14 +1380,18 @@ function openLiveStudentModal(studentNum) {
   if (kickBox) kickBox.classList.remove('hidden');
 
   // 재접속 및 추가응시 박스 표시 제어
-  if (s.status === 'submitted') {
-    if (reconnectBox) reconnectBox.classList.add('hidden');
-    if (makeupBox) makeupBox.classList.add('hidden');
-  } else {
-    if (reconnectBox) reconnectBox.classList.remove('hidden');
-    if (makeupBox) {
-      if (s.makeupAllowed || s.status === 'in_progress') makeupBox.classList.add('hidden');
-      else makeupBox.classList.remove('hidden');
+  if (reconnectBox) {
+    if (s.status === 'submitted') reconnectBox.classList.add('hidden');
+    else reconnectBox.classList.remove('hidden');
+  }
+
+  if (makeupBox) {
+    // 이미 추가응시가 승인되어 대기실에 있거나, 현재 풀이 중인 경우 숨김
+    if ((s.makeupAllowed && s.status === 'waiting') || s.status === 'in_progress') {
+      makeupBox.classList.add('hidden');
+    } else {
+      // 결시 상태이거나 이미 제출/자동마감된 학생이라도 교사가 추가 응시를 부여할 수 있도록 표시
+      makeupBox.classList.remove('hidden');
     }
   }
 
@@ -1411,14 +1415,18 @@ function openLiveStudentModal(studentNum) {
 
   if (makeupBtn) {
     makeupBtn.onclick = async () => {
-      if (!confirm(`⏱️ [${currentSelectedClass} ${s.num}번 ${s.name}] 학생에게 개별 30분 추가 응시 권한을 부여하시겠습니까?\n\n- 학생이 시작하는 순간 30분 개인 타이머가 작동합니다.\n- 기존 학생들의 성적은 안전하게 보존됩니다.`)) {
+      const isSubmitted = s.status === 'submitted';
+      const confirmMsg = isSubmitted
+        ? `⏱️ [${currentSelectedClass} ${s.num}번 ${s.name}] 학생의 기존 제출(또는 0점 결시) 기록을 초기화하고, 개별 30분 추가 응시 권한을 부여하시겠습니까?\n\n- 기존 답안과 성적이 깨끗이 초기화되며 학생이 로그인하여 시작하는 순간 30분 개인 타이머가 작동합니다.\n- 학생은 어느 컴퓨터(PC/노트북)에서든 접속하여 응시할 수 있습니다.\n- 다른 학생들의 성적은 안전하게 보존됩니다.`
+        : `⏱️ [${currentSelectedClass} ${s.num}번 ${s.name}] 학생에게 개별 30분 추가 응시 권한을 부여하시겠습니까?\n\n- 학생이 시작하는 순간 30분 개인 타이머가 작동합니다.\n- 학생은 어느 컴퓨터(PC/노트북)에서든 접속하여 응시할 수 있습니다.\n- 기존 학생들의 성적은 안전하게 보존됩니다.`;
+      if (!confirm(confirmMsg)) {
         return;
       }
       const classId = getClassIdFromSelected();
       if (window.evalService) {
         try {
-          await window.evalService.allowStudentMakeup(classId, s.num, 30);
-          alert(`✅ [${s.num}번 ${s.name}] 학생의 개별 30분 추가 응시가 승인되었습니다.`);
+          await window.evalService.allowStudentMakeup(classId, s.num, 30, { forceReset: true });
+          alert(`✅ [${s.num}번 ${s.name}] 학생의 개별 30분 추가 응시가 승인되었습니다.\n학생이 아무 PC에서나 [${s.num}번 / ${s.name}]으로 로그인하여 [개별 평가 시작하기]를 누르면 시험이 시작됩니다.`);
           closeLiveStudentModal();
         } catch (error) {
           alert('추가 응시 승인 실패: ' + error.message);

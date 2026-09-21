@@ -432,8 +432,9 @@ class EvalService {
     }
     return true;
   }
-  async allowStudentMakeup(classId, studentNum, durationMinutes = 30) {
+  async allowStudentMakeup(classId, studentNum, durationMinutes = 30, options = {}) {
     await window.authService.teacher({classId});
+    const forceReset = options === true || options?.forceReset === true;
     const docId = this.identity(classId, studentNum), db = this.getDb();
     const now = new Date().toISOString();
     if (db) {
@@ -444,7 +445,7 @@ class EvalService {
         if (!session.exists) throw new Error('학급 세션 정보를 찾을 수 없습니다.');
         const sessionData = session.data();
         const existing = await tx.get(ref);
-        if (existing.exists && existing.data().status === 'submitted') {
+        if (existing.exists && existing.data().status === 'submitted' && !forceReset) {
           throw new Error('이미 정상 제출된 학생입니다. 재응시가 필요한 경우 재시험 기능을 이용해 주세요.');
         }
         const assignFn = typeof assignQuestions === 'function' ? assignQuestions : (typeof window !== 'undefined' ? window.assignQuestions : null);
@@ -470,6 +471,8 @@ class EvalService {
             part3: { questionVersion: sessionData.questionVersion || 4, blocks: [], connections: [] },
             ...(assigned ? { assignedQuestions: assigned } : {})
           },
+          scores: null,
+          review: null,
           feedback: {}
         };
         tx.set(ref, studentPayload);
@@ -479,7 +482,7 @@ class EvalService {
       const key = 'EVAL_STUDENTS_' + classId;
       const list = this.read(key, []);
       const existing = list.find(s => s.numStr === docId);
-      if (existing && existing.status === 'submitted') {
+      if (existing && existing.status === 'submitted' && !forceReset) {
         throw new Error('이미 정상 제출된 학생입니다. 재응시가 필요한 경우 재시험 기능을 이용해 주세요.');
       }
       const assignFn = typeof assignQuestions === 'function' ? assignQuestions : (typeof window !== 'undefined' ? window.assignQuestions : null);
@@ -504,6 +507,8 @@ class EvalService {
           part3: { questionVersion: session.questionVersion || 4, blocks: [], connections: [] },
           ...(assigned ? { assignedQuestions: assigned } : {})
         },
+        scores: null,
+        review: null,
         feedback: {}
       };
       this.mergeLocalStudent(classId, studentPayload);
