@@ -35,6 +35,9 @@ let isScoreBlindMode = true; // 프로젝터 투사 시 학생 실시간 점수 
 let currentModalStudent = null;
 let teacherAutoReviewQueue = null;
 let autoEndHandledAttemptId = null;
+let currentLiveClassGrades = {};
+let isFetchingClassGrades = false;
+let gradesRefreshTimeout = null;
 
 function getTeacherAutoReviewQueue() {
   if (!teacherAutoReviewQueue && typeof AssessmentAutoReviewQueue === 'function') {
@@ -75,6 +78,40 @@ function syncTeacherAutoReviewQueue(students = currentLiveStudents) {
     students: students || [],
     isTeacher: isTeacherAuthenticated
   });
+}
+
+async function refreshLiveClassGrades(classId) {
+  if (!classId) return;
+  const session = typeof currentLiveSession !== 'undefined' ? currentLiveSession : null;
+  const isV4 = session ? (session.questionVersion === 4 || session.version === 'v4') : false;
+  const hasSubmitted = Array.isArray(currentLiveStudents) && currentLiveStudents.some(s => s.status === 'submitted');
+  const hasServerGraded = Array.isArray(currentLiveStudents) && currentLiveStudents.some(s => s.scores && s.scores.serverGraded);
+
+  if ((!isV4 && !hasServerGraded) || !hasSubmitted) return;
+  if (typeof requestSecureEvaluationClassGrades !== 'function' || (window.authService && window.authService.isDemo())) return;
+  if (isFetchingClassGrades) return;
+
+  isFetchingClassGrades = true;
+  try {
+    const res = await requestSecureEvaluationClassGrades(classId);
+    if (res && res.grades) {
+      currentLiveClassGrades = { ...currentLiveClassGrades, ...res.grades };
+      if (Array.isArray(currentLiveStudents) && currentLiveStudents.length > 0) {
+        renderLiveGrid(currentLiveStudents);
+      }
+    }
+  } catch (err) {
+    console.warn('[CLASSROOM] class-grades 자동 조회 알림:', err.message);
+  } finally {
+    isFetchingClassGrades = false;
+  }
+}
+
+function scheduleRefreshLiveClassGrades(classId, delayMs = 400) {
+  clearTimeout(gradesRefreshTimeout);
+  gradesRefreshTimeout = setTimeout(() => {
+    refreshLiveClassGrades(classId);
+  }, delayMs);
 }
 
 // 1. 클래스룸 데이터 로드 및 초기화
@@ -261,6 +298,8 @@ function initLiveEvalDashboard() {
   currentLiveSession = null;
   liveSessionError = false;
   currentLiveStudents = [];
+  currentLiveClassGrades = {};
+  clearTimeout(gradesRefreshTimeout);
   setTeacherSessionFeedback('');
   renderLiveGrid([]);
   renderTeacherSessionControl();
@@ -273,6 +312,9 @@ function initLiveEvalDashboard() {
       liveSessionError = false;
       renderTeacherSessionControl();
       syncTeacherAutoReviewQueue(currentLiveStudents);
+      if (currentLiveStudents.some(s => s.status === 'submitted')) {
+        scheduleRefreshLiveClassGrades(classId, 200);
+      }
     }, () => {
       if (generation !== liveDashboardGeneration) return;
       clearUnavailableTeacherData();
@@ -285,6 +327,9 @@ function initLiveEvalDashboard() {
       currentLiveStudents = students || [];
       renderLiveGrid(currentLiveStudents);
       syncTeacherAutoReviewQueue(currentLiveStudents);
+      if (currentLiveStudents.some(s => s.status === 'submitted')) {
+        scheduleRefreshLiveClassGrades(classId, 300);
+      }
     }, ()=>{if(generation===liveDashboardGeneration)clearUnavailableTeacherData();});
     if(generation!==liveDashboardGeneration){liveEvalUnsub?.();liveEvalUnsub=null;return;}
     liveSessionTimer = setInterval(renderTeacherSessionControl, 1000);
@@ -295,6 +340,7 @@ function initLiveEvalDashboard() {
 function clearUnavailableTeacherData() {
   stopLiveEvalDashboard();
   currentLiveStudents=[];currentLiveSession=null;liveSessionError=true;
+  currentLiveClassGrades={};
   renderLiveGrid([]);closeLiveStudentModal();
   ['classroom-live-modal-title','classroom-live-modal-summary','classroom-live-modal-p1','classroom-live-modal-p2','classroom-live-modal-p3'].forEach(id=>{const el=document.getElementById(id);if(el)el.replaceChildren();});
   const score=document.getElementById('classroom-live-override-score');if(score)score.value='';
@@ -308,6 +354,8 @@ function stopLiveEvalDashboard() {
   liveEvalUnsub?.(); liveEvalUnsub = null;
   liveSessionUnsub?.(); liveSessionUnsub = null;
   clearInterval(liveSessionTimer); liveSessionTimer = null;
+  clearTimeout(gradesRefreshTimeout);
+  currentLiveClassGrades = {};
   teacherAutoReviewQueue?.reset();
   updateTeacherAiQueueBadge({ isBusy: false, pendingCount: 0, totalProcessed: 0 });
 }
@@ -634,20 +682,59 @@ function renderLiveGrid(students = []) {
         }
       } else if (s.status === 'submitted') {
         statusBg = "bg-emerald-50 border-emerald-400 text-emerald-950 shadow-xs";
-        const finalScore = (s.scores?.teacherOverride !== null && s.scores?.teacherOverride !== undefined)
+
+        // 1. 서버 지필 채점 점수 (Part 1 + Part 2 객관·단답 소계)
+        const serverData = currentLiveClassGrades[s.numStr] || currentLiveClassGrades[numStr];
+        const serverObjScore = serverData?.score?.objectiveTotal ?? (
+          (s.scores?.part1 !== null && s.scores?.part1 !== undefined && s.scores?.part2 !== null && s.scores?.part2 !== undefined)
+            ? ((s.scores.part1 || 0) + (s.scores.part2 || 0))
+            : null
+        );
+
+        // 2. Part 3 교사 확정 점수 (0~40)
+        const confirmedP3 = s.review?.confirmed?.criteria
+          ? s.review.confirmed.criteria.reduce((sum, c) => sum + (Number(c.score) || 0), 0)
+          : null;
+
+        // 3. Part 3 AI 제안 점수 (0~40)
+        const proposalP3 = s.review?.proposal?.criteria
+          ? s.review.proposal.criteria.reduce((sum, c) => sum + (Number(c.score) || 0), 0)
+          : null;
+
+        // 4. 교사 수동 전체 총점 오버라이드
+        const teacherOverride = (s.scores?.teacherOverride !== null && s.scores?.teacherOverride !== undefined)
           ? s.scores.teacherOverride
-          : (s.scores?.total || 0);
+          : null;
+
         let reviewBadge = '';
-        if (s.review?.confirmed) {
+        if (teacherOverride !== null || confirmedP3 !== null) {
           reviewBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-black ml-1">확정</span>`;
-        } else if (s.review?.proposal) {
+        } else if (proposalP3 !== null) {
           reviewBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 font-bold ml-1">AI제안</span>`;
         }
         statusBadge = `<div class="flex items-center"><span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-600 text-white font-bold">제출완료</span>${reviewBadge}</div>`;
+
         if (isScoreBlindMode) {
           scoreDisplay = `<span class="text-xs text-emerald-700 font-bold">제출 완료 (비공개)</span>`;
+        } else if (teacherOverride !== null) {
+          scoreDisplay = `<span class="text-sm font-black text-blue-700">${teacherOverride}점 (확정)</span>`;
+        } else if (confirmedP3 !== null) {
+          const totalScore = (serverObjScore !== null ? serverObjScore : 0) + confirmedP3;
+          scoreDisplay = `<span class="text-sm font-black text-blue-700">${totalScore}점 (확정)</span>`;
+        } else if (proposalP3 !== null) {
+          if (serverObjScore !== null) {
+            const proposedTotal = serverObjScore + proposalP3;
+            scoreDisplay = `<span class="text-sm font-black text-amber-700">${proposedTotal}점 (AI제안)</span>`;
+          } else {
+            scoreDisplay = `<span class="text-xs font-bold text-amber-700">AI제안 ${proposalP3}점</span>`;
+          }
+        } else if (serverObjScore !== null) {
+          scoreDisplay = `<span class="text-sm font-black text-emerald-700">지필 ${serverObjScore}점 (서술대기)</span>`;
+        } else if (s.scores?.serverGraded || s.questionVersion === 4) {
+          scoreDisplay = `<span class="text-xs text-slate-500 font-medium animate-pulse"><i class="fa-solid fa-spinner fa-spin text-[10px] mr-1"></i>채점 확인 중</span>`;
         } else {
-          scoreDisplay = `<span class="text-sm font-black text-emerald-700">${s.scores?.pendingReview ? '소계 ' + ((s.scores?.part1 || 0) + (s.scores?.part2 || 0)) + '점 (검토대기)' : finalScore + '점'}</span>`;
+          const fallbackFinal = s.scores?.total || 0;
+          scoreDisplay = `<span class="text-sm font-black text-emerald-700">${s.scores?.pendingReview ? '소계 ' + ((s.scores?.part1 || 0) + (s.scores?.part2 || 0)) + '점 (검토대기)' : fallbackFinal + '점'}</span>`;
         }
       }
     }
@@ -714,6 +801,7 @@ async function handleTeacherExportExcel() {
         const res = await requestSecureEvaluationClassGrades(classId);
         if (res && res.grades) {
           classGrades = res.grades;
+          currentLiveClassGrades = { ...currentLiveClassGrades, ...res.grades };
         }
       } catch (apiErr) {
         console.warn('[EXPORT_EXCEL] class-grades API 조회 실패 (로컬 데이터로 대체):', apiErr);
@@ -1459,6 +1547,8 @@ function openLiveStudentModal(studentNum) {
       requestSecureEvaluationGrade(getClassIdFromSelected(), s.numStr).then(result=>{
         if (currentModalStudent !== s) return;
         const score=result.score;
+        currentLiveClassGrades[s.numStr] = { ...(currentLiveClassGrades[s.numStr] || {}), score };
+        renderLiveGrid(currentLiveStudents);
         summaryEl.replaceChildren();
         [['Part 1. 객관식',score.part1,30],['Part 2. 단답형',score.part2,30],['객관·단답 서버 채점 소계',score.objectiveTotal,60]].forEach(([label,value,max])=>{
           const row=document.createElement('div');row.className='p-3 bg-slate-50 border border-slate-200 rounded-2xl';

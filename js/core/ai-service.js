@@ -126,6 +126,8 @@ async function requestSecureEvaluationStudentReview(classId, studentNum) {
 }
 
 if (typeof window !== 'undefined') {
+  window.requestSecureEvaluationGrade = requestSecureEvaluationGrade;
+  window.requestSecureEvaluationReview = requestSecureEvaluationReview;
   window.requestSecureEvaluationClassGrades = requestSecureEvaluationClassGrades;
   window.requestSecureEvaluationStudentReview = requestSecureEvaluationStudentReview;
 }

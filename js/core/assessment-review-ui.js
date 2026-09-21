@@ -40,7 +40,7 @@ function renderAssessmentReview(student,classId){
       try{
         const result=await requestAssessmentAI({purpose:'review',classId,studentNum:student.numStr});
         await evalService.savePart3Review(classId,student.num,sourceKey,result,'proposal');
-        if(assessmentReviewViewToken===token){student.review={...student.review,proposal:{...result,sourceKey}};renderAssessmentReview(student,classId);}
+        if(assessmentReviewViewToken===token){student.review={...student.review,proposal:{...result,sourceKey}};renderAssessmentReview(student,classId);if(typeof renderLiveGrid==='function'&&typeof currentLiveStudents!=='undefined')renderLiveGrid(currentLiveStudents);}
       }catch(error){if(assessmentReviewViewToken===token)status.textContent=error.message;}
       finally{if(assessmentReviewViewToken===token)ai.disabled=false;}
     };
@@ -52,7 +52,7 @@ function renderAssessmentReview(student,classId){
       if(inputs.some(({input})=>input.value.trim()===''))throw Error('네 항목의 점수를 모두 입력해 주세요.');
       const criteria=validateAssessmentCriteria(inputs.map(({rule,input})=>({id:rule.id,score:Number(input.value),evidence:''})));
       await evalService.savePart3Review(classId,student.num,sourceKey,{criteria},'confirmed');
-      if(assessmentReviewViewToken===token){status.textContent='교사 점수를 확정 저장했습니다. 총점에 반영됩니다.';ack.checked=false;}
+      if(assessmentReviewViewToken===token){student.review={...student.review,confirmed:{criteria,sourceKey}};status.textContent='교사 점수를 확정 저장했습니다. 총점에 반영됩니다.';ack.checked=false;if(typeof renderLiveGrid==='function'&&typeof currentLiveStudents!=='undefined')renderLiveGrid(currentLiveStudents);}
     }catch(error){if(assessmentReviewViewToken===token){status.textContent=error.message;save.disabled=false;}}
   };
 }
