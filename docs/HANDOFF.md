@@ -6,16 +6,20 @@
 
 | 구분 | 인수인계 기준 |
 |---|---|
-| 운영 기준 | `main` (`070dac9`) |
+| 운영 기준 | `main` (`0f4bea0`) |
 | 작업 브랜치 | `main` (배포 완료) |
-| 마지막 제품 수정 | 교사 관제탑 좌석 바둑판(그리드 카드) 실시간 서버 채점 성적 캐시(`currentLiveClassGrades`) 연동 및 V4 서버 채점/Part 3 AI·교사 확정 점수 표시 개선(`js/core/classroom.js`, `js/core/ai-service.js`, `js/core/assessment-review-ui.js`), 단위 테스트 6건 구축(`tests/classroom-score-grid.test.cjs`) |
-| 전달 기준 | `main` 머지 및 Vercel 자동 배포 완료 (단위 테스트 114개 100% 통과, 구문 검사 OK) |
+| 마지막 제품 수정 | 학생 성적표(Excel 개별 학생 시트) Part 3 개선: 행 17 라벨('현재상태', '목표상태', '조건') 명시, V4 AI criteria 배열 점수 합산(교사 미확정 시 0점 대신 1차 채점 반영), 4대 공식 루브릭명 매핑, 긴 피드백 행 높이 동적 계산 및 상단 정렬(글자 겹침 방지), 단위 테스트 추가(`js/core/excel-export.js`, `tests/excel-export.test.cjs`) |
+| 전달 기준 | `main` 머지 및 Vercel 자동 배포 완료 (단위 테스트 115개 100% 통과, 구문 검사 OK) |
 | 평가 운영 | V4 실전평가 운영 중, V3 모의평가·기존 회차 호환 유지 |
 | 운영 프로젝트 | Firebase `donghyun-algo`, Vercel `algorithm-studio` · 새 PC에서 재생성하지 않음 |
 | 운영 웹 | [정보 알고리즘 스튜디오](https://algorithm-studio-ten.vercel.app/) |
 | 저장소 | [DonghyunT/algorithm-studio](https://github.com/DonghyunT/algorithm-studio) |
 
-최근 완료한 제품 변경은 V4 실전평가 시 교사 관제탑 전체 화면(좌석 바둑판)에서 서버 채점 학생이 `소계 0점 (검토대기)`로 잘못 표시되던 버그를 해결한 작업입니다. V4는 보안상 클라이언트 임시 점수를 비워두므로 서버 채점 API(`class-grades`)를 자동 조회·캐싱하도록 연동하고, 좌석 카드 점수 렌더링에서 지필 소계(`serverScore`), AI 제안(`review.proposal`), 교사 확정(`review.confirmed`) 점수를 단계별로 올바르게 표시하도록 개선했습니다. (단위 테스트 114/114 통과, tools/check.cjs 70개 스크립트 정적 검사 통과)
+최근 완료한 제품 변경은 엑셀 학생 개인 성적표(시트 2~N)의 Part 3(순서도 및 알고리즘 설계 평가) 서식 및 채점 점수 연동 개선입니다.
+1. 문제 해결 계획 요약(행 17)의 라벨을 '현재상태', '목표상태', '조건'으로 명확히 표기했습니다.
+2. V4 AI 채점 결과의 criteria 배열(problem, logic, consistency, flow) 점수를 자동 합산하여, 교사 확정 전이라도 0점이 아닌 1차 채점 점수(예: 31점/40점, 총점 88점)가 학급종합·개인성적표·NEIS 시트에 정상 출력되도록 했습니다.
+3. 평가 기준 항목명을 '항목 1~4' 대신 공식 루브릭 명칭('1. 문제·조건의 명확성', '2. 자연어 알고리즘의 논리성', '3. 자연어와 순서도의 일치', '4. 순서도 구조·동작의 타당성')으로 자동 매핑했습니다.
+4. 긴 피드백 텍스트에 대해 행 높이를 글자 수 및 줄바꿈에 따라 동적으로 계산(`rowHt`)하고 상단 좌측 정렬(`vertical="top"`)을 적용하여 글자가 아래 셀과 겹쳐 까맣게 덧칠되던 현상을 원천 방지했습니다. (단위 테스트 115/115 통과, tools/check.cjs 71개 스크립트 정적 검사 통과)
 
 ## 2. 읽는 순서와 다음 작업
 
