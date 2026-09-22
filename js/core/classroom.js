@@ -428,6 +428,12 @@ function renderTeacherSessionControl() {
     button.dataset.action = model.action;
     button.setAttribute('aria-busy',String(teacherSessionPending));
   }
+  const extendTimeBtn = document.getElementById('teacher-session-extend-time');
+  if (extendTimeBtn) {
+    const showExtendTime = model.state === 'running';
+    extendTimeBtn.classList.toggle('hidden', !showExtendTime);
+    extendTimeBtn.disabled = teacherSessionPending;
+  }
   const closeWaitingBtn = document.getElementById('teacher-session-close-waiting');
   if (closeWaitingBtn) {
     const showCloseWaiting = model.state === 'waiting';
@@ -470,6 +476,33 @@ async function handleCloseWaitingRoom() {
     if (generation === liveDashboardGeneration) setTeacherSessionFeedback('처리하지 못했습니다. '+error.message);
   } finally {
     teacherSessionPending = false;
+    renderTeacherSessionControl();
+  }
+}
+
+async function handleTeacherExtendClassTime() {
+  if (teacherSessionPending) return;
+  const model = teacherSessionState();
+  if (model.state !== 'running') return;
+  const classId = getClassIdFromSelected();
+  if (!confirm(`⏱️ [${currentSelectedClass}] 진행 중인 시험 시간을 학급 전체 5분 연장하시겠습니까?\n\n- 현재 풀이 중인 모든 학생에게 시험 시간 5분이 즉시 추가됩니다.\n- 학생 화면에 실시간으로 연장된 타이머가 반영됩니다.`)) {
+    return;
+  }
+
+  teacherSessionPending = true;
+  teacherSessionPendingLabel = '시간 연장 중…';
+  setTeacherSessionFeedback('');
+  renderTeacherSessionControl();
+  try {
+    if (window.evalService) {
+      await window.evalService.extendClassSessionTime(classId, 5);
+      setTeacherSessionFeedback('학급 시험 시간을 5분 연장했습니다.');
+    }
+  } catch (error) {
+    alert('학급 시간 연장 실패: ' + (error?.message || error));
+  } finally {
+    teacherSessionPending = false;
+    teacherSessionPendingLabel = '';
     renderTeacherSessionControl();
   }
 }
@@ -1297,6 +1330,44 @@ function renderSecureV4TeacherQuestions(container, questions, part) {
   });
 }
 
+// 학생 응시 긴급 구제: 제출 취소 및 풀던 답안 유지 복귀 (+5분/+10분)
+async function handleReopenStudent(addedMinutes = 10) {
+  if (!currentModalStudent) return;
+  const s = currentModalStudent;
+  const classId = getClassIdFromSelected();
+  if (!confirm(`🔄 [${s.name || s.num + '번'}] 학생의 시험 제출을 취소하고 풀던 답안을 유지한 채 시험장으로 복귀시키겠습니까?\n\n- 학생이 기존에 작성한 답안(객관식/단답형/순서도)이 100% 보존됩니다.\n- ${addedMinutes}분의 추가 시간이 부여되어 즉시 풀이를 이어갈 수 있습니다.\n- 학생 화면이 실시간으로 시험 풀이 화면으로 자동 전환됩니다.`)) {
+    return;
+  }
+  if (window.evalService) {
+    try {
+      await window.evalService.reopenStudentExam(classId, s.num, addedMinutes);
+      alert(`✅ [${s.name || s.num + '번'}] 학생의 시험이 재개되었습니다 (+${addedMinutes}분).\n학생 화면에 기존 작성 답안이 복원되고 시험이 이어집니다.`);
+      closeLiveStudentModal();
+    } catch (error) {
+      alert('제출 취소 및 답안 복귀 실패: ' + (error?.message || error));
+    }
+  }
+}
+
+// 학생 개별 시험 시간 연장 (+5분/+10분)
+async function handleExtendStudent(addedMinutes = 5) {
+  if (!currentModalStudent) return;
+  const s = currentModalStudent;
+  const classId = getClassIdFromSelected();
+  if (!confirm(`⏱️ [${s.name || s.num + '번'}] 학생에게 개별 시험 시간 +${addedMinutes}분을 추가 부여하시겠습니까?\n\n- 해당 학생의 제한 시간이 즉시 ${addedMinutes}분 연장됩니다.`)) {
+    return;
+  }
+  if (window.evalService) {
+    try {
+      await window.evalService.extendStudentTime(classId, s.num, addedMinutes);
+      alert(`✅ [${s.name || s.num + '번'}] 학생의 시험 시간이 +${addedMinutes}분 연장되었습니다.`);
+      closeLiveStudentModal();
+    } catch (error) {
+      alert('개별 시간 연장 실패: ' + (error?.message || error));
+    }
+  }
+}
+
 // 학생 개별 답안 상세 팝업 및 점수 수동 조정 / 재시험 허용
 function openLiveStudentModal(studentNum) {
   const s = currentLiveStudents.find(item => item.num === studentNum);
@@ -1316,6 +1387,18 @@ function openLiveStudentModal(studentNum) {
   const scoreInp = document.getElementById('classroom-live-override-score');
   const legacyScoreBox = document.getElementById('classroom-legacy-score');
   const reviewEl = document.getElementById('classroom-assessment-review');
+
+  // 좌측 미니 프로필 카드 요소
+  const stBadge = document.getElementById('classroom-live-modal-st-badge');
+  const statusBadge = document.getElementById('classroom-live-modal-status-badge');
+  const stNameEl = document.getElementById('classroom-live-modal-st-name');
+  const timeTextEl = document.getElementById('classroom-live-modal-time-text');
+
+  // 좌측 상태별 액션 컨테이너 요소
+  const submittedGroup = document.getElementById('classroom-modal-actions-submitted');
+  const inprogressGroup = document.getElementById('classroom-modal-actions-inprogress');
+  const dangerGroup = document.getElementById('classroom-modal-actions-danger');
+
   const forceSubmitBox = document.getElementById('classroom-live-force-submit-box');
   const forceSubmitBtn = document.getElementById('classroom-live-force-submit-btn');
   const reconnectBox = document.getElementById('classroom-live-reconnect-box');
@@ -1329,11 +1412,20 @@ function openLiveStudentModal(studentNum) {
 
   if (!s) {
     if (titleEl) titleEl.textContent = `${currentSelectedClass} ${studentNum}번 좌석 (미응시 / 결시)`;
+    if (stBadge) { stBadge.textContent = `${studentNum}번 좌석`; stBadge.className = 'px-2 py-0.5 rounded-full text-[11px] font-black bg-slate-100 text-slate-700'; }
+    if (statusBadge) { statusBadge.textContent = '미응시 / 빈 좌석'; statusBadge.className = 'px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-500'; }
+    if (stNameEl) stNameEl.textContent = '미입장';
+    if (timeTextEl) timeTextEl.textContent = '응시 기록 없음';
+
+    if (submittedGroup) submittedGroup.classList.add('hidden');
+    if (inprogressGroup) inprogressGroup.classList.add('hidden');
+    if (dangerGroup) dangerGroup.classList.add('hidden');
+
     if (summaryEl) {
       summaryEl.innerHTML = `
         <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl col-span-1 sm:col-span-3 text-center space-y-1">
           <div class="text-sm font-black text-slate-700">현재 응시 기록이 없는 빈 좌석입니다.</div>
-          <p class="text-xs text-slate-500">결석이나 지각으로 응시하지 못한 학생인 경우, 아래 <strong>[결시생 개별 추가 응시 허용]</strong> 버튼을 눌러 개별 30분을 부여할 수 있습니다.</p>
+          <p class="text-xs text-slate-500">결석이나 지각으로 응시하지 못한 학생인 경우, 좌측 <strong>[개별 30분 추가 응시 허용]</strong> 버튼을 눌러 개별 시간을 부여할 수 있습니다.</p>
         </div>
       `;
     }
@@ -1370,8 +1462,55 @@ function openLiveStudentModal(studentNum) {
     return;
   }
 
-  // 응시 학생인 경우
+  // 응시 학생인 경우 프로필 카드 정보 갱신
   if (titleEl) titleEl.textContent = `${currentSelectedClass} ${s.num}번 ${s.name} 학생 답안 검토`;
+  if (stBadge) { stBadge.textContent = `${s.num}번 좌석`; stBadge.className = 'px-2 py-0.5 rounded-full text-[11px] font-black bg-indigo-100 text-indigo-800'; }
+  if (stNameEl) stNameEl.textContent = s.name ? `${s.name} 학생` : `${s.num}번 학생`;
+
+  const isSubmitted = s.status === 'submitted';
+  const isInProgress = s.status === 'in_progress';
+  const isWaiting = s.status === 'waiting';
+
+  if (statusBadge) {
+    if (isSubmitted) {
+      statusBadge.textContent = '제출 완료';
+      statusBadge.className = 'px-2 py-0.5 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-800';
+    } else if (isInProgress) {
+      statusBadge.textContent = '시험 풀이 중';
+      statusBadge.className = 'px-2 py-0.5 rounded-full text-[11px] font-black bg-blue-100 text-blue-800';
+    } else if (isWaiting) {
+      statusBadge.textContent = '대기실 입장';
+      statusBadge.className = 'px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800';
+    } else {
+      statusBadge.textContent = '미제출 / 결시';
+      statusBadge.className = 'px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800';
+    }
+  }
+
+  if (timeTextEl) {
+    if (isSubmitted) {
+      const timeStr = s.submittedAt ? new Date(s.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+      timeTextEl.textContent = timeStr ? `${timeStr} 제출 완료` : '제출 완료됨';
+    } else if (isInProgress) {
+      const now = Date.now();
+      const deadline = s.individualDeadlineMs || currentLiveSession?.deadlineMs || now;
+      const remainSec = Math.max(0, Math.ceil((deadline - now) / 1000));
+      const remainMin = Math.floor(remainSec / 60);
+      const remainSecRem = remainSec % 60;
+      const label = s.individualDeadlineMs ? ' (개별 연장)' : '';
+      timeTextEl.textContent = `남은 시간 약 ${remainMin}분 ${remainSecRem}초${label}`;
+    } else if (isWaiting) {
+      timeTextEl.textContent = '시험 시작 대기 중';
+    } else {
+      timeTextEl.textContent = '기록 없음';
+    }
+  }
+
+  // 액션 그룹 노출 제어
+  if (submittedGroup) submittedGroup.classList.toggle('hidden', !isSubmitted);
+  if (inprogressGroup) inprogressGroup.classList.toggle('hidden', !isInProgress);
+  if (dangerGroup) dangerGroup.classList.remove('hidden');
+
   if (p1Box) p1Box.classList.remove('hidden');
   if (p2Box) p2Box.classList.remove('hidden');
   if (p3Box) p3Box.classList.remove('hidden');
@@ -1381,16 +1520,16 @@ function openLiveStudentModal(studentNum) {
 
   // 재접속 및 추가응시 박스 표시 제어
   if (reconnectBox) {
-    if (s.status === 'submitted') reconnectBox.classList.add('hidden');
+    if (isSubmitted) reconnectBox.classList.add('hidden');
     else reconnectBox.classList.remove('hidden');
   }
 
   if (makeupBox) {
-    // 이미 추가응시가 승인되어 대기실에 있거나, 현재 풀이 중인 경우 숨김
-    if ((s.makeupAllowed && s.status === 'waiting') || s.status === 'in_progress') {
+    // 제출 완료자에게는 제출 취소 및 복귀 버튼이 제공되므로 makeupBox 숨김
+    // 풀이 중이거나 이미 추가응시 승인 대기인 경우도 숨김
+    if (isSubmitted || isInProgress || (s.makeupAllowed && isWaiting)) {
       makeupBox.classList.add('hidden');
     } else {
-      // 결시 상태이거나 이미 제출/자동마감된 학생이라도 교사가 추가 응시를 부여할 수 있도록 표시
       makeupBox.classList.remove('hidden');
     }
   }
@@ -1786,11 +1925,21 @@ function copyPadletFormat() { alert('단원별 과제 취합은 아직 연결되
 if (typeof window !== 'undefined') {
   window.sortBlocksByExecution = sortBlocksByExecution;
   window.drawFlowchartPreview = drawFlowchartPreview;
+  window.handleTeacherExtendClassTime = handleTeacherExtendClassTime;
+  window.handleReopenStudent = handleReopenStudent;
+  window.handleExtendStudent = handleExtendStudent;
+  window.openLiveStudentModal = openLiveStudentModal;
+  window.closeLiveStudentModal = closeLiveStudentModal;
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     sortBlocksByExecution,
-    drawFlowchartPreview
+    drawFlowchartPreview,
+    handleTeacherExtendClassTime,
+    handleReopenStudent,
+    handleExtendStudent,
+    openLiveStudentModal,
+    closeLiveStudentModal
   };
 }
 

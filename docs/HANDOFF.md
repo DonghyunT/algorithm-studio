@@ -1,34 +1,42 @@
 # 다른 PC·에이전트로 작업 이어가기
 
-갱신: 2026-09-21 KST. 기능은 [PRD](../PRD.md), 운영 반영 근거는 [배포 기록](DEPLOYMENT.md)이 기준입니다.
+갱신: 2026-09-22 KST. 기능은 [PRD](../PRD.md), 운영 반영 근거는 [배포 기록](DEPLOYMENT.md)이 기준입니다.
 
 ## 1. 현재 상태
 
 | 구분 | 인수인계 기준 |
 |---|---|
-| 운영 기준 | `main` (`311ea4c`) |
-| 작업 브랜치 | `docs/sync-multi-device-context` (베이스: `main`) |
-| 마지막 제품 수정 | 1) 결시생 개별 30분 추가 응시(Makeup) 플로우 복원 및 임의 PC/기기 접속 보장(`ownerUid: null`, `forceReset`), 2) 엑셀 성적표 Part 3 1차 채점 합산, 서식(현재상태/목표상태/조건), 공식 4대 루브릭 매핑 및 동적 행 높이 최적화, 3) 관제탑 좌석 바둑판 실시간 서버 성적 연동(`currentLiveClassGrades`), 4) 시험 종료/마감 후 비정상 입장 차단 및 좌석 보호 |
-| 전달 기준 | `main` 머지 및 Vercel 자동 배포 완료 (단위 테스트 117개 100% 통과, 정적 구문 검사 71개 OK) |
+| 운영 기준 | `main` (`87f7724`) |
+| 작업 브랜치 | `codex/fix-timer-skew-and-student-modal` (베이스: `main`) |
+| 마지막 제품 수정 | 1) 컴퓨터실 시계 오차(Clock Skew) 원천 방어 (`api/evaluation` ping + `serverTimeOffset` + `getNow()`), 2) 선생님 스케치 반영: 학생 관리 모달 데스크탑 좌우 2단 분할 레이아웃 개편(좌측: 프로필/상태별 스마트 액션, 우측: 답안 검토/채점), 3) 제출 취소 및 풀던 답안 100% 보존 복귀 (`reopenStudentExam`, +5분/+10분), 4) 관제탑 학급 전체 5분 연장 및 학생 개별 시간 연장 (+5분/+10분) |
+| 전달 기준 | 단위 테스트 122개 100% 통과, 정적 구문 검사 72개 OK, main 머지 준비 완료 |
 | 평가 운영 | V4 실전평가 운영 중, V3 모의평가·기존 회차 호환 유지 |
 | 운영 프로젝트 | Firebase `donghyun-algo`, Vercel `algorithm-studio` · 새 PC에서 재생성하지 않음 |
 | 운영 웹 | [정보 알고리즘 스튜디오](https://algorithm-studio-ten.vercel.app/) |
 | 저장소 | [DonghyunT/algorithm-studio](https://github.com/DonghyunT/algorithm-studio) |
 
-최근 완료한 제품 변경 내역 (2026-09-21):
-1. **결시생 개별 30분 추가 응시 복원 및 기기 무관 접속 보장 (`lab-eval.js`, `eval-service.js`, `classroom.js`)**:
-   - 로비의 섣부른 조기 차단 코드를 제거하고 `joinWaitingRoom` 트랜잭션을 통한 `makeupAllowed` 권한 판정으로 일원화.
-   - 시험 종료 시 0점으로 자동 마감(`status: 'submitted'`)된 결시생이라도 좌석 모달에서 `[결시생 개별 30분 추가 응시 허용]` 시 안전하게 초기화(`forceReset: true`)하고 30분 권한 부여.
-   - 추가 응시 승인 시 `ownerUid: null`로 초기화하여 교실 PC, 도서관 컴퓨터, 노트북 등 어느 기기에서 접속하더라도 즉시 바인딩 로그인 허용.
-2. **멀티 시트 엑셀 성적표 Part 3 서식·채점·루브릭 고도화 (`excel-export.js`)**:
-   - 개인성적표 시트의 Part 3에 현재 상태, 목표 상태, 지켜야 할 조건을 3개 영역으로 구조화 표기.
-   - 교사 확정 전이라도 AI 1차 채점 점수가 소계/총점에 온전히 합산되어 0점으로 뜨지 않도록 보장.
-   - Part 3 공식 4대 루브릭 평가 기준 텍스트 및 학생 답안/AI 피드백 1:1 매핑.
-   - 너비 11컬럼 확장 및 동적 행 높이(`part3RowHeight`, 최소 38pt 이상) 적용으로 텍스트 잘림 방지.
-3. **교사 관제탑 좌석 바둑판 실시간 서버 성적 연동 (`classroom.js`)**:
-   - `currentLiveClassGrades` 맵을 통해 서버 배치 채점 API 결과를 좌석 카드에 실시간 매핑하여 관제탑과 성적표의 점수 일치 보장.
-4. **시험 종료/시간 만료 후 입장 차단 및 좌석 보호 (`eval-service.js`, `firestore.rules`)**:
-   - 마감 시간 경과 및 세션 종료 시 비인가 진입 및 좌석 덮어쓰기를 DB/클라이언트 다층 방어로 차단.
+최근 완료한 제품 변경 내역 (2026-09-22):
+1. **컴퓨터실 시계 오차(Clock Skew) 방어 알고리즘 (`api/evaluation.js`, `ai-service.js`, `eval-service.js`, `lab-eval.js`)**:
+   - 특정 PC의 윈도우 로컬 시계가 15분 빠르게 설정되어 있어 학생 타이머가 조기 종료 및 자동 제출되던 사고 원천 방지.
+   - `api/evaluation`의 경량 `ping` 및 응답 헤더/바디의 `serverTime`을 통해 클라이언트가 `serverTimeOffset`을 자동 산출.
+   - `getNow()` 메서드로 로컬 시계 오차를 자동 보정하여 학생 PC 시계 왜곡과 무관하게 정확한 정합성 보장.
+2. **선생님 스케치 반영: 학생 관리 모달 좌우 2단 분할 개편 (`index.html`, `classroom.js`)**:
+   - 모달 하단에 길게 세로로 나열되던 조치 버튼을 데스크탑 `max-w-6xl` 크기의 2단 분할 레이아웃으로 전면 개편.
+   - 좌측 280px 액션 패널: 학생 미니 카드(좌석, 상태 뱃지, 이름, 시간 정보) + 상태별 스마트 버튼 그룹.
+   - 상태별 스마트 노출:
+     * 제출 완료(`submitted`): `[🔄 제출 취소 및 복귀 (+10분)]` (추천 메인), `[제출 취소 및 복귀 (+5분)]`
+     * 풀이 중(`in_progress`): `[시간 +10분]`, `[시간 +5분]`, `[풀던 답안 유지 재접속 허용]`, `[현재 답안으로 정상 제출 마감]`
+     * 결시/미응시: `[개별 30분 추가 응시 허용]`
+     * 주의 조치(하단 분리): `[답안 초기화 (완전 백지화)]`, `[좌석 비우기 (퇴장 처리)]`
+3. **제출 취소 및 풀던 답안 100% 보존 복귀 (`reopenStudentExam`)**:
+   - 조기 제출된 학생의 답안(`Part 1~3`)을 완전 보존한 채 `status: 'in_progress'`로 전환하고 추가 시간 즉시 부여.
+   - `makeupAllowed: true`, `allowReconnect: true`를 세팅하여 학생 화면이 실시간으로 풀이 화면으로 복원되며 새 브라우저 재접속도 허용.
+   - `archives/` 감사 컬렉션에 원본 답안과 세션 상태를 자동 아카이빙.
+4. **학급 전체 및 개별 시간 연장 (`extendClassSessionTime`, `extendStudentTime`)**:
+   - 관제탑 상단 툴바에 `[⏱️ 전체 5분 연장]` 버튼 신설.
+   - 학생 모달에서 개별 학생에게 원클릭 `+5분 / +10분` 시간 부여.
+   - 학생 브라우저 실시간 리스너(`listenSession`, `listenStudent`)가 시간 연장을 감지하여 타이머를 동적으로 갱신.
+5. **검증**: `tests/eval-time-extension.test.cjs` 전용 테스트 5종 포함 전체 122개 단위 테스트 100% 통과, `tools/check.cjs` 72개 스크립트 정적 검사 통과.
 
 ## 2. 읽는 순서와 다음 작업
 

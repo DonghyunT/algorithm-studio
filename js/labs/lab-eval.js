@@ -57,6 +57,13 @@ class StudentEvalApp {
     window.addEventListener('DOMContentLoaded',()=>this.resumeAssessment());
   }
 
+  getNow() {
+    if (window.evalService?.getNow) {
+      return window.evalService.getNow();
+    }
+    return Date.now();
+  }
+
   async resumeAssessment() {
     let identity;try{identity=JSON.parse(sessionStorage.getItem('ALGO_ACTIVE_EXAM'));}catch{}
     if(!identity)return;
@@ -150,9 +157,10 @@ class StudentEvalApp {
       }
     }
 
+    window.evalService?.syncServerTimeNow?.().catch?.(() => {});
     this.lobbySessionUnsub = window.evalService.listenSession(classId, (session) => {
       this.latestLobbySession = session;
-      const isExpired = session?.status === 'in_progress' && Number.isFinite(session.deadlineMs) && Date.now() >= session.deadlineMs;
+      const isExpired = session?.status === 'in_progress' && Number.isFinite(session.deadlineMs) && this.getNow() >= session.deadlineMs;
       const isEnded = session?.status === 'ended' || isExpired;
       const isWaiting = session?.status === 'waiting' && !!session.attemptId;
       const isRunning = session?.status === 'in_progress' && !!session.attemptId && !isExpired;
@@ -263,7 +271,7 @@ class StudentEvalApp {
         attemptId: this.latestStudent.attemptId,
         deadlineMs: this.latestStudent.deadlineMs
       };
-      const isExpired = Number.isFinite(sessionInfo.deadlineMs) && Date.now() >= sessionInfo.deadlineMs;
+      const isExpired = Number.isFinite(sessionInfo.deadlineMs) && this.getNow() >= sessionInfo.deadlineMs;
       if (isExpired && !this.makeupAllowed) {
         this.sessionStatus = 'ended';
         this.submitExam(true);
@@ -279,7 +287,7 @@ class StudentEvalApp {
         const previous=this.latestSession;
         this.latestSession=sessionData;
         window.pendingAssessmentResume=false;
-        const isExpired = sessionData?.status === 'in_progress' && Number.isFinite(sessionData.deadlineMs) && Date.now() >= sessionData.deadlineMs;
+        const isExpired = sessionData?.status === 'in_progress' && Number.isFinite(sessionData.deadlineMs) && this.getNow() >= sessionData.deadlineMs;
         const isEnded = sessionData?.status === 'ended' || isExpired;
 
         if(sessionData?.status==='waiting') {
@@ -295,6 +303,14 @@ class StudentEvalApp {
           this.sessionStatus="ended"; clearInterval(this.timerInterval); this.timerInterval=null;
           switchUnit('eval'); this.renderPartQuestions(); this.showScreen('exam');
           this.submitExam(true); return;
+        }
+        // 시험 진행 중 학급 전체 시간 연장 실시간 반영
+        if (!this.isSubmitted && this.sessionStatus === 'in_progress' && !this.makeupAllowed && sessionData?.deadlineMs) {
+          if (this.deadlineMs !== sessionData.deadlineMs) {
+            this.deadlineMs = sessionData.deadlineMs;
+            this.remainingSeconds = Math.max(0, Math.ceil((this.deadlineMs - this.getNow()) / 1000));
+            this.renderTimer();
+          }
         }
         if (sessionData && sessionData.status === 'in_progress' && !this.isSubmitted && !isExpired) {
           this.startExam(sessionData);
@@ -329,6 +345,35 @@ class StudentEvalApp {
           this.startServerScorePolling();
           alert("🔔 선생님께서 시험을 마감하여 현재 작성 답안으로 정상 제출되었습니다.");
           return;
+        }
+        // 교사에 의한 제출 취소 및 풀던 답안 유지 시험 재오픈 실시간 감지
+        if (this.isSubmitted && stData?.status === 'in_progress') {
+          this.isSubmitted = false;
+          this.sessionStatus = 'in_progress';
+          this.individualDeadlineMs = stData.individualDeadlineMs || stData.deadlineMs;
+          this.deadlineMs = this.individualDeadlineMs || stData.deadlineMs;
+          this.makeupAllowed = true;
+          if (stData.answers) {
+            this.answers = stData.answers;
+          }
+          this.saveDraft();
+          alert("🔔 선생님께서 시험을 다시 열어주셨습니다!\n추가된 시간 동안 이어서 답안을 작성해 주세요.");
+          const sessionInfo = this.latestSession || {
+            questionVersion: this.answers?.part3?.questionVersion || 4,
+            attemptId: stData.attemptId || this.attemptId,
+            deadlineMs: this.deadlineMs
+          };
+          this.startExam(sessionInfo);
+          return;
+        }
+        // 시험 진행 중 개별 학생 시간 연장 실시간 반영
+        if (!this.isSubmitted && this.sessionStatus === 'in_progress' && stData?.individualDeadlineMs) {
+          if (this.deadlineMs !== stData.individualDeadlineMs) {
+            this.deadlineMs = stData.individualDeadlineMs;
+            this.individualDeadlineMs = stData.individualDeadlineMs;
+            this.remainingSeconds = Math.max(0, Math.ceil((this.deadlineMs - this.getNow()) / 1000));
+            this.renderTimer();
+          }
         }
         if(this.isSubmitted&&stData?.status==='submitted'){
           this.calculateScores();
@@ -477,15 +522,25 @@ class StudentEvalApp {
       const totalSec = (sessionData.durationMinutes || 30) * 60;
       this.deadlineMs = startMs + totalSec * 1000;
     } else {
-      this.deadlineMs = Date.now() + 1800 * 1000;
+      this.deadlineMs = this.getNow() + 1800 * 1000;
     }
 
-    this.remainingSeconds=Math.max(0,Math.ceil((this.deadlineMs-Date.now())/1000));
+    // Sanity check: 세션이 방금 시작/진행 중인데 로컬 시계 오차로 인해 남은 시간이 비정상 단축되는 것 방어
+    if (sessionData?.startTime && (sessionData.status === 'in_progress' || this.makeupAllowed)) {
+      const startMs = new Date(sessionData.startTime).getTime();
+      const durationMs = (sessionData.durationMinutes || 30) * 60000;
+      const expectedEnd = startMs + durationMs;
+      if (this.deadlineMs <= this.getNow() && this.getNow() - startMs < durationMs && this.deadlineMs < expectedEnd) {
+        this.deadlineMs = expectedEnd;
+      }
+    }
+
+    this.remainingSeconds=Math.max(0,Math.ceil((this.deadlineMs-this.getNow())/1000));
     this.saveDraft();
     this.renderTimer();
     if (this.timerInterval) clearInterval(this.timerInterval);
     this.timerInterval = setInterval(() => {
-      this.remainingSeconds = Math.max(0, Math.ceil((this.deadlineMs-Date.now())/1000));
+      this.remainingSeconds = Math.max(0, Math.ceil((this.deadlineMs-this.getNow())/1000));
       this.renderTimer();
       if (this.remainingSeconds <= 0) {
         clearInterval(this.timerInterval);

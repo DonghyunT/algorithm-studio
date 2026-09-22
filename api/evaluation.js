@@ -27,12 +27,13 @@ function scopeFor(session, classId, studentNum) { return `${session.attemptId}:$
 
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
-  const fail = (status, error) => res.status(status).json({ error });
+  const fail = (status, error) => res.status(status).json({ error, serverTime: Date.now() });
   if (req.method !== 'POST') return fail(405, 'POST 요청만 사용할 수 있습니다.');
   const body = req.body || {};
+  if (body.action === 'ping') return res.status(200).json({ ok: true, serverTime: Date.now() });
   const isBankExport = body.action === 'export-bank';
   const isClassAction = body.action === 'class-grades';
-  const allowedActions = ['questions', 'student-score', 'student-review', 'grade', 'review', 'export-bank', 'class-grades'];
+  const allowedActions = ['questions', 'student-score', 'student-review', 'grade', 'review', 'export-bank', 'class-grades', 'ping'];
   const isValidTargetForAction = isBankExport || (isClassAction ? CLASS_ID.test(body.classId || '') : validTarget(body));
   if (!allowedActions.includes(body.action) || !isValidTargetForAction || JSON.stringify(body).length > 1000) return fail(400, '요청 내용을 확인해 주세요.');
   const token = (req.headers.authorization || '').match(/^Bearer (.+)$/)?.[1];
@@ -64,7 +65,7 @@ module.exports = async (req, res) => {
       const isStudentActive = session.status === 'in_progress' || (student.makeupAllowed === true && student.status === 'in_progress');
       if (student.ownerUid !== claims.sub || !isStudentActive || student.status === 'submitted') return fail(403, '현재 본인의 진행 중인 평가 문항만 열 수 있습니다.');
       const assignment = assignQuestions(bank, process.env.EVAL_ASSIGNMENT_SECRET, scopeFor(session, body.classId, body.studentNum));
-      return res.status(200).json({ attemptId: session.attemptId, questions: publicAssignment(assignment) });
+      return res.status(200).json({ attemptId: session.attemptId, questions: publicAssignment(assignment), serverTime: Date.now() });
     } catch (error) {
       if (error.message === 'round') return fail(409, '현재 실전평가 회차가 아니거나 회차 정보가 바뀌었습니다. 새로고침한 뒤 다시 확인해 주세요.');
       return fail(403, '평가 문항을 확인할 권한이 없거나 평가가 아직 시작되지 않았습니다.');

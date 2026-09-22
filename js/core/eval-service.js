@@ -1,6 +1,7 @@
 /* Evaluation storage: acknowledge writes, preserve attempts, and isolate local demonstrations. */
 class EvalService {
   constructor() {
+    this.serverTimeOffset = 0;
     this.channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('ALGO_EVAL_DEMO_V2') : null;
     this.listeners = new Set();
     this.channel?.addEventListener('message', event => {
@@ -17,6 +18,44 @@ class EvalService {
     });
   }
   isDemo() { return window.authService?.isDemo() === true; }
+  setServerTimeOffset(offsetMs) {
+    if (Number.isFinite(offsetMs)) {
+      this.serverTimeOffset = offsetMs;
+    }
+  }
+  syncServerTime(serverTimeMs) {
+    if (Number.isFinite(serverTimeMs)) {
+      this.serverTimeOffset = serverTimeMs - Date.now();
+    }
+  }
+  getNow() {
+    return Date.now() + (this.serverTimeOffset || 0);
+  }
+  async syncServerTimeNow() {
+    try {
+      const res = await fetch('/api/evaluation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'ping' }),
+        signal: AbortSignal.timeout(4000)
+      }).catch(() => null);
+      if (res) {
+        const dateHeader = res.headers?.get?.('date');
+        const data = await res.json().catch(() => ({}));
+        if (data?.serverTime) {
+          this.syncServerTime(data.serverTime);
+          return data.serverTime;
+        } else if (dateHeader) {
+          const t = new Date(dateHeader).getTime();
+          if (Number.isFinite(t)) {
+            this.syncServerTime(t);
+            return t;
+          }
+        }
+      }
+    } catch {}
+    return null;
+  }
   getDb() {
     if (this.isDemo()) return null;
     const db = window.firebaseDb || (typeof initFirebaseApp === 'function' && initFirebaseApp());
@@ -51,7 +90,7 @@ class EvalService {
     if (!session || !session.attemptId) return false;
     if (session.status === 'waiting') return true;
     if (session.status === 'in_progress') {
-      return Number.isFinite(session.deadlineMs) && Date.now() < session.deadlineMs;
+      return Number.isFinite(session.deadlineMs) && this.getNow() < session.deadlineMs;
     }
     return false;
   }
@@ -373,6 +412,126 @@ class EvalService {
     }
     else { const old=this.read('EVAL_STUDENTS_'+classId,[]).find(s=>s.numStr===docId);payload.answers.part3={questionVersion:old?.answers?.part3?.questionVersion||1,blocks:[],connections:[]};const student={num:Number(studentNum),numStr:docId,...payload};this.mergeLocalStudent(classId,student);this.notify(classId,{students:[student]}); }
     return true;
+  }
+  async reopenStudentExam(classId, studentNum, addedMinutes = 10) {
+    await window.authService.teacher({classId});
+    const minutes = Number(addedMinutes) || 10;
+    const docId = this.identity(classId, studentNum), db = this.getDb();
+    const now = this.getNow();
+    const newDeadlineMs = now + minutes * 60000;
+    const payload = {
+      status: 'in_progress',
+      submittedAt: null,
+      submittedBy: null,
+      reopenedAt: new Date(now).toISOString(),
+      individualDeadlineMs: newDeadlineMs,
+      deadlineMs: newDeadlineMs,
+      makeupAllowed: true,
+      makeupDurationMinutes: minutes,
+      allowReconnect: true
+    };
+    if (db) {
+      const sessionRef = db.collection('classrooms').doc(classId);
+      const ref = sessionRef.collection('students').doc(docId);
+      const archive = sessionRef.collection('archives').doc(crypto.randomUUID());
+      await db.runTransaction(async tx => {
+        const session = await tx.get(sessionRef);
+        const student = await tx.get(ref);
+        if (!student.exists) throw Error('응시 기록이 없습니다.');
+        tx.set(archive, {
+          kind: 'student-reopen',
+          reopenedAt: payload.reopenedAt,
+          addedMinutes: minutes,
+          session: session.exists ? session.data() : null
+        });
+        tx.set(archive.collection('students').doc(docId), student.data());
+        tx.update(ref, payload);
+      });
+    } else {
+      const list = this.read('EVAL_STUDENTS_' + classId, []);
+      const student = list.find(s => s.numStr === docId);
+      if (!student) throw Error('응시 기록이 없습니다.');
+      Object.assign(student, payload);
+      this.mergeLocalStudent(classId, student);
+      this.notify(classId, { students: [student] });
+    }
+    return { deadlineMs: newDeadlineMs, durationMinutes: minutes };
+  }
+  async extendStudentTime(classId, studentNum, addedMinutes = 5) {
+    await window.authService.teacher({classId});
+    const minutes = Number(addedMinutes) || 5;
+    const docId = this.identity(classId, studentNum), db = this.getDb();
+    const now = this.getNow();
+    if (db) {
+      const sessionRef = db.collection('classrooms').doc(classId);
+      const ref = sessionRef.collection('students').doc(docId);
+      return db.runTransaction(async tx => {
+        const session = await tx.get(sessionRef);
+        const student = await tx.get(ref);
+        if (!student.exists) throw Error('응시 기록이 없습니다.');
+        const stData = student.data();
+        const currentDeadline = stData.individualDeadlineMs || stData.deadlineMs || (session.exists ? session.data().deadlineMs : null) || now;
+        const base = Math.max(now, currentDeadline);
+        const newDeadlineMs = base + minutes * 60000;
+        const updatePayload = {
+          individualDeadlineMs: newDeadlineMs,
+          deadlineMs: newDeadlineMs,
+          makeupAllowed: true,
+          allowReconnect: true
+        };
+        tx.update(ref, updatePayload);
+        return { deadlineMs: newDeadlineMs };
+      });
+    } else {
+      const list = this.read('EVAL_STUDENTS_' + classId, []);
+      const student = list.find(s => s.numStr === docId);
+      if (!student) throw Error('응시 기록이 없습니다.');
+      const session = this.read('EVAL_SESSION_' + classId, {});
+      const currentDeadline = student.individualDeadlineMs || student.deadlineMs || session.deadlineMs || now;
+      const base = Math.max(now, currentDeadline);
+      const newDeadlineMs = base + minutes * 60000;
+      student.individualDeadlineMs = newDeadlineMs;
+      student.deadlineMs = newDeadlineMs;
+      student.makeupAllowed = true;
+      student.allowReconnect = true;
+      this.mergeLocalStudent(classId, student);
+      this.notify(classId, { students: [student] });
+      return { deadlineMs: newDeadlineMs };
+    }
+  }
+  async extendClassSessionTime(classId, addedMinutes = 5) {
+    await window.authService.teacher({classId});
+    const minutes = Number(addedMinutes) || 5;
+    const db = this.getDb();
+    const now = this.getNow();
+    if (db) {
+      const sessionRef = db.collection('classrooms').doc(classId);
+      return db.runTransaction(async tx => {
+        const session = await tx.get(sessionRef);
+        if (!session.exists) throw Error('학급 세션 정보를 찾을 수 없습니다.');
+        const sData = session.data();
+        if (sData.status !== 'in_progress') throw Error('진행 중인 시험만 시간을 연장할 수 있습니다.');
+        const currentDeadline = sData.deadlineMs || now;
+        const base = Math.max(now, currentDeadline);
+        const newDeadlineMs = base + minutes * 60000;
+        const newDuration = (sData.durationMinutes || 30) + minutes;
+        tx.update(sessionRef, { deadlineMs: newDeadlineMs, durationMinutes: newDuration });
+        return { deadlineMs: newDeadlineMs, durationMinutes: newDuration };
+      });
+    } else {
+      const key = 'EVAL_SESSION_' + classId;
+      const session = this.read(key, this.defaultSession(classId));
+      if (session.status !== 'in_progress') throw Error('진행 중인 시험만 시간을 연장할 수 있습니다.');
+      const currentDeadline = session.deadlineMs || now;
+      const base = Math.max(now, currentDeadline);
+      const newDeadlineMs = base + minutes * 60000;
+      const newDuration = (session.durationMinutes || 30) + minutes;
+      session.deadlineMs = newDeadlineMs;
+      session.durationMinutes = newDuration;
+      this.write(key, session);
+      this.notify(classId, { session });
+      return { deadlineMs: newDeadlineMs, durationMinutes: newDuration };
+    }
   }
   async clearStudentSeat(classId, studentNum) {
     await window.authService.teacher({classId});

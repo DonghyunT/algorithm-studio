@@ -87,7 +87,14 @@ async function requestSecureEvaluation(action, body, teacher=false) {
   if (teacher) await window.authService.teacher({classId:body.classId});
   const token = await window.authService.token();
   const response = await fetch('/api/evaluation', {method:'POST',signal:AbortSignal.timeout(30000),headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({action,...body})});
+  const dateHeader = response.headers?.get?.('date');
   const data = await response.json().catch(()=>({}));
+  if (data?.serverTime && window.evalService?.syncServerTime) {
+    window.evalService.syncServerTime(data.serverTime);
+  } else if (dateHeader && window.evalService?.syncServerTime) {
+    const headerTime = new Date(dateHeader).getTime();
+    if (Number.isFinite(headerTime)) window.evalService.syncServerTime(headerTime);
+  }
   if (!response.ok) throw Error(data.error || '실전평가 서버를 확인하지 못했습니다.');
   return data;
 }
