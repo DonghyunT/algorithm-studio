@@ -308,8 +308,7 @@ class StudentEvalApp {
         if (!this.isSubmitted && this.sessionStatus === 'in_progress' && !this.makeupAllowed && sessionData?.deadlineMs) {
           if (this.deadlineMs !== sessionData.deadlineMs) {
             this.deadlineMs = sessionData.deadlineMs;
-            this.remainingSeconds = Math.max(0, Math.ceil((this.deadlineMs - this.getNow()) / 1000));
-            this.renderTimer();
+            this.startTimerInterval();
           }
         }
         if (sessionData && sessionData.status === 'in_progress' && !this.isSubmitted && !isExpired) {
@@ -349,7 +348,7 @@ class StudentEvalApp {
         // 교사에 의한 제출 취소 및 풀던 답안 유지 시험 재오픈 실시간 감지
         if (this.isSubmitted && stData?.status === 'in_progress') {
           this.isSubmitted = false;
-          this.sessionStatus = 'in_progress';
+          this.sessionStatus = 'reopened';
           this.individualDeadlineMs = stData.individualDeadlineMs || stData.deadlineMs;
           this.deadlineMs = this.individualDeadlineMs || stData.deadlineMs;
           this.makeupAllowed = true;
@@ -363,7 +362,7 @@ class StudentEvalApp {
             attemptId: stData.attemptId || this.attemptId,
             deadlineMs: this.deadlineMs
           };
-          this.startExam(sessionInfo);
+          this.startExam(sessionInfo, { force: true });
           return;
         }
         // 시험 진행 중 개별 학생 시간 연장 실시간 반영
@@ -371,8 +370,7 @@ class StudentEvalApp {
           if (this.deadlineMs !== stData.individualDeadlineMs) {
             this.deadlineMs = stData.individualDeadlineMs;
             this.individualDeadlineMs = stData.individualDeadlineMs;
-            this.remainingSeconds = Math.max(0, Math.ceil((this.deadlineMs - this.getNow()) / 1000));
-            this.renderTimer();
+            this.startTimerInterval();
           }
         }
         if(this.isSubmitted&&stData?.status==='submitted'){
@@ -479,8 +477,8 @@ class StudentEvalApp {
   }
 
   // 3. 시험장 진입 및 타이머 가동
-  async startExam(sessionData) {
-    if (this.sessionStatus === 'in_progress' || this.startingExam) return;
+  async startExam(sessionData, options = {}) {
+    if (!options?.force && (this.sessionStatus === 'in_progress' || this.startingExam)) return;
     const qVersion = (sessionData && sessionData.questionVersion) || this.answers?.part3?.questionVersion || 1;
     this.startingExam = true;
     if (qVersion === 4) {
@@ -535,20 +533,8 @@ class StudentEvalApp {
       }
     }
 
-    this.remainingSeconds=Math.max(0,Math.ceil((this.deadlineMs-this.getNow())/1000));
     this.saveDraft();
-    this.renderTimer();
-    if (this.timerInterval) clearInterval(this.timerInterval);
-    this.timerInterval = setInterval(() => {
-      this.remainingSeconds = Math.max(0, Math.ceil((this.deadlineMs-this.getNow())/1000));
-      this.renderTimer();
-      if (this.remainingSeconds <= 0) {
-        clearInterval(this.timerInterval);
-        this.sessionStatus='ended';
-        alert("⏰ 시험 시간이 만료되었습니다. 서버에 저장된 답안을 제출합니다.");
-        this.submitExam(true);
-      }
-    }, 1000);
+    this.startTimerInterval();
 
     // 문제은행 난이도별 문항 추출 보장 (버전 3 이상 또는 미배정 시 결정론적 추출)
     const assignFn = typeof assignQuestions === 'function' ? assignQuestions : (typeof window !== 'undefined' ? window.assignQuestions : null);
@@ -614,6 +600,23 @@ class StudentEvalApp {
     this.tabWarningTimer = setTimeout(() => {
       toast.classList.add('hidden');
     }, 4000);
+  }
+
+  startTimerInterval() {
+    if (this.timerInterval) clearInterval(this.timerInterval);
+    this.remainingSeconds = Math.max(0, Math.ceil((this.deadlineMs - this.getNow()) / 1000));
+    this.renderTimer();
+    this.timerInterval = setInterval(() => {
+      this.remainingSeconds = Math.max(0, Math.ceil((this.deadlineMs - this.getNow()) / 1000));
+      this.renderTimer();
+      if (this.remainingSeconds <= 0) {
+        clearInterval(this.timerInterval);
+        this.timerInterval = null;
+        this.sessionStatus = 'ended';
+        alert("⏰ 시험 시간이 만료되었습니다. 서버에 저장된 답안을 제출합니다.");
+        this.submitExam(true);
+      }
+    }, 1000);
   }
 
   renderTimer() {

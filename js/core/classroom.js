@@ -1368,8 +1368,14 @@ async function handleExtendStudent(addedMinutes = 5) {
   }
 }
 
+  let currentModalTimerInterval = null;
+
 // 학생 개별 답안 상세 팝업 및 점수 수동 조정 / 재시험 허용
 function openLiveStudentModal(studentNum) {
+  if (currentModalTimerInterval) {
+    clearInterval(currentModalTimerInterval);
+    currentModalTimerInterval = null;
+  }
   const s = currentLiveStudents.find(item => item.num === studentNum);
   const modal = document.getElementById('classroom-live-detail-modal');
   if (!modal) return;
@@ -1487,23 +1493,30 @@ function openLiveStudentModal(studentNum) {
     }
   }
 
-  if (timeTextEl) {
-    if (isSubmitted) {
-      const timeStr = s.submittedAt ? new Date(s.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+  const updateModalTimeText = () => {
+    if (!timeTextEl) return;
+    const currentS = currentLiveStudents.find(item => item.num === s.num) || s;
+    if (currentS.status === 'submitted') {
+      const timeStr = currentS.submittedAt ? new Date(currentS.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
       timeTextEl.textContent = timeStr ? `${timeStr} 제출 완료` : '제출 완료됨';
-    } else if (isInProgress) {
-      const now = Date.now();
-      const deadline = s.individualDeadlineMs || currentLiveSession?.deadlineMs || now;
+    } else if (currentS.status === 'in_progress') {
+      const now = window.evalService?.getNow ? window.evalService.getNow() : Date.now();
+      const deadline = currentS.individualDeadlineMs || currentLiveSession?.deadlineMs || now;
       const remainSec = Math.max(0, Math.ceil((deadline - now) / 1000));
       const remainMin = Math.floor(remainSec / 60);
-      const remainSecRem = remainSec % 60;
-      const label = s.individualDeadlineMs ? ' (개별 연장)' : '';
+      const remainSecRem = String(remainSec % 60).padStart(2, '0');
+      const label = currentS.individualDeadlineMs ? ' (개별 연장)' : '';
       timeTextEl.textContent = `남은 시간 약 ${remainMin}분 ${remainSecRem}초${label}`;
-    } else if (isWaiting) {
+    } else if (currentS.status === 'waiting') {
       timeTextEl.textContent = '시험 시작 대기 중';
     } else {
       timeTextEl.textContent = '기록 없음';
     }
+  };
+
+  updateModalTimeText();
+  if (isInProgress) {
+    currentModalTimerInterval = setInterval(updateModalTimeText, 1000);
   }
 
   // 액션 그룹 노출 제어
@@ -1904,6 +1917,10 @@ function openLiveStudentModal(studentNum) {
 }
 
 function closeLiveStudentModal() {
+  if (currentModalTimerInterval) {
+    clearInterval(currentModalTimerInterval);
+    currentModalTimerInterval = null;
+  }
   currentModalStudent = null;
   closeFlowchartModalPreview();
   const modal = document.getElementById('classroom-live-detail-modal');
