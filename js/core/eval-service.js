@@ -12,8 +12,11 @@ class EvalService {
         return;
       }
       if (message.session) this.write('EVAL_SESSION_' + message.classId, { ...this.read('EVAL_SESSION_' + message.classId, {}), ...message.session });
-      if(message.replaceStudents)this.write('EVAL_STUDENTS_'+message.classId,[]);
-      for (const student of message.students || []) this.mergeLocalStudent(message.classId, student);
+      if (message.replaceStudents) {
+        this.write('EVAL_STUDENTS_' + message.classId, message.students || []);
+      } else {
+        for (const student of message.students || []) this.mergeLocalStudent(message.classId, student);
+      }
       this.emit(message.classId);
     });
   }
@@ -484,7 +487,8 @@ class EvalService {
       });
     } else {
       const list = this.read('EVAL_STUDENTS_' + classId, []);
-      const student = list.find(s => s.numStr === docId);
+      const targetNum = Number(studentNum);
+      const student = list.find(s => s.numStr === docId || s.num === targetNum);
       if (!student) throw Error('응시 기록이 없습니다.');
       const session = this.read('EVAL_SESSION_' + classId, {});
       const currentDeadline = student.individualDeadlineMs || student.deadlineMs || session.deadlineMs || now;
@@ -564,7 +568,8 @@ class EvalService {
     } else {
       const key = 'EVAL_STUDENTS_' + classId;
       const list = this.read(key, []);
-      const student = list.find(item => item.numStr === docId);
+      const targetNum = Number(studentNum);
+      const student = list.find(item => item.numStr === docId || item.num === targetNum);
       if (!student) throw new Error('응시 기록이 없습니다.');
       Object.assign(student, finalData);
       this.write(key, list);
@@ -748,7 +753,11 @@ class EvalService {
   listenStudent(classId, studentNum, callback, onError = error => alert(error.message)) {
     const docId=this.identity(classId,studentNum),db=this.getDb();
     if(db) return db.collection('classrooms').doc(classId).collection('students').doc(docId).onSnapshot(doc=>{callback(doc.exists?doc.data():null);},onError);
-    return this.demoListen(classId,()=>{const student=this.read('EVAL_STUDENTS_'+classId,[]).find(item=>item.numStr===docId);callback(student||null);});
+    return this.demoListen(classId,()=>{
+      const targetNum = Number(studentNum);
+      const student=this.read('EVAL_STUDENTS_'+classId,[]).find(item=>item.numStr===docId || item.num===targetNum);
+      callback(student||null);
+    });
   }
   async savePart3Review(classId,studentNum,sourceKey,details,kind='proposal'){
     const user=await window.authService.teacher({classId}),docId=this.identity(classId,studentNum),db=this.getDb();

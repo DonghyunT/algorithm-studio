@@ -264,6 +264,9 @@ class StudentEvalApp {
     }
     this.updateLobbyMakeupUI();
 
+    // 리스너 즉시 구독 보장
+    this.attachAssessmentListeners();
+
     // 풀던 중 재접속하여 이미 시험 진행 중인 경우 즉시 시험장 복구 진입
     if (this.latestStudent?.status === 'in_progress' && !this.isSubmitted) {
       const sessionInfo = this.latestSession || {
@@ -281,33 +284,70 @@ class StudentEvalApp {
       return;
     }
 
+    if (this.isSubmitted) { this.calculateScores(); this.renderResult(); this.startServerScorePolling(); }
+  }
+
+  showTimeExtendedNotice(deadlineMs) {
+    let toast = document.getElementById('eval-time-extended-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'eval-time-extended-toast';
+      toast.className = 'fixed top-16 left-1/2 -translate-x-1/2 z-[100] bg-indigo-600 text-white px-5 py-2.5 rounded-2xl shadow-xl border-2 border-indigo-300 flex items-center gap-2.5 font-bold text-xs sm:text-sm animate-bounce';
+      document.body.appendChild(toast);
+    }
+    const remainMin = Math.max(1, Math.ceil((deadlineMs - this.getNow()) / 60000));
+    toast.innerHTML = `<i class="fa-solid fa-clock text-amber-300 text-base"></i><span>선생님께서 시험 시간을 연장해 주셨습니다! (남은 시간 약 ${remainMin}분)</span>`;
+    toast.classList.remove('hidden');
+    clearTimeout(this.timeExtendedToastTimer);
+    this.timeExtendedToastTimer = setTimeout(() => {
+      toast.classList.add('hidden');
+    }, 4500);
+  }
+
+  attachAssessmentListeners() {
+    if (!window.evalService || !this.currentClass || !this.studentNum) return;
+
     // 1) 전체 학급 세션 리스너 구독 (선생님이 [30분 동시 시작] 누를 시 시험장 진입)
-    if (window.evalService && !this.sessionUnsub) {
+    if (!this.sessionUnsub) {
       this.sessionUnsub = window.evalService.listenSession(this.currentClass, (sessionData) => {
-        const previous=this.latestSession;
-        this.latestSession=sessionData;
-        window.pendingAssessmentResume=false;
+        const previous = this.latestSession;
+        this.latestSession = sessionData;
+        window.pendingAssessmentResume = false;
         const isExpired = sessionData?.status === 'in_progress' && Number.isFinite(sessionData.deadlineMs) && this.getNow() >= sessionData.deadlineMs;
         const isEnded = sessionData?.status === 'ended' || isExpired;
 
-        if(sessionData?.status==='waiting') {
+        if (sessionData?.status === 'waiting') {
           sessionStorage.removeItem('ALGO_ACTIVE_EXAM');
-          if(previous?.attemptId && previous.attemptId!==sessionData.attemptId){sessionStorage.removeItem(this.draftKey());this.joined=false;location.reload();return;}
-          this.sessionStatus='waiting';clearInterval(this.timerInterval);this.timerInterval=null;updateAssessmentNavigation();
+          if (previous?.attemptId && previous.attemptId !== sessionData.attemptId) {
+            sessionStorage.removeItem(this.draftKey());
+            this.joined = false;
+            location.reload();
+            return;
+          }
+          this.sessionStatus = 'waiting';
+          clearInterval(this.timerInterval);
+          this.timerInterval = null;
+          updateAssessmentNavigation();
         }
-        if(isEnded && !this.isSubmitted) {
+        if (isEnded && !this.isSubmitted) {
           if (this.makeupAllowed) {
             // 개별 추가 응시생은 전체 학급 세션 종료에 영향받지 않고 개별 30분 타이머 유지
             return;
           }
-          this.sessionStatus="ended"; clearInterval(this.timerInterval); this.timerInterval=null;
-          switchUnit('eval'); this.renderPartQuestions(); this.showScreen('exam');
-          this.submitExam(true); return;
+          this.sessionStatus = "ended";
+          clearInterval(this.timerInterval);
+          this.timerInterval = null;
+          switchUnit('eval');
+          this.renderPartQuestions();
+          this.showScreen('exam');
+          this.submitExam(true);
+          return;
         }
         // 시험 진행 중 학급 전체 시간 연장 실시간 반영
-        if (!this.isSubmitted && this.sessionStatus === 'in_progress' && !this.makeupAllowed && sessionData?.deadlineMs) {
-          if (this.deadlineMs !== sessionData.deadlineMs) {
+        if (!this.isSubmitted && !this.makeupAllowed && sessionData?.deadlineMs) {
+          if (this.deadlineMs !== sessionData.deadlineMs || this.sessionStatus !== 'in_progress') {
             this.deadlineMs = sessionData.deadlineMs;
+            this.sessionStatus = 'in_progress';
             this.startTimerInterval();
           }
         }
@@ -317,8 +357,8 @@ class StudentEvalApp {
       });
     }
 
-    // 2) 학생 개별 상태 리스너 구독 (교사의 재시험 허용 실시간 감지 및 시험장 자동 복귀)
-    if (window.evalService && !this.studentUnsub) {
+    // 2) 학생 개별 상태 리스너 구독 (시간 연장, 강제 마감, 재시험 허용 실시간 감지)
+    if (!this.studentUnsub) {
       this.studentUnsub = window.evalService.listenStudent(this.currentClass, this.studentNum, (stData) => {
         // 교사에 의한 좌석 비우기 (퇴장 처리) 실시간 감지
         if (stData === null && this.joined && !this.isSubmitted) {
@@ -331,20 +371,37 @@ class StudentEvalApp {
           location.reload();
           return;
         }
-        this.latestStudent=stData;
+        this.latestStudent = stData;
         this.makeupAllowed = !!stData?.makeupAllowed;
         this.updateLobbyMakeupUI();
+
         // 교사에 의한 강제 정상 제출 실시간 감지
-        if (!this.isSubmitted && stData?.status === 'submitted') {
-          this.isSubmitted = true;
-          clearInterval(this.timerInterval); this.timerInterval = null;
-          this.calculateScores();
-          this.showScreen('result');
-          this.renderResult();
-          this.startServerScorePolling();
-          alert("🔔 선생님께서 시험을 마감하여 현재 작성 답안으로 정상 제출되었습니다.");
+        if (stData?.status === 'submitted') {
+          if (!this.isSubmitted) {
+            this.isSubmitted = true;
+            this.sessionStatus = 'ended';
+            if (this.timerInterval) {
+              clearInterval(this.timerInterval);
+              this.timerInterval = null;
+            }
+            if (stData.answers) {
+              this.answers = stData.answers;
+            }
+            try { this.calculateScores(); } catch (e) { console.warn('점수 계산 경고:', e); }
+            this.showScreen('result');
+            try { this.renderResult(); } catch (e) { console.warn('결과 렌더링 경고:', e); }
+            this.startServerScorePolling();
+            alert("🔔 선생님께서 시험을 마감하여 현재 작성 답안으로 정상 제출되었습니다.");
+          } else {
+            this.calculateScores();
+            if (!document.getElementById('eval-screen-result').classList.contains('hidden')) {
+              this.renderResult();
+            }
+            this.startServerScorePolling();
+          }
           return;
         }
+
         // 교사에 의한 제출 취소 및 풀던 답안 유지 시험 재오픈 실시간 감지
         if (this.isSubmitted && stData?.status === 'in_progress') {
           this.isSubmitted = false;
@@ -365,25 +422,32 @@ class StudentEvalApp {
           this.startExam(sessionInfo, { force: true });
           return;
         }
-        // 시험 진행 중 개별 학생 시간 연장 실시간 반영
-        if (!this.isSubmitted && this.sessionStatus === 'in_progress' && stData?.individualDeadlineMs) {
-          if (this.deadlineMs !== stData.individualDeadlineMs) {
-            this.deadlineMs = stData.individualDeadlineMs;
-            this.individualDeadlineMs = stData.individualDeadlineMs;
+
+        // 시험 진행 중 개별 학생 시간 연장 실시간 반영 (타이머 연속성 보장)
+        if (!this.isSubmitted && stData?.individualDeadlineMs) {
+          const newDeadline = Number(stData.individualDeadlineMs);
+          if (Number.isFinite(newDeadline) && (this.deadlineMs !== newDeadline || this.sessionStatus !== 'in_progress')) {
+            this.deadlineMs = newDeadline;
+            this.individualDeadlineMs = newDeadline;
+            this.makeupAllowed = true;
+            this.sessionStatus = 'in_progress';
             this.startTimerInterval();
+            this.showTimeExtendedNotice(newDeadline);
           }
         }
-        if(this.isSubmitted&&stData?.status==='submitted'){
-          this.calculateScores();
-          if(!document.getElementById('eval-screen-result').classList.contains('hidden'))this.renderResult();
-          this.startServerScorePolling();
-        }
+
+        // 교사에 의한 재시험 허용
         if (stData?.resetAt && stData.resetAt !== this.lastResetAt) {
-          this.lastResetAt=stData.resetAt;
+          this.lastResetAt = stData.resetAt;
           alert("🔔 선생님께서 재시험을 허용하셨습니다!\n답안이 초기화되며 시험 화면으로 복귀합니다.");
           this.isSubmitted = false;
           this.sessionStatus = 'waiting';
-          window.assessmentWorkspace?.leave();this.visitedPart3=false;this.currentPart='part1';this.currentQuestionIndex=1;this.part3SubStep=1;delete this.answers.part3.visited;
+          window.assessmentWorkspace?.leave();
+          this.visitedPart3 = false;
+          this.currentPart = 'part1';
+          this.currentQuestionIndex = 1;
+          this.part3SubStep = 1;
+          delete this.answers.part3.visited;
           this.answers.part1 = {};
           this.answers.part2 = {};
           this.answers.part3.blocks = [];
@@ -394,14 +458,13 @@ class StudentEvalApp {
           this.resetServerScoreState();
           this.lastServerSyncedAnswers = null;
 
-          this.isSubmitting=false;
+          this.isSubmitting = false;
           if (this.latestSession?.status === 'in_progress') this.startExam(this.latestSession);
           else this.showScreen('lobby');
           this.saveDraft();
         }
       });
     }
-    if(this.isSubmitted) { this.calculateScores(); this.renderResult(); this.startServerScorePolling(); }
   }
 
   // 2-1. 대기실 나가기 (번호·이름 오입력 수정용)
@@ -478,6 +541,7 @@ class StudentEvalApp {
 
   // 3. 시험장 진입 및 타이머 가동
   async startExam(sessionData, options = {}) {
+    this.attachAssessmentListeners();
     if (!options?.force && (this.sessionStatus === 'in_progress' || this.startingExam)) return;
     const qVersion = (sessionData && sessionData.questionVersion) || this.answers?.part3?.questionVersion || 1;
     this.startingExam = true;

@@ -209,3 +209,68 @@ test('classroom action handlers: verify handleTeacherExtendClassTime, handleReop
   assert.equal(typeof classroom.closeLiveStudentModal, 'function');
 });
 
+test('demo mode: BroadcastChannel real-time sync for extendStudentTime and forceSubmitStudentExam', async () => {
+  class MockBroadcastChannel {
+    static channels = new Map();
+    constructor(name) {
+      this.name = name;
+      this.listeners = [];
+      if (!MockBroadcastChannel.channels.has(name)) MockBroadcastChannel.channels.set(name, []);
+      MockBroadcastChannel.channels.get(name).push(this);
+    }
+    addEventListener(event, fn) { if (event === 'message') this.listeners.push(fn); }
+    postMessage(data) {
+      const list = MockBroadcastChannel.channels.get(this.name) || [];
+      for (const ch of list) { if (ch !== this) { for (const l of ch.listeners) l({ data }); } }
+    }
+  }
+
+  function makeDemoEnv(storage = {}) {
+    const sessionStorage = {
+      getItem: k => storage[k] || null,
+      setItem: (k, v) => { storage[k] = String(v); },
+      removeItem: k => { delete storage[k]; }
+    };
+    const ctx = {
+      window: {
+        authService: { isDemo: () => true, teacher: async () => ({ uid: 'demo-teacher' }), student: async () => ({ uid: 'demo-student' }) }
+      },
+      location: { hostname: 'localhost', search: '?demo=1' },
+      BroadcastChannel: MockBroadcastChannel,
+      sessionStorage,
+      console,
+      crypto,
+      Set,
+      Map,
+      Date
+    };
+    vm.createContext(ctx);
+    vm.runInContext(fs.readFileSync(require.resolve('../js/core/eval-service.js'), 'utf8'), ctx);
+    return { ctx, service: ctx.window.evalService, storage };
+  }
+
+  const teacher = makeDemoEnv();
+  const student = makeDemoEnv();
+  const classId = '2-10';
+
+  await teacher.service.prepareSession(classId);
+  await student.service.joinWaitingRoom(classId, 1, '홍길동');
+  await teacher.service.startSession(classId, 30);
+
+  let studentData = null;
+  student.service.listenStudent(classId, 1, st => { studentData = st; });
+
+  await student.service.updateStudentProgress(classId, 1, { part1: 5 }, { part1: { q1: 1 } });
+  assert.equal(studentData.status, 'in_progress');
+
+  // 교사 10분 연장 -> 학생 탭 실시간 동기화
+  const extendRes = await teacher.service.extendStudentTime(classId, 1, 10);
+  assert.equal(studentData.individualDeadlineMs, extendRes.deadlineMs);
+
+  // 교사 강제 정상 제출 마감 -> 학생 탭 실시간 동기화
+  await teacher.service.forceSubmitStudentExam(classId, 1);
+  assert.equal(studentData.status, 'submitted');
+  assert.equal(studentData.submittedBy, 'teacher_force');
+});
+
+
