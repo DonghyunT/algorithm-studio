@@ -267,20 +267,24 @@ class StudentEvalApp {
     // 리스너 즉시 구독 보장
     this.attachAssessmentListeners();
 
-    // 풀던 중 재접속하여 이미 시험 진행 중인 경우 즉시 시험장 복구 진입
-    if (this.latestStudent?.status === 'in_progress' && !this.isSubmitted) {
-      const sessionInfo = this.latestSession || {
-        questionVersion: this.latestStudent.answers?.part3?.questionVersion || 4,
-        attemptId: this.latestStudent.attemptId,
-        deadlineMs: this.latestStudent.deadlineMs
-      };
-      const isExpired = Number.isFinite(sessionInfo.deadlineMs) && this.getNow() >= sessionInfo.deadlineMs;
+    // 학급 세션이 이미 진행 중이거나, 학생이 풀던 중 재접속한 경우 즉시 시험장 진입
+    const sessionInfo = this.latestSession || {
+      questionVersion: this.latestStudent?.answers?.part3?.questionVersion || 4,
+      attemptId: this.latestStudent?.attemptId,
+      deadlineMs: this.latestStudent?.deadlineMs
+    };
+    const sessionInProgress = this.latestSession?.status === 'in_progress';
+    const studentInProgress = this.latestStudent?.status === 'in_progress';
+
+    if ((sessionInProgress || studentInProgress) && !this.isSubmitted) {
+      const deadline = this.latestStudent?.individualDeadlineMs || this.latestStudent?.deadlineMs || this.latestSession?.deadlineMs;
+      const isExpired = Number.isFinite(deadline) && this.getNow() >= deadline;
       if (isExpired && !this.makeupAllowed) {
         this.sessionStatus = 'ended';
         this.submitExam(true);
         return;
       }
-      this.startExam(sessionInfo);
+      this.startExam(sessionInfo, { force: true });
       return;
     }
 
@@ -343,11 +347,11 @@ class StudentEvalApp {
           this.submitExam(true);
           return;
         }
-        // 시험 진행 중 학급 전체 시간 연장 실시간 반영
-        if (!this.isSubmitted && !this.makeupAllowed && sessionData?.deadlineMs) {
-          if (this.deadlineMs !== sessionData.deadlineMs || this.sessionStatus !== 'in_progress') {
+        // 시험 진행 중 학급 전체 시간 연장 실시간 반영 (이미 시험 화면에 진입한 상태일 때만)
+        const isExamActive = !document.getElementById('eval-screen-exam')?.classList.contains('hidden');
+        if (isExamActive && !this.isSubmitted && !this.makeupAllowed && sessionData?.deadlineMs) {
+          if (this.deadlineMs !== sessionData.deadlineMs) {
             this.deadlineMs = sessionData.deadlineMs;
-            this.sessionStatus = 'in_progress';
             this.startTimerInterval();
           }
         }
@@ -542,7 +546,8 @@ class StudentEvalApp {
   // 3. 시험장 진입 및 타이머 가동
   async startExam(sessionData, options = {}) {
     this.attachAssessmentListeners();
-    if (!options?.force && (this.sessionStatus === 'in_progress' || this.startingExam)) return;
+    const isExamActive = !document.getElementById('eval-screen-exam')?.classList.contains('hidden');
+    if (!options?.force && isExamActive && (this.sessionStatus === 'in_progress' || this.startingExam)) return;
     const qVersion = (sessionData && sessionData.questionVersion) || this.answers?.part3?.questionVersion || 1;
     this.startingExam = true;
     if (qVersion === 4) {
