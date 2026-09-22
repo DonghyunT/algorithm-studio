@@ -31,7 +31,10 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') return fail(405, 'POST 요청만 사용할 수 있습니다.');
   const body = req.body || {};
   const isBankExport = body.action === 'export-bank';
-  if (!['questions', 'student-score', 'grade', 'review', 'export-bank'].includes(body.action) || (!isBankExport && !validTarget(body)) || JSON.stringify(body).length > 1000) return fail(400, '요청 내용을 확인해 주세요.');
+  const isClassAction = body.action === 'class-grades';
+  const allowedActions = ['questions', 'student-score', 'student-review', 'grade', 'review', 'export-bank', 'class-grades'];
+  const isValidTargetForAction = isBankExport || (isClassAction ? CLASS_ID.test(body.classId || '') : validTarget(body));
+  if (!allowedActions.includes(body.action) || !isValidTargetForAction || JSON.stringify(body).length > 1000) return fail(400, '요청 내용을 확인해 주세요.');
   const token = (req.headers.authorization || '').match(/^Bearer (.+)$/)?.[1];
   const project = process.env.FIREBASE_PROJECT_ID || 'donghyun-algo';
   let claims;
@@ -76,15 +79,57 @@ module.exports = async (req, res) => {
       if (student.status !== 'submitted') return res.status(200).json({ ready: false, status: 'pending' });
       const assignment = assignQuestions(bank, process.env.EVAL_ASSIGNMENT_SECRET, scopeFor(session, body.classId, body.studentNum));
       const score = gradeAssignment(assignment, student.answers);
+      const part3Review = student.review?.confirmed
+        ? { total: Number(student.review.confirmed.total) || 0, confirmed: true, criteria: student.review.confirmed.criteria || [] }
+        : (student.review?.proposal
+          ? { total: Number(student.review.proposal.total) || 0, confirmed: false, criteria: student.review.proposal.criteria || [] }
+          : null);
       return res.status(200).json({
         ready: true,
         status: 'ready',
         score: { part1: score.part1, part2: score.part2, objectiveTotal: score.objectiveTotal },
+        part3: part3Review,
         rubricVersion: 'v4-server-objective'
       });
     } catch (error) {
       if (error.message === 'round') return fail(409, '현재 실전평가 회차가 아니거나 회차 정보가 바뀌었습니다. 새로고침한 뒤 다시 확인해 주세요.');
       return fail(403, '학생 점수를 확인할 권한이 없거나 제출 상태를 확인할 수 없습니다.');
+    }
+  }
+
+  if (body.action === 'student-review') {
+    if (claims.firebase?.sign_in_provider !== 'anonymous') return fail(403, '학생 평가 로그인으로만 문항 및 정답을 확인할 수 있습니다.');
+    try {
+      const { session, student } = await readSessionAndStudent();
+      if (student.ownerUid !== claims.sub) return fail(403, '본인의 평가 결과만 확인할 수 있습니다.');
+      if (student.status !== 'submitted') return fail(409, '제출이 완료된 답안만 검토할 수 있습니다.');
+      if (session.status === 'in_progress') {
+        return res.status(200).json({
+          ready: false,
+          inProgress: true,
+          message: '선생님께서 학급 평가를 종료한 후에 정답과 상세 피드백이 공개됩니다. 잠시만 기다려 주세요!'
+        });
+      }
+      const assignment = assignQuestions(bank, process.env.EVAL_ASSIGNMENT_SECRET, scopeFor(session, body.classId, body.studentNum));
+      const score = gradeAssignment(assignment, student.answers);
+      const review = teacherReview(assignment, student.answers);
+      const part3Review = student.review?.confirmed
+        ? { total: Number(student.review.confirmed.total) || 0, confirmed: true, criteria: student.review.confirmed.criteria || [], feedback: student.review.confirmed.feedback || '' }
+        : (student.review?.proposal
+          ? { total: Number(student.review.proposal.total) || 0, confirmed: false, criteria: student.review.proposal.criteria || [], feedback: student.review.proposal.feedback || '' }
+          : null);
+      return res.status(200).json({
+        ready: true,
+        attemptId: session.attemptId,
+        score,
+        review,
+        part3: part3Review,
+        answers: student.answers || {},
+        rubricVersion: 'v4-server-objective'
+      });
+    } catch (error) {
+      if (error.message === 'round') return fail(409, '현재 실전평가 회차가 아니거나 회차 정보가 바뀌었습니다.');
+      return fail(403, '제출 답안을 읽을 수 없습니다.');
     }
   }
 
@@ -102,12 +147,43 @@ module.exports = async (req, res) => {
     });
   }
 
+  if (claims.firebase?.sign_in_provider === 'anonymous') return fail(403, '교사 로그인으로만 학급 성적 및 채점 결과를 조회할 수 있습니다.');
   let role;
   try {
     role = await read('teachers/' + encodeURIComponent(claims.sub));
     const allowed = role.enabled === true && (role.allClasses === true || (Array.isArray(role.classIds) && role.classIds.includes(body.classId)));
     if (!allowed) return fail(403, '이 학급의 채점 결과를 볼 권한이 없습니다. 담당 학급 설정을 확인해 주세요.');
   } catch { return fail(403, '교사 권한을 확인하지 못했습니다.'); }
+
+  if (body.action === 'class-grades') {
+    try {
+      const session = await read('classrooms/' + body.classId);
+      if (session.questionVersion !== 4 || !session.attemptId) throw Error('round');
+      const listResponse = await fetch(`https://firestore.googleapis.com/v1/projects/${encodeURIComponent(project)}/databases/(default)/documents/classrooms/${encodeURIComponent(body.classId)}/students?pageSize=50`, {
+        headers: { Authorization: 'Bearer ' + token },
+        signal: AbortSignal.timeout(10000)
+      });
+      if (!listResponse.ok) throw Error('students_read_fail');
+      const listData = await listResponse.json();
+      const docs = listData.documents || [];
+      const grades = {};
+      for (const doc of docs) {
+        const student = decode({ mapValue: { fields: doc.fields } });
+        const numStr = doc.name.split('/').pop();
+        if (student.status !== 'submitted' || student.attemptId !== session.attemptId) continue;
+        const assignment = assignQuestions(bank, process.env.EVAL_ASSIGNMENT_SECRET, scopeFor(session, body.classId, numStr));
+        grades[numStr] = {
+          score: gradeAssignment(assignment, student.answers),
+          review: teacherReview(assignment, student.answers)
+        };
+      }
+      return res.status(200).json({ ok: true, attemptId: session.attemptId, grades, rubricVersion: 'v4-server-objective' });
+    } catch (error) {
+      if (error.message === 'round') return fail(409, '현재 실전평가 회차가 아니거나 회차 정보가 바뀌었습니다.');
+      return fail(500, '학급 성적을 채점하는 중 오류가 발생했습니다. ' + error.message);
+    }
+  }
+
   try {
     const { session, student } = await readSessionAndStudent();
     if (student.status !== 'submitted') return fail(409, '제출이 완료된 답안만 서버 채점 결과를 확인할 수 있습니다.');

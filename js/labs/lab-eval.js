@@ -151,13 +151,21 @@ class StudentEvalApp {
     }
 
     this.lobbySessionUnsub = window.evalService.listenSession(classId, (session) => {
-      const isOpen = session && ['waiting', 'in_progress'].includes(session.status) && !!session.attemptId;
-      if (session?.status === 'in_progress' && session.attemptId) {
-        statusBadge.textContent = "평가 진행 중";
+      this.latestLobbySession = session;
+      const isExpired = session?.status === 'in_progress' && Number.isFinite(session.deadlineMs) && Date.now() >= session.deadlineMs;
+      const isEnded = session?.status === 'ended' || isExpired;
+      const isWaiting = session?.status === 'waiting' && !!session.attemptId;
+      const isRunning = session?.status === 'in_progress' && !!session.attemptId && !isExpired;
+
+      if (isRunning) {
+        statusBadge.textContent = "평가 진행 중 (입장 가능)";
         statusBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800";
-      } else if (isOpen) {
+      } else if (isWaiting) {
         statusBadge.textContent = "대기실 열림 (입장 가능)";
         statusBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800";
+      } else if (isEnded) {
+        statusBadge.textContent = "평가 종료 (입장 불가)";
+        statusBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-black";
       } else {
         statusBadge.textContent = "대기실 닫힘 (선생님 준비 대기)";
         statusBadge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800";
@@ -216,13 +224,23 @@ class StudentEvalApp {
       return;
     }
 
-    // 서버/세션에 대기실 입장 등록
+    // 서버/세션에 대기실 입장 등록 (세션 종료 여부 및 결시생 makeupAllowed 여부는 joinWaitingRoom 트랜잭션에서 정확히 검증)
     if (window.evalService) {
       try {
         const student=await window.evalService.joinWaitingRoom(this.currentClass,this.studentNum,this.studentName);
         this.ownerUid=student.ownerUid; this.joined=true; this.restoreDraft(student);
         this.makeupAllowed = !!student.makeupAllowed;
+        this.latestStudent = student;
         this.sessionUnsub?.(); this.studentUnsub?.(); this.sessionUnsub=null; this.studentUnsub=null;
+
+        // 이미 제출 완료된 학생인 경우 바로 결과 화면으로 전환
+        if (student.status === 'submitted') {
+          this.isSubmitted = true;
+          this.answers = student.answers || this.answers;
+          this.sessionStatus = 'ended';
+          this.showScreen('result');
+          return;
+        }
       } catch(error) { alert(error.message); return; }
     }
 
@@ -245,6 +263,12 @@ class StudentEvalApp {
         attemptId: this.latestStudent.attemptId,
         deadlineMs: this.latestStudent.deadlineMs
       };
+      const isExpired = Number.isFinite(sessionInfo.deadlineMs) && Date.now() >= sessionInfo.deadlineMs;
+      if (isExpired && !this.makeupAllowed) {
+        this.sessionStatus = 'ended';
+        this.submitExam(true);
+        return;
+      }
       this.startExam(sessionInfo);
       return;
     }
@@ -255,12 +279,15 @@ class StudentEvalApp {
         const previous=this.latestSession;
         this.latestSession=sessionData;
         window.pendingAssessmentResume=false;
+        const isExpired = sessionData?.status === 'in_progress' && Number.isFinite(sessionData.deadlineMs) && Date.now() >= sessionData.deadlineMs;
+        const isEnded = sessionData?.status === 'ended' || isExpired;
+
         if(sessionData?.status==='waiting') {
           sessionStorage.removeItem('ALGO_ACTIVE_EXAM');
           if(previous?.attemptId && previous.attemptId!==sessionData.attemptId){sessionStorage.removeItem(this.draftKey());this.joined=false;location.reload();return;}
           this.sessionStatus='waiting';clearInterval(this.timerInterval);this.timerInterval=null;updateAssessmentNavigation();
         }
-        if(sessionData?.status==="ended" && !this.isSubmitted) {
+        if(isEnded && !this.isSubmitted) {
           if (this.makeupAllowed) {
             // 개별 추가 응시생은 전체 학급 세션 종료에 영향받지 않고 개별 30분 타이머 유지
             return;
@@ -269,7 +296,7 @@ class StudentEvalApp {
           switchUnit('eval'); this.renderPartQuestions(); this.showScreen('exam');
           this.submitExam(true); return;
         }
-        if (sessionData && sessionData.status === 'in_progress' && !this.isSubmitted) {
+        if (sessionData && sessionData.status === 'in_progress' && !this.isSubmitted && !isExpired) {
           this.startExam(sessionData);
         }
       });
@@ -1510,20 +1537,32 @@ class StudentEvalApp {
       .then(result => {
         if (!this.isSubmitted || key !== this.serverScoreRequestKey) return;
         if (result?.ready && result.score && Number.isFinite(Number(result.score.objectiveTotal))) {
+          const part3Score = (result.score.part3 != null) ? Number(result.score.part3) : null;
+          const part3Status = result.score.part3Status || (part3Score != null ? 'first_graded' : 'pending');
           this.serverScoreState = {
             status: 'ready',
             score: {
               part1: Number(result.score.part1) || 0,
               part2: Number(result.score.part2) || 0,
-              objectiveTotal: Number(result.score.objectiveTotal) || 0
+              objectiveTotal: Number(result.score.objectiveTotal) || 0,
+              part3: part3Score,
+              part3Status: part3Status,
+              criteria: result.score.criteria || null
             }
           };
           this.renderResult();
+
+          // Part 3 채점이 아직 대기 중이면 3초 간격으로 계속 폴링
+          if (part3Status === 'pending') {
+            this.serverScorePollTimer = setTimeout(() => this.pollServerScore(key), 3000);
+            if (typeof this.serverScorePollTimer?.unref === 'function') this.serverScorePollTimer.unref();
+          }
           return;
         }
         this.serverScoreState = { status: 'pending', score: null };
         this.renderServerScoreReveal();
         this.serverScorePollTimer = setTimeout(() => this.pollServerScore(key), 2500);
+        if (typeof this.serverScorePollTimer?.unref === 'function') this.serverScorePollTimer.unref();
       })
       .catch(error => {
         if (!this.isSubmitted || key !== this.serverScoreRequestKey) return;
@@ -1737,6 +1776,449 @@ class StudentEvalApp {
       `;
     }
     this.renderServerScoreReveal();
+
+    // Part 3 1차 채점 카드 렌더링
+    const part3Card = document.getElementById('eval-result-part3-card');
+    if (part3Card) {
+      const serverScore = this.serverScoreState.score;
+      const part3Score = serverScore?.part3 ?? (this.scores.serverGraded ? null : this.scores.part3);
+      const part3Status = serverScore?.part3Status || (this.scores.serverGraded ? (part3Score != null ? 'first_graded' : 'pending') : 'confirmed');
+
+      if (part3Score != null && part3Status !== 'pending') {
+        part3Card.classList.remove('hidden');
+        const badgeEl = document.getElementById('eval-result-part3-badge');
+        const scoreEl = document.getElementById('eval-result-part3-score-display');
+        const grandTotalEl = document.getElementById('eval-result-grand-total-score');
+        const noticeEl = document.getElementById('eval-result-part3-notice');
+
+        const isConfirmed = part3Status === 'confirmed';
+        if (badgeEl) {
+          badgeEl.textContent = isConfirmed ? '선생님 확정 완료' : '1차 채점 완료';
+          badgeEl.className = isConfirmed
+            ? 'text-[11px] font-black px-2 py-0.5 rounded-full bg-violet-100 text-violet-800 border border-violet-200'
+            : 'text-[11px] font-black px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-900';
+        }
+        if (scoreEl) {
+          scoreEl.textContent = `${part3Score} / 40점`;
+        }
+        if (grandTotalEl) {
+          const objScore = serverScore ? serverScore.objectiveTotal : ((this.scores.part1 || 0) + (this.scores.part2 || 0));
+          grandTotalEl.textContent = `${objScore + part3Score}점`;
+        }
+        if (noticeEl) {
+          noticeEl.textContent = isConfirmed
+            ? '※ 선생님께서 검토 후 최종 확정한 점수입니다.'
+            : '※ 본 점수는 1차 채점(AI 분석) 결과이며, 선생님의 최종 검토 및 확인 후 최종 확정됩니다.';
+        }
+      } else {
+        part3Card.classList.add('hidden');
+      }
+    }
+  }
+
+  // 문항별 내 답안 및 정답 확인 모달 닫기
+  closeReviewModal() {
+    const modal = document.getElementById('student-eval-review-modal');
+    if (modal) modal.classList.add('hidden');
+  }
+
+  // 문항별 내 답안 및 정답 확인 모달 열기
+  async openReviewModal() {
+    const modal = document.getElementById('student-eval-review-modal');
+    const content = document.getElementById('student-review-modal-content');
+    if (!modal || !content) return;
+
+    modal.classList.remove('hidden');
+    content.innerHTML = `
+      <div class="py-12 text-center text-slate-500 space-y-3">
+        <i class="fa-solid fa-spinner fa-spin text-2xl text-indigo-600"></i>
+        <p class="font-bold text-sm">답안과 채점 결과를 불러오고 있습니다...</p>
+      </div>
+    `;
+
+    try {
+      if (this.isSecureServerScore() && typeof requestSecureEvaluationStudentReview === 'function' && !window.authService?.isDemo?.()) {
+        const res = await requestSecureEvaluationStudentReview(this.currentClass, this.studentNum);
+
+        // 1) 시험 진행 중이거나 준비되지 않은 상태 (치팅 방지 안내)
+        if (res.inProgress === true || res.ready === false || res.sessionStatus === 'in_progress') {
+          const bannerMsg = res.message || '선생님께서 학급 평가를 종료한 후에 정답과 상세 피드백이 공개됩니다. 잠시만 기다려 주세요!';
+          const p1 = Number(res.score?.part1 ?? res.scores?.part1 ?? 0);
+          const p2 = Number(res.score?.part2 ?? res.scores?.part2 ?? 0);
+          content.innerHTML = `
+            <div class="p-6 bg-amber-50 rounded-2xl border border-amber-200 text-center space-y-3">
+              <div class="w-12 h-12 mx-auto rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-xl">
+                <i class="fa-solid fa-shield-halved"></i>
+              </div>
+              <h4 class="font-black text-amber-900 text-base">시험이 아직 진행 중입니다</h4>
+              <p class="text-xs sm:text-sm text-amber-800 leading-relaxed max-w-md mx-auto">
+                ${bannerMsg.replace(/\n/g, '<br>')}
+              </p>
+              <div class="pt-2 text-xs font-bold text-slate-600">
+                내 지필 자동채점 참고 점수: <span class="text-indigo-600 font-mono text-sm">${p1 + p2}점</span> / 60점
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        // 2) 정상 검토 결과 렌더링
+        this.renderReviewModalContent(content, res.review, res.answers || res.studentAnswers, res.score || res.scores, res.part3);
+      } else {
+        this.renderLocalReviewModalContent(content);
+      }
+    } catch (err) {
+      console.error('[OPEN_REVIEW_MODAL_ERROR]', err);
+      content.innerHTML = `
+        <div class="p-6 bg-red-50 rounded-2xl border border-red-200 text-center space-y-2">
+          <i class="fa-solid fa-triangle-exclamation text-red-500 text-2xl"></i>
+          <h4 class="font-black text-red-900">결과를 불러오지 못했습니다</h4>
+          <p class="text-xs text-red-700">${String(err.message || '네트워크 연결을 확인한 뒤 다시 시도해 주세요.').replace(/</g, '&lt;')}</p>
+        </div>
+      `;
+    }
+  }
+
+  // V4 서버 리뷰 결과 렌더링
+  renderReviewModalContent(container, reviewData, studentAnswers, scores, part3Data) {
+    if (!reviewData) {
+      container.innerHTML = `<p class="text-center text-slate-400 py-8">확인 가능한 검토 데이터가 없습니다.</p>`;
+      return;
+    }
+
+    const escape = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const part1Items = reviewData.part1 || [];
+    const part2Items = reviewData.part2 || [];
+
+    // Part 3 데이터 안전 파싱 (confirmed vs proposal vs part3Data)
+    const part3 = part3Data || reviewData.part3 || {};
+    const isP3Confirmed = part3.confirmed === true || (part3.confirmed != null && typeof part3.confirmed === 'object');
+    const p3Review = (part3.confirmed && typeof part3.confirmed === 'object')
+      ? part3.confirmed
+      : ((part3.proposal && typeof part3.proposal === 'object') ? part3.proposal : part3);
+    const p3Score = p3Review?.total != null ? Number(p3Review.total) : (p3Review?.score != null ? Number(p3Review.score) : null);
+
+    const p1Score = scores?.part1 != null ? Number(scores.part1) : part1Items.reduce((acc, it) => acc + (it.isCorrect ? (it.points || 3) : 0), 0);
+    const p2Score = scores?.part2 != null ? Number(scores.part2) : part2Items.reduce((acc, it) => acc + (it.isCorrect ? (it.points || 5) : 0), 0);
+    const objTotal = scores?.objectiveTotal != null ? Number(scores.objectiveTotal) : (p1Score + p2Score);
+
+    let html = `
+      <!-- 요약 헤더 배너 -->
+      <div class="p-4 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-2xl border border-indigo-100 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div class="text-xs font-bold text-indigo-600">수행평가 채점 결과 요약</div>
+          <div class="text-base sm:text-lg font-black text-slate-800">
+            객관·단답 지필소계: <span class="text-indigo-600 font-mono">${objTotal}점</span> / 60점
+          </div>
+        </div>
+        <div class="text-right">
+          <div class="text-xs font-bold text-slate-500">Part 3 순서도 설계</div>
+          <div class="text-sm sm:text-base font-black ${p3Score != null ? (isP3Confirmed ? 'text-violet-700' : 'text-emerald-700') : 'text-slate-400'}">
+            ${isP3Confirmed ? `${p3Score}점 (선생님 확정)` : (p3Score != null ? `${p3Score}점 (1차 채점)` : '채점 진행 중')}
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Part 1 객관식 (10문항)
+    html += `
+      <div class="space-y-4">
+        <div class="flex items-center gap-2 border-b border-slate-200 pb-2">
+          <span class="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-700 text-xs font-black">Part 1</span>
+          <h4 class="font-black text-slate-800 text-sm sm:text-base">객관식 (10문항 / 총 30점)</h4>
+        </div>
+        <div class="space-y-3">
+    `;
+
+    part1Items.forEach((item, idx) => {
+      const choiceIdx = item.studentAnswer !== undefined && item.studentAnswer !== null
+        ? item.studentAnswer
+        : (studentAnswers?.part1?.[item.id] !== undefined ? studentAnswers.part1[item.id] : item.myChoice);
+      const ansIdx = item.correctAnswer !== undefined && item.correctAnswer !== null ? item.correctAnswer : item.answer;
+
+      const isCorrect = item.isCorrect !== undefined
+        ? item.isCorrect === true
+        : (choiceIdx !== undefined && choiceIdx !== null && ansIdx !== undefined && ansIdx !== null && Number(choiceIdx) === Number(ansIdx));
+
+      let myChoiceText = '미응답';
+      if (choiceIdx !== undefined && choiceIdx !== null && choiceIdx !== '') {
+        const cNum = Number(choiceIdx) + 1;
+        const optText = Array.isArray(item.options) && item.options[choiceIdx] ? ` (${item.options[choiceIdx]})` : '';
+        myChoiceText = `${cNum}번${optText}`;
+      }
+
+      let ansText = '미지정';
+      if (ansIdx !== undefined && ansIdx !== null && ansIdx !== '') {
+        const aNum = Number(ansIdx) + 1;
+        const optText = Array.isArray(item.options) && item.options[ansIdx] ? ` (${item.options[ansIdx]})` : '';
+        ansText = `${aNum}번${optText}`;
+      }
+
+      const promptText = item.desc || item.title || item.prompt || '';
+      const explanation = item.teacherNote || item.explanation || '';
+      const points = item.points || 3;
+
+      html += `
+        <div class="p-4 rounded-2xl border ${isCorrect ? 'bg-emerald-50/40 border-emerald-200' : 'bg-rose-50/40 border-rose-200'} space-y-2">
+          <div class="flex items-start justify-between gap-2">
+            <span class="text-xs font-black ${isCorrect ? 'text-emerald-800' : 'text-rose-800'}">
+              Q${idx + 1}. [배점 ${points}점] ${escape(promptText)}
+            </span>
+            <span class="text-xs font-black px-2 py-0.5 rounded-full ${isCorrect ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'} shrink-0">
+              ${isCorrect ? `⭕ 정답 (+${points}점)` : '❌ 오답 (0점)'}
+            </span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
+            <div class="p-2 rounded-xl bg-white/80 border border-slate-200">
+              <span class="text-slate-500 font-bold">내가 선택한 답:</span>
+              <span class="font-black ${isCorrect ? 'text-emerald-700' : 'text-rose-700'} ml-1">${escape(myChoiceText)}</span>
+            </div>
+            <div class="p-2 rounded-xl bg-white/80 border border-slate-200">
+              <span class="text-slate-500 font-bold">실제 정답:</span>
+              <span class="font-black text-indigo-700 ml-1">${escape(ansText)}</span>
+            </div>
+          </div>
+          ${explanation ? `
+            <div class="text-[11px] text-slate-600 bg-white/70 p-2.5 rounded-xl border border-slate-100 leading-relaxed">
+              💡 <strong>해설:</strong> ${escape(explanation)}
+            </div>
+          ` : ''}
+        </div>
+      `;
+    });
+    html += `</div></div>`;
+
+    // Part 2 단답형 (6문항)
+    html += `
+      <div class="space-y-4 pt-2">
+        <div class="flex items-center gap-2 border-b border-slate-200 pb-2">
+          <span class="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-xs font-black">Part 2</span>
+          <h4 class="font-black text-slate-800 text-sm sm:text-base">단답형 (6문항 / 총 30점)</h4>
+        </div>
+        <div class="space-y-3">
+    `;
+
+    part2Items.forEach((item, idx) => {
+      const myInput = item.studentAnswer !== undefined && item.studentAnswer !== null
+        ? item.studentAnswer
+        : (studentAnswers?.part2?.[item.id] !== undefined ? studentAnswers.part2[item.id] : (item.myInput ?? ''));
+      const myText = String(myInput || '').trim();
+
+      const acceptableList = Array.isArray(item.answers)
+        ? item.answers
+        : (Array.isArray(item.acceptableAnswers) ? item.acceptableAnswers : (item.answer ? [item.answer] : []));
+      const acceptableText = acceptableList.length > 0 ? acceptableList.join(', ') : '미지정';
+
+      const norm = v => String(v || '').toLowerCase().replace(/\s+/g, '').trim();
+      const isCorrect = item.isCorrect !== undefined
+        ? item.isCorrect === true
+        : (myText !== '' && acceptableList.some(a => norm(a) === norm(myText)));
+
+      const promptText = item.desc || item.title || item.prompt || '';
+      const explanation = item.teacherNote || item.explanation || '';
+      const points = item.points || 5;
+
+      html += `
+        <div class="p-4 rounded-2xl border ${isCorrect ? 'bg-emerald-50/40 border-emerald-200' : 'bg-rose-50/40 border-rose-200'} space-y-2">
+          <div class="flex items-start justify-between gap-2">
+            <span class="text-xs font-black ${isCorrect ? 'text-emerald-800' : 'text-rose-800'}">
+              Q${idx + 11}. [배점 ${points}점] ${escape(promptText)}
+            </span>
+            <span class="text-xs font-black px-2 py-0.5 rounded-full ${isCorrect ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'} shrink-0">
+              ${isCorrect ? `⭕ 정답 (+${points}점)` : '❌ 오답 (0점)'}
+            </span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
+            <div class="p-2 rounded-xl bg-white/80 border border-slate-200">
+              <span class="text-slate-500 font-bold">내가 입력한 답:</span>
+              <span class="font-black ${isCorrect ? 'text-emerald-700' : 'text-rose-700'} ml-1">${escape(myText || '미입력')}</span>
+            </div>
+            <div class="p-2 rounded-xl bg-white/80 border border-slate-200">
+              <span class="text-slate-500 font-bold">인정 정답:</span>
+              <span class="font-black text-indigo-700 ml-1">${escape(acceptableText)}</span>
+            </div>
+          </div>
+          ${explanation ? `
+            <div class="text-[11px] text-slate-600 bg-white/70 p-2.5 rounded-xl border border-slate-100 leading-relaxed">
+              💡 <strong>해설:</strong> ${escape(explanation)}
+            </div>
+          ` : ''}
+        </div>
+      `;
+    });
+    html += `</div></div>`;
+
+    // Part 3 순서도 설계 (40점)
+    const rawCriteria = p3Review?.criteria || {};
+    let criteriaList = [];
+    if (Array.isArray(rawCriteria) && rawCriteria.length > 0) {
+      criteriaList = rawCriteria.map((c, idx) => ({
+        title: c.title || (idx === 0 ? '1. 문제 해결 계획의 적절성' : idx === 1 ? '2. 시작/종료 기호의 올바른 사용' : idx === 2 ? '3. 제어 구조(순차·선택·반복) 구현' : '4. 실행 결과의 올바름'),
+        score: c.score !== undefined ? Number(c.score) : null,
+        feedback: c.evidence || c.feedback || ''
+      }));
+    } else if (typeof rawCriteria === 'object' && rawCriteria !== null) {
+      criteriaList = [
+        { title: '1. 문제 해결 계획의 적절성', score: rawCriteria.planScore, feedback: rawCriteria.planFeedback || '' },
+        { title: '2. 시작/종료 기호의 올바른 사용', score: rawCriteria.terminalScore, feedback: rawCriteria.terminalFeedback || '' },
+        { title: '3. 제어 구조(순차·선택·반복) 구현', score: rawCriteria.structureScore, feedback: rawCriteria.structureFeedback || '' },
+        { title: '4. 실행 결과의 올바름', score: rawCriteria.executionScore, feedback: rawCriteria.executionFeedback || '' }
+      ];
+    } else {
+      criteriaList = [
+        { title: '1. 문제 해결 계획의 적절성', score: null, feedback: '' },
+        { title: '2. 시작/종료 기호의 올바른 사용', score: null, feedback: '' },
+        { title: '3. 제어 구조(순차·선택·반복) 구현', score: null, feedback: '' },
+        { title: '4. 실행 결과의 올바름', score: null, feedback: '' }
+      ];
+    }
+
+    html += `
+      <div class="space-y-4 pt-2">
+        <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-xs font-black">Part 3</span>
+            <h4 class="font-black text-slate-800 text-sm sm:text-base">순서도 설계 (배점 40점)</h4>
+          </div>
+          <span class="text-xs font-black px-2.5 py-0.5 rounded-full ${isP3Confirmed ? 'bg-violet-100 text-violet-800' : (p3Score != null ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600')}">
+            ${isP3Confirmed ? '선생님 확정 완료' : (p3Score != null ? '1차 채점 완료' : '채점 진행 중')}
+          </span>
+        </div>
+
+        <!-- 4대 평가 기준별 피드백 -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+    `;
+
+    criteriaList.forEach((c) => {
+      html += `
+        <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+          <div class="flex items-center justify-between font-bold text-slate-700">
+            <span>${escape(c.title)}</span>
+            <span class="font-mono text-indigo-600 font-black">${c.score != null ? c.score + ' / 10점' : '--'}</span>
+          </div>
+          <p class="text-[11px] text-slate-600 leading-relaxed">${escape(c.feedback || '검토 전입니다.')}</p>
+        </div>
+      `;
+    });
+
+    html += `
+        </div>
+
+        <!-- Part 3 총평 -->
+        <div class="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-black text-emerald-900">순서도 설계 종합 점수</span>
+            <span class="text-lg font-black text-emerald-950 font-mono">${p3Score != null ? p3Score + ' / 40점' : '채점 중...'}</span>
+          </div>
+          <p class="text-xs text-emerald-800 leading-relaxed">
+            ${escape(p3Review?.feedback || (isP3Confirmed ? '선생님 평가가 확정되었습니다.' : (p3Score != null ? '1차 채점이 완료되었습니다. 선생님 검토 후 확정됩니다.' : '선생님의 최종 확인 후 피드백이 확정됩니다.')))}
+          </p>
+        </div>
+      </div>
+    `;
+
+    container.innerHTML = html;
+  }
+
+  // 로컬/모의평가(V3) 리뷰 모달 렌더링
+  renderLocalReviewModalContent(container) {
+    const escape = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const questions = this.currentQuestions();
+    const p1Questions = questions.part1 || [];
+    const p2Questions = questions.part2 || [];
+
+    let html = `
+      <div class="p-4 bg-slate-100 rounded-2xl border border-slate-200 text-xs text-slate-600 leading-relaxed">
+        모의평가(실습) 답안과 정답 해설입니다. 내가 작성한 내용과 비교해 보세요.
+      </div>
+      <div class="space-y-4">
+        <div class="flex items-center gap-2 border-b border-slate-200 pb-2">
+          <span class="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-700 text-xs font-black">Part 1</span>
+          <h4 class="font-black text-slate-800 text-sm sm:text-base">객관식 문항</h4>
+        </div>
+        <div class="space-y-3">
+    `;
+
+    p1Questions.forEach((q, idx) => {
+      const myChoice = this.answers.part1[q.id];
+      const isCorrect = Number(myChoice) === Number(q.answer);
+      const myChoiceText = myChoice != null ? `${myChoice + 1}번` : '미응답';
+      const ansText = q.answer != null ? `${q.answer + 1}번` : '미지정';
+      html += `
+        <div class="p-4 rounded-2xl border ${isCorrect ? 'bg-emerald-50/40 border-emerald-200' : 'bg-rose-50/40 border-rose-200'} space-y-2">
+          <div class="flex items-start justify-between gap-2">
+            <span class="text-xs font-black ${isCorrect ? 'text-emerald-800' : 'text-rose-800'}">
+              Q${idx + 1}. ${escape(q.prompt)}
+            </span>
+            <span class="text-xs font-black px-2 py-0.5 rounded-full ${isCorrect ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'} shrink-0">
+              ${isCorrect ? '⭕ 정답 (+3점)' : '❌ 오답 (0점)'}
+            </span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
+            <div class="p-2 rounded-xl bg-white/80 border border-slate-200">
+              <span class="text-slate-500 font-bold">내가 선택한 답:</span>
+              <span class="font-black ${isCorrect ? 'text-emerald-700' : 'text-rose-700'} ml-1">${escape(myChoiceText)}</span>
+            </div>
+            <div class="p-2 rounded-xl bg-white/80 border border-slate-200">
+              <span class="text-slate-500 font-bold">실제 정답:</span>
+              <span class="font-black text-indigo-700 ml-1">${escape(ansText)}</span>
+            </div>
+          </div>
+          ${q.explanation ? `
+            <div class="text-[11px] text-slate-600 bg-white/70 p-2.5 rounded-xl border border-slate-100 leading-relaxed">
+              💡 <strong>해설:</strong> ${escape(q.explanation)}
+            </div>
+          ` : ''}
+        </div>
+      `;
+    });
+    html += `</div></div>`;
+
+    // Part 2 단답형
+    html += `
+      <div class="space-y-4 pt-2">
+        <div class="flex items-center gap-2 border-b border-slate-200 pb-2">
+          <span class="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-xs font-black">Part 2</span>
+          <h4 class="font-black text-slate-800 text-sm sm:text-base">단답형 문항</h4>
+        </div>
+        <div class="space-y-3">
+    `;
+
+    p2Questions.forEach((q, idx) => {
+      const myText = String(this.answers.part2[q.id] ?? '').trim();
+      const acceptable = Array.isArray(q.acceptableAnswers) ? q.acceptableAnswers : [q.answer];
+      const isCorrect = acceptable.some(a => String(a).trim().toLowerCase() === myText.toLowerCase());
+      html += `
+        <div class="p-4 rounded-2xl border ${isCorrect ? 'bg-emerald-50/40 border-emerald-200' : 'bg-rose-50/40 border-rose-200'} space-y-2">
+          <div class="flex items-start justify-between gap-2">
+            <span class="text-xs font-black ${isCorrect ? 'text-emerald-800' : 'text-rose-800'}">
+              Q${idx + 11}. ${escape(q.prompt)}
+            </span>
+            <span class="text-xs font-black px-2 py-0.5 rounded-full ${isCorrect ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'} shrink-0">
+              ${isCorrect ? '⭕ 정답 (+5점)' : '❌ 오답 (0점)'}
+            </span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
+            <div class="p-2 rounded-xl bg-white/80 border border-slate-200">
+              <span class="text-slate-500 font-bold">내가 입력한 답:</span>
+              <span class="font-black ${isCorrect ? 'text-emerald-700' : 'text-rose-700'} ml-1">${escape(myText || '미입력')}</span>
+            </div>
+            <div class="p-2 rounded-xl bg-white/80 border border-slate-200">
+              <span class="text-slate-500 font-bold">인정 정답:</span>
+              <span class="font-black text-indigo-700 ml-1">${escape(acceptable.join(', '))}</span>
+            </div>
+          </div>
+          ${q.explanation ? `
+            <div class="text-[11px] text-slate-600 bg-white/70 p-2.5 rounded-xl border border-slate-100 leading-relaxed">
+              💡 <strong>해설:</strong> ${escape(q.explanation)}
+            </div>
+          ` : ''}
+        </div>
+      `;
+    });
+    html += `</div></div>`;
+
+    container.innerHTML = html;
   }
 
   // 시험장 나가기 (로드맵으로 복귀)

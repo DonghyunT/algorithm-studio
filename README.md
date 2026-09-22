@@ -2,7 +2,7 @@
 
 중학교 정보 수업의 **추수활동**을 위한 웹앱입니다. 문제 추상화, 알고리즘 설계, 순서도를 학생이 쉽게 적용하고 직접 완성하도록 돕습니다. 수행평가 탭은 별도의 평가 원칙을 따릅니다.
 
-> 갱신: 2026-09-19. V4 실전평가는 운영 중이며 V3는 모의평가·기존 회차 호환용입니다. 교사는 평가 준비 전에 유형을 선택하며 기본값은 실전평가입니다. 운영 기준은 `main`이며 처방전 팝업 수정까지 반영되었습니다. 회차별 문항·채점 재현, 보관·복구와 교실 동시 사용 검증은 남아 있습니다. [현재 명세](PRD.md), [배포 기록](docs/DEPLOYMENT.md), [다른 PC 인수인계](docs/HANDOFF.md)를 확인하세요.
+> 갱신: 2026-09-21. V4 실전평가는 운영 중이며 V3는 모의평가·기존 회차 호환용입니다. 교사는 평가 준비 전에 유형을 선택하며 기본값은 실전평가입니다. 운영 기준은 `main`(`311ea4c`)이며 멀티 시트 엑셀 성적표(`.xlsx`), 관제탑 실시간 서버 성적 연동, 결시생 기기무관 추가 응시 복원까지 반영되었습니다. 회차별 문항·채점 재현, 보관·복구와 교실 동시 사용 검증은 남아 있습니다. [현재 명세](PRD.md), [배포 기록](docs/DEPLOYMENT.md), [다른 PC 인수인계](docs/HANDOFF.md)를 확인하세요.
 
 ## 수업에서 활용하기
 
@@ -43,7 +43,7 @@
 | `js/data/config.example.js` | 기존 로컬 AI 설정 예시 |
 | `js/core/navigation.js`, `concept.js`, `audio.js` | 화면 전환·개념·효과음 |
 | `js/core/ai-service.js`, `ai-tutor.js` | AI 통신·튜터 |
-| `js/core/eval-service.js`, `classroom.js` | 평가 통신·교사용 화면 |
+| `js/core/eval-service.js`, `classroom.js`, `excel-export.js` | 평가 통신·교사용 화면·엑셀 성적표 |
 | `js/labs/lab-abstraction.js`, `lab-sandwich.js`, `lab-quiz.js` | 실습·퀴즈 |
 | `js/labs/lab-flowchart.js`, `lab-eval.js` | 순서도·평가 화면 및 실행·채점 |
 | `api/chat.js`, `api/assessment.js`, `api/evaluation.js` | 실습 AI·교사 초벌 채점·V4 문항 배정/채점 API |

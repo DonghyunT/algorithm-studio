@@ -34,6 +34,10 @@ let teacherSessionPendingLabel = '';
 let isScoreBlindMode = true; // 프로젝터 투사 시 학생 실시간 점수 유출 방지 (기본 ON)
 let currentModalStudent = null;
 let teacherAutoReviewQueue = null;
+let autoEndHandledAttemptId = null;
+let currentLiveClassGrades = {};
+let isFetchingClassGrades = false;
+let gradesRefreshTimeout = null;
 
 function getTeacherAutoReviewQueue() {
   if (!teacherAutoReviewQueue && typeof AssessmentAutoReviewQueue === 'function') {
@@ -74,6 +78,40 @@ function syncTeacherAutoReviewQueue(students = currentLiveStudents) {
     students: students || [],
     isTeacher: isTeacherAuthenticated
   });
+}
+
+async function refreshLiveClassGrades(classId) {
+  if (!classId) return;
+  const session = typeof currentLiveSession !== 'undefined' ? currentLiveSession : null;
+  const isV4 = session ? (session.questionVersion === 4 || session.version === 'v4') : false;
+  const hasSubmitted = Array.isArray(currentLiveStudents) && currentLiveStudents.some(s => s.status === 'submitted');
+  const hasServerGraded = Array.isArray(currentLiveStudents) && currentLiveStudents.some(s => s.scores && s.scores.serverGraded);
+
+  if ((!isV4 && !hasServerGraded) || !hasSubmitted) return;
+  if (typeof requestSecureEvaluationClassGrades !== 'function' || (window.authService && window.authService.isDemo())) return;
+  if (isFetchingClassGrades) return;
+
+  isFetchingClassGrades = true;
+  try {
+    const res = await requestSecureEvaluationClassGrades(classId);
+    if (res && res.grades) {
+      currentLiveClassGrades = { ...currentLiveClassGrades, ...res.grades };
+      if (Array.isArray(currentLiveStudents) && currentLiveStudents.length > 0) {
+        renderLiveGrid(currentLiveStudents);
+      }
+    }
+  } catch (err) {
+    console.warn('[CLASSROOM] class-grades 자동 조회 알림:', err.message);
+  } finally {
+    isFetchingClassGrades = false;
+  }
+}
+
+function scheduleRefreshLiveClassGrades(classId, delayMs = 400) {
+  clearTimeout(gradesRefreshTimeout);
+  gradesRefreshTimeout = setTimeout(() => {
+    refreshLiveClassGrades(classId);
+  }, delayMs);
 }
 
 // 1. 클래스룸 데이터 로드 및 초기화
@@ -260,6 +298,8 @@ function initLiveEvalDashboard() {
   currentLiveSession = null;
   liveSessionError = false;
   currentLiveStudents = [];
+  currentLiveClassGrades = {};
+  clearTimeout(gradesRefreshTimeout);
   setTeacherSessionFeedback('');
   renderLiveGrid([]);
   renderTeacherSessionControl();
@@ -272,6 +312,9 @@ function initLiveEvalDashboard() {
       liveSessionError = false;
       renderTeacherSessionControl();
       syncTeacherAutoReviewQueue(currentLiveStudents);
+      if (currentLiveStudents.some(s => s.status === 'submitted')) {
+        scheduleRefreshLiveClassGrades(classId, 200);
+      }
     }, () => {
       if (generation !== liveDashboardGeneration) return;
       clearUnavailableTeacherData();
@@ -284,6 +327,9 @@ function initLiveEvalDashboard() {
       currentLiveStudents = students || [];
       renderLiveGrid(currentLiveStudents);
       syncTeacherAutoReviewQueue(currentLiveStudents);
+      if (currentLiveStudents.some(s => s.status === 'submitted')) {
+        scheduleRefreshLiveClassGrades(classId, 300);
+      }
     }, ()=>{if(generation===liveDashboardGeneration)clearUnavailableTeacherData();});
     if(generation!==liveDashboardGeneration){liveEvalUnsub?.();liveEvalUnsub=null;return;}
     liveSessionTimer = setInterval(renderTeacherSessionControl, 1000);
@@ -294,6 +340,7 @@ function initLiveEvalDashboard() {
 function clearUnavailableTeacherData() {
   stopLiveEvalDashboard();
   currentLiveStudents=[];currentLiveSession=null;liveSessionError=true;
+  currentLiveClassGrades={};
   renderLiveGrid([]);closeLiveStudentModal();
   ['classroom-live-modal-title','classroom-live-modal-summary','classroom-live-modal-p1','classroom-live-modal-p2','classroom-live-modal-p3'].forEach(id=>{const el=document.getElementById(id);if(el)el.replaceChildren();});
   const score=document.getElementById('classroom-live-override-score');if(score)score.value='';
@@ -307,6 +354,8 @@ function stopLiveEvalDashboard() {
   liveEvalUnsub?.(); liveEvalUnsub = null;
   liveSessionUnsub?.(); liveSessionUnsub = null;
   clearInterval(liveSessionTimer); liveSessionTimer = null;
+  clearTimeout(gradesRefreshTimeout);
+  currentLiveClassGrades = {};
   teacherAutoReviewQueue?.reset();
   updateTeacherAiQueueBadge({ isBusy: false, pendingCount: 0, totalProcessed: 0 });
 }
@@ -332,6 +381,24 @@ function renderTeacherSessionControl() {
   const hint = document.getElementById('teacher-session-hint');
   const button = document.getElementById('teacher-session-action');
   const time = document.getElementById('teacher-session-time');
+
+  // 시험 시간 만료 시 백그라운드에서 미제출 일괄 마감 및 세션 종료(ended) 동기화
+  const isExpired = currentLiveSession?.status === 'in_progress' && Number.isFinite(currentLiveSession.deadlineMs) && Date.now() >= currentLiveSession.deadlineMs;
+  if (isExpired && autoEndHandledAttemptId !== currentLiveSession.attemptId && !teacherSessionPending && typeof getClassIdFromSelected === 'function') {
+    autoEndHandledAttemptId = currentLiveSession.attemptId;
+    const classId = getClassIdFromSelected();
+    const expected = { attemptId: currentLiveSession.attemptId, status: 'in_progress' };
+    (async () => {
+      try {
+        if (window.evalService && typeof window.evalService.autoSubmitRemainingStudents === 'function') {
+          await window.evalService.autoSubmitRemainingStudents(classId).catch(() => {});
+        }
+        await window.evalService.endSession(classId, expected);
+      } catch(e) {
+        console.warn('자동 마감 동기화 알림:', e.message);
+      }
+    })();
+  }
   // Pending writes are not presented as completed operations.
   if (!teacherSessionPending) {
     if (badge) { badge.textContent = model.label; badge.dataset.state = model.state; }
@@ -615,20 +682,59 @@ function renderLiveGrid(students = []) {
         }
       } else if (s.status === 'submitted') {
         statusBg = "bg-emerald-50 border-emerald-400 text-emerald-950 shadow-xs";
-        const finalScore = (s.scores?.teacherOverride !== null && s.scores?.teacherOverride !== undefined)
+
+        // 1. 서버 지필 채점 점수 (Part 1 + Part 2 객관·단답 소계)
+        const serverData = currentLiveClassGrades[s.numStr] || currentLiveClassGrades[numStr];
+        const serverObjScore = serverData?.score?.objectiveTotal ?? (
+          (s.scores?.part1 !== null && s.scores?.part1 !== undefined && s.scores?.part2 !== null && s.scores?.part2 !== undefined)
+            ? ((s.scores.part1 || 0) + (s.scores.part2 || 0))
+            : null
+        );
+
+        // 2. Part 3 교사 확정 점수 (0~40)
+        const confirmedP3 = s.review?.confirmed?.criteria
+          ? s.review.confirmed.criteria.reduce((sum, c) => sum + (Number(c.score) || 0), 0)
+          : null;
+
+        // 3. Part 3 AI 제안 점수 (0~40)
+        const proposalP3 = s.review?.proposal?.criteria
+          ? s.review.proposal.criteria.reduce((sum, c) => sum + (Number(c.score) || 0), 0)
+          : null;
+
+        // 4. 교사 수동 전체 총점 오버라이드
+        const teacherOverride = (s.scores?.teacherOverride !== null && s.scores?.teacherOverride !== undefined)
           ? s.scores.teacherOverride
-          : (s.scores?.total || 0);
+          : null;
+
         let reviewBadge = '';
-        if (s.review?.confirmed) {
+        if (teacherOverride !== null || confirmedP3 !== null) {
           reviewBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-black ml-1">확정</span>`;
-        } else if (s.review?.proposal) {
+        } else if (proposalP3 !== null) {
           reviewBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 font-bold ml-1">AI제안</span>`;
         }
         statusBadge = `<div class="flex items-center"><span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-600 text-white font-bold">제출완료</span>${reviewBadge}</div>`;
+
         if (isScoreBlindMode) {
           scoreDisplay = `<span class="text-xs text-emerald-700 font-bold">제출 완료 (비공개)</span>`;
+        } else if (teacherOverride !== null) {
+          scoreDisplay = `<span class="text-sm font-black text-blue-700">${teacherOverride}점 (확정)</span>`;
+        } else if (confirmedP3 !== null) {
+          const totalScore = (serverObjScore !== null ? serverObjScore : 0) + confirmedP3;
+          scoreDisplay = `<span class="text-sm font-black text-blue-700">${totalScore}점 (확정)</span>`;
+        } else if (proposalP3 !== null) {
+          if (serverObjScore !== null) {
+            const proposedTotal = serverObjScore + proposalP3;
+            scoreDisplay = `<span class="text-sm font-black text-amber-700">${proposedTotal}점 (AI제안)</span>`;
+          } else {
+            scoreDisplay = `<span class="text-xs font-bold text-amber-700">AI제안 ${proposalP3}점</span>`;
+          }
+        } else if (serverObjScore !== null) {
+          scoreDisplay = `<span class="text-sm font-black text-emerald-700">지필 ${serverObjScore}점 (서술대기)</span>`;
+        } else if (s.scores?.serverGraded || s.questionVersion === 4) {
+          scoreDisplay = `<span class="text-xs text-slate-500 font-medium animate-pulse"><i class="fa-solid fa-spinner fa-spin text-[10px] mr-1"></i>채점 확인 중</span>`;
         } else {
-          scoreDisplay = `<span class="text-sm font-black text-emerald-700">${s.scores?.pendingReview ? '소계 ' + ((s.scores?.part1 || 0) + (s.scores?.part2 || 0)) + '점 (검토대기)' : finalScore + '점'}</span>`;
+          const fallbackFinal = s.scores?.total || 0;
+          scoreDisplay = `<span class="text-sm font-black text-emerald-700">${s.scores?.pendingReview ? '소계 ' + ((s.scores?.part1 || 0) + (s.scores?.part2 || 0)) + '점 (검토대기)' : fallbackFinal + '점'}</span>`;
         }
       }
     }
@@ -673,7 +779,55 @@ function toggleScoreBlindMode() {
   renderLiveGrid(currentLiveStudents);
 }
 
-// 나이스 CSV 다운로드
+// 성적표 엑셀(Multi-Sheet XLSX: 학급종합 + 개별학생 + 나이스) 다운로드
+async function handleTeacherExportExcel() {
+  const classId = getClassIdFromSelected();
+  const btn = document.getElementById('btn-export-excel');
+  const originalHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>성적표 생성 중...</span>';
+  }
+
+  try {
+    let classGrades = {};
+    // V4 평가이거나 서버 채점 데이터가 필요한 경우 class-grades API 호출
+    const session = typeof currentLiveSession !== 'undefined' ? currentLiveSession : null;
+    const isV4 = session ? (session.questionVersion === 4 || session.version === 'v4') : false;
+    const hasServerGradedStudents = Array.isArray(currentLiveStudents) && currentLiveStudents.some(s => s.scores && s.scores.serverGraded);
+
+    if ((isV4 || hasServerGradedStudents) && typeof requestSecureEvaluationClassGrades === 'function' && !window.authService.isDemo()) {
+      try {
+        const res = await requestSecureEvaluationClassGrades(classId);
+        if (res && res.grades) {
+          classGrades = res.grades;
+          currentLiveClassGrades = { ...currentLiveClassGrades, ...res.grades };
+        }
+      } catch (apiErr) {
+        console.warn('[EXPORT_EXCEL] class-grades API 조회 실패 (로컬 데이터로 대체):', apiErr);
+      }
+    }
+
+    if (window.excelExportService) {
+      window.excelExportService.exportAssessmentWorkbook(classId, currentLiveStudents, classGrades);
+    } else if (window.evalService) {
+      // Fallback: evalService
+      window.evalService.exportAssessmentExcel(classId, currentLiveStudents, classGrades);
+    } else {
+      throw new Error('엑셀 내보내기 모듈을 찾을 수 없습니다.');
+    }
+  } catch (err) {
+    console.error('[EXPORT_EXCEL_ERROR]', err);
+    alert(err.message || '성적표 엑셀 생성 중 오류가 발생했습니다. 새로고침 후 다시 시도해 주세요.');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalHtml;
+    }
+  }
+}
+
+// 나이스 CSV 다운로드 (호환용)
 function handleTeacherExportCSV() {
   const classId = getClassIdFromSelected();
   if (window.evalService) {
@@ -1196,14 +1350,14 @@ function openLiveStudentModal(studentNum) {
     if (makeupBox) makeupBox.classList.remove('hidden');
     if (makeupBtn) {
       makeupBtn.onclick = async () => {
-        if (!confirm(`⏱️ [${currentSelectedClass} ${studentNum}번] 학생에게 개별 30분 추가 응시 권한을 부여하시겠습니까?\n\n- 학생이 로그인하여 시작하는 순간 30분 개인 타이머가 작동합니다.\n- 기존 학생들의 시험 결과는 안전하게 보존되며 영향이 없습니다.`)) {
+        if (!confirm(`⏱️ [${currentSelectedClass} ${studentNum}번] 학생에게 개별 30분 추가 응시 권한을 부여하시겠습니까?\n\n- 학생이 로그인하여 시작하는 순간 30분 개인 타이머가 작동합니다.\n- 학생은 어느 컴퓨터(PC/노트북)에서든 접속하여 응시할 수 있습니다.\n- 다른 학생들의 시험 결과는 안전하게 보존되며 영향이 없습니다.`)) {
           return;
         }
         const classId = getClassIdFromSelected();
         if (window.evalService) {
           try {
-            await window.evalService.allowStudentMakeup(classId, studentNum, 30);
-            alert(`✅ ${studentNum}번 학생의 개별 30분 추가 응시가 승인되었습니다.\n학생이 로그인하여 [개별 평가 시작하기]를 누르면 시작됩니다.`);
+            await window.evalService.allowStudentMakeup(classId, studentNum, 30, { forceReset: true });
+            alert(`✅ ${studentNum}번 학생의 개별 30분 추가 응시가 승인되었습니다.\n학생이 아무 PC에서나 로그인하여 [개별 평가 시작하기]를 누르면 시작됩니다.`);
             closeLiveStudentModal();
           } catch (error) {
             alert('추가 응시 승인 실패: ' + error.message);
@@ -1226,14 +1380,18 @@ function openLiveStudentModal(studentNum) {
   if (kickBox) kickBox.classList.remove('hidden');
 
   // 재접속 및 추가응시 박스 표시 제어
-  if (s.status === 'submitted') {
-    if (reconnectBox) reconnectBox.classList.add('hidden');
-    if (makeupBox) makeupBox.classList.add('hidden');
-  } else {
-    if (reconnectBox) reconnectBox.classList.remove('hidden');
-    if (makeupBox) {
-      if (s.makeupAllowed || s.status === 'in_progress') makeupBox.classList.add('hidden');
-      else makeupBox.classList.remove('hidden');
+  if (reconnectBox) {
+    if (s.status === 'submitted') reconnectBox.classList.add('hidden');
+    else reconnectBox.classList.remove('hidden');
+  }
+
+  if (makeupBox) {
+    // 이미 추가응시가 승인되어 대기실에 있거나, 현재 풀이 중인 경우 숨김
+    if ((s.makeupAllowed && s.status === 'waiting') || s.status === 'in_progress') {
+      makeupBox.classList.add('hidden');
+    } else {
+      // 결시 상태이거나 이미 제출/자동마감된 학생이라도 교사가 추가 응시를 부여할 수 있도록 표시
+      makeupBox.classList.remove('hidden');
     }
   }
 
@@ -1257,14 +1415,18 @@ function openLiveStudentModal(studentNum) {
 
   if (makeupBtn) {
     makeupBtn.onclick = async () => {
-      if (!confirm(`⏱️ [${currentSelectedClass} ${s.num}번 ${s.name}] 학생에게 개별 30분 추가 응시 권한을 부여하시겠습니까?\n\n- 학생이 시작하는 순간 30분 개인 타이머가 작동합니다.\n- 기존 학생들의 성적은 안전하게 보존됩니다.`)) {
+      const isSubmitted = s.status === 'submitted';
+      const confirmMsg = isSubmitted
+        ? `⏱️ [${currentSelectedClass} ${s.num}번 ${s.name}] 학생의 기존 제출(또는 0점 결시) 기록을 초기화하고, 개별 30분 추가 응시 권한을 부여하시겠습니까?\n\n- 기존 답안과 성적이 깨끗이 초기화되며 학생이 로그인하여 시작하는 순간 30분 개인 타이머가 작동합니다.\n- 학생은 어느 컴퓨터(PC/노트북)에서든 접속하여 응시할 수 있습니다.\n- 다른 학생들의 성적은 안전하게 보존됩니다.`
+        : `⏱️ [${currentSelectedClass} ${s.num}번 ${s.name}] 학생에게 개별 30분 추가 응시 권한을 부여하시겠습니까?\n\n- 학생이 시작하는 순간 30분 개인 타이머가 작동합니다.\n- 학생은 어느 컴퓨터(PC/노트북)에서든 접속하여 응시할 수 있습니다.\n- 기존 학생들의 성적은 안전하게 보존됩니다.`;
+      if (!confirm(confirmMsg)) {
         return;
       }
       const classId = getClassIdFromSelected();
       if (window.evalService) {
         try {
-          await window.evalService.allowStudentMakeup(classId, s.num, 30);
-          alert(`✅ [${s.num}번 ${s.name}] 학생의 개별 30분 추가 응시가 승인되었습니다.`);
+          await window.evalService.allowStudentMakeup(classId, s.num, 30, { forceReset: true });
+          alert(`✅ [${s.num}번 ${s.name}] 학생의 개별 30분 추가 응시가 승인되었습니다.\n학생이 아무 PC에서나 [${s.num}번 / ${s.name}]으로 로그인하여 [개별 평가 시작하기]를 누르면 시험이 시작됩니다.`);
           closeLiveStudentModal();
         } catch (error) {
           alert('추가 응시 승인 실패: ' + error.message);
@@ -1393,6 +1555,8 @@ function openLiveStudentModal(studentNum) {
       requestSecureEvaluationGrade(getClassIdFromSelected(), s.numStr).then(result=>{
         if (currentModalStudent !== s) return;
         const score=result.score;
+        currentLiveClassGrades[s.numStr] = { ...(currentLiveClassGrades[s.numStr] || {}), score };
+        renderLiveGrid(currentLiveStudents);
         summaryEl.replaceChildren();
         [['Part 1. 객관식',score.part1,30],['Part 2. 단답형',score.part2,30],['객관·단답 서버 채점 소계',score.objectiveTotal,60]].forEach(([label,value,max])=>{
           const row=document.createElement('div');row.className='p-3 bg-slate-50 border border-slate-200 rounded-2xl';

@@ -32,6 +32,9 @@ function harness({ studentOwner = 'student-uid', studentStatus = 'submitted' } =
     process: { env: { FIREBASE_PROJECT_ID: 'donghyun-algo', EVAL_BANK_V4_JSON: bankJson(), EVAL_ASSIGNMENT_SECRET: 's'.repeat(32) } },
     AbortSignal,
     fetch: async url => {
+      if (url.includes('/students?pageSize=50')) {
+        return { ok: true, json: async () => ({ documents: [{ name: 'projects/donghyun-algo/databases/(default)/documents/classrooms/2-1/students/01', fields: field(documents.student).mapValue.fields }] }) };
+      }
       const data = url.includes('/teachers/') ? documents.teacher : url.includes('/students/') ? documents.student : documents.classroom;
       return { ok: true, json: async () => ({ fields: field(data).mapValue.fields }) };
     }
@@ -132,4 +135,67 @@ test('V4 allows only authorized teacher to export bank and denies students', asy
   h.documents.teacher.enabled = false;
   const disabledReq = await h.request({ action: 'export-bank' }, 'teacher');
   assert.equal(disabledReq.status, 403);
+});
+
+test('V4 class-grades allows authorized teacher to get all student scores and reviews', async () => {
+  const h = harness();
+  const assigned = bank.assignQuestions(bank.parseEvaluationBank(bankJson()), 's'.repeat(32), 'round-4:2-1:01');
+  assigned.part1.forEach(question => { h.documents.student.answers.part1[question.id] = question.correctAnswer; });
+  assigned.part2.forEach(question => { h.documents.student.answers.part2[question.id] = question.answers[0]; });
+
+  // Student is denied
+  const studentReq = await h.request({ action: 'class-grades', classId: '2-1' }, 'student');
+  assert.equal(studentReq.status, 403);
+
+  // Teacher succeeds
+  const teacherReq = await h.request({ action: 'class-grades', classId: '2-1' }, 'teacher');
+  assert.equal(teacherReq.status, 200);
+  assert.equal(teacherReq.body.ok, true);
+  assert.ok(teacherReq.body.grades['01']);
+  assert.equal(teacherReq.body.grades['01'].score.part1, 30);
+  assert.equal(teacherReq.body.grades['01'].score.part2, 30);
+  assert.equal(teacherReq.body.grades['01'].score.objectiveTotal, 60);
+  assert.equal(teacherReq.body.grades['01'].review.part1.length, 10);
+  assert.equal(teacherReq.body.grades['01'].review.part2.length, 6);
+});
+
+test('V4 student-review shields answers during in_progress and reveals after ended', async () => {
+  const h = harness();
+  const assigned = bank.assignQuestions(bank.parseEvaluationBank(bankJson()), 's'.repeat(32), 'round-4:2-1:01');
+  assigned.part1.forEach(question => { h.documents.student.answers.part1[question.id] = question.correctAnswer; });
+  h.documents.student.review = { proposal: { total: 35, criteria: [{ id: 'problem', score: 9 }], feedback: '순서도 구성이 좋습니다.' } };
+
+  // While in_progress: inProgress message, no answers revealed
+  h.documents.classroom.status = 'in_progress';
+  const progressReq = await h.request({ action: 'student-review', classId: '2-1', studentNum: '01' }, 'student');
+  assert.equal(progressReq.status, 200);
+  assert.equal(progressReq.body.ready, false);
+  assert.equal(progressReq.body.inProgress, true);
+  assert.equal(progressReq.body.review, undefined);
+
+  // When ended: full review and part3 returned
+  h.documents.classroom.status = 'ended';
+  const endedReq = await h.request({ action: 'student-review', classId: '2-1', studentNum: '01' }, 'student');
+  assert.equal(endedReq.status, 200);
+  assert.equal(endedReq.body.ready, true);
+  assert.equal(endedReq.body.score.part1, 30);
+  assert.equal(endedReq.body.review.part1.length, 10);
+  assert.equal(endedReq.body.part3.total, 35);
+  assert.equal(endedReq.body.part3.confirmed, false);
+  assert.equal(endedReq.body.part3.feedback, '순서도 구성이 좋습니다.');
+});
+
+test('V4 student-score includes part3 review when available', async () => {
+  const h = harness();
+  h.documents.student.review = { proposal: { total: 32, criteria: [] } };
+  const res1 = await h.request({ action: 'student-score', classId: '2-1', studentNum: '01' }, 'student');
+  assert.equal(res1.status, 200);
+  assert.equal(res1.body.part3.total, 32);
+  assert.equal(res1.body.part3.confirmed, false);
+
+  h.documents.student.review.confirmed = { total: 38, criteria: [] };
+  const res2 = await h.request({ action: 'student-score', classId: '2-1', studentNum: '01' }, 'student');
+  assert.equal(res2.status, 200);
+  assert.equal(res2.body.part3.total, 38);
+  assert.equal(res2.body.part3.confirmed, true);
 });

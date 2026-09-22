@@ -13,10 +13,13 @@ function copyPublicPart2(question) {
   return { id: question.id, title: question.title, desc: question.desc, placeholder: question.placeholder, points: question.points };
 }
 function copyTeacherPart1(question, answer) {
-  return { ...copyPublicPart1(question), correctAnswer: question.correctAnswer, teacherNote: question.teacherNote, studentAnswer: answer ?? null };
+  const isCorrect = answer !== undefined && answer !== null && Number(answer) === question.correctAnswer;
+  return { ...copyPublicPart1(question), correctAnswer: question.correctAnswer, teacherNote: question.teacherNote, studentAnswer: answer ?? null, isCorrect, score: isCorrect ? question.points : 0 };
 }
 function copyTeacherPart2(question, answer) {
-  return { ...copyPublicPart2(question), answers: [...question.answers], teacherNote: question.teacherNote, studentAnswer: answer ?? '' };
+  const norm = value => typeof value === 'string' ? value.toLocaleLowerCase('ko-KR').replace(/\s+/g, '').trim() : '';
+  const isCorrect = answer !== undefined && answer !== null && question.answers.some(a => norm(a) === norm(answer));
+  return { ...copyPublicPart2(question), answers: [...question.answers], teacherNote: question.teacherNote, studentAnswer: answer ?? '', isCorrect, score: isCorrect ? question.points : 0 };
 }
 
 function validateQuestion(question, part, ids) {

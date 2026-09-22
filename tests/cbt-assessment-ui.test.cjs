@@ -171,6 +171,7 @@ test('V4 result: server score is fetched for the student and revealed only while
   assert.equal(panel.hidden, true);
   assert.equal(panel.textContent, '');
   assert.equal(ctx.document.getElementById('eval-result-total-score').textContent, '🔒 • • / 60점');
+  app.stopServerScorePolling();
 });
 
 test('CBT layout: draft preserves currentQuestionIndex, part3SubStep, and isCbtMode', () => {

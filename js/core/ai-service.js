@@ -115,3 +115,19 @@ async function requestSecureEvaluationReview(classId, studentNum) {
 async function requestSecureEvaluationBankExport() {
   return requestSecureEvaluation('export-bank', {}, true);
 }
+
+async function requestSecureEvaluationClassGrades(classId) {
+  return requestSecureEvaluation('class-grades', {classId}, true);
+}
+
+async function requestSecureEvaluationStudentReview(classId, studentNum) {
+  const numStr = String(Number(studentNum)).padStart(2, '0');
+  return requestSecureEvaluation('student-review', {classId, studentNum: numStr});
+}
+
+if (typeof window !== 'undefined') {
+  window.requestSecureEvaluationGrade = requestSecureEvaluationGrade;
+  window.requestSecureEvaluationReview = requestSecureEvaluationReview;
+  window.requestSecureEvaluationClassGrades = requestSecureEvaluationClassGrades;
+  window.requestSecureEvaluationStudentReview = requestSecureEvaluationStudentReview;
+}
