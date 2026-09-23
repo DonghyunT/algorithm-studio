@@ -1,6 +1,23 @@
 # 운영 배포 기록
 
-> 읽는 기준(2026-09-23): 아래는 날짜별 운영 반영 기록입니다. 당시 미배포·기본 버전·검사 수를 현재 상태로 재사용하지 않습니다. 특히 처방전 팝업 정상 표시 주장은 최상단 `c58e95d` 정정 기록이 우선합니다. 현재 기능은 [PRD](../PRD.md), 작업 위치와 남은 일은 [HANDOFF](HANDOFF.md)를 따릅니다. 2026-09-22 기록에서 제품 코드 커밋과 문서 기록 커밋을 구분했습니다. 로컬 Git만으로는 Vercel이 실제 배포한 정확한 커밋을 확인할 수 없으며, 아래 배포·ping 확인은 당시 기록된 결과이지 이번 문서 정리에서 새로 확인한 결과가 아닙니다.
+> 읽는 기준(2026-09-23): 아래는 날짜별 운영 반영 기록입니다. 당시 미배포·기본 버전·검사 수를 현재 상태로 재사용하지 않습니다. 특히 처방전 팝업 정상 표시 주장은 최상단 `c58e95d` 정정 기록이 우선합니다. 현재 기능은 [PRD](../PRD.md), 작업 위치와 남은 일은 [HANDOFF](HANDOFF.md)를 따릅니다. 2026-09-22 이전 기록은 당시 검증 범위만 나타내며, 2026-09-23 점수 캐시 수정은 GitHub 배포 기록에서 main SHA와 Vercel Production 상태를 새로 대조했습니다.
+
+## 2026-09-23 관제탑 실시간 점수 캐시의 평가 회차 격리 운영 배포
+
+교사 좌석 점수에 다른 평가 회차의 서버 채점 캐시가 섞이지 않도록 회차별로 격리했습니다. 선생님의 병합·배포 승인에 따라 [PR #5](https://github.com/DonghyunT/algorithm-studio/pull/5)를 main에 병합했습니다.
+
+1. **변경 내용**:
+   - 기능 커밋 `2d13396`은 `currentLiveClassGrades`를 V4 `attemptId`에 묶고, 세션·학생·캐시의 회차 ID가 맞을 때만 사용합니다.
+   - 이전 회차의 늦은 서버 응답과 상세 모달 응답은 버리며, 회차가 바뀐 도중 엑셀 내보내기가 시작되면 혼합된 자료를 만들지 않고 중단합니다.
+   - V3 모의평가는 V4 서버 캐시를 사용하지 않고 기존 소계·검토대기 방식으로 표시합니다. 답안·확정 성적·배점·채점 기준·Firestore·보안 규칙은 변경하지 않았습니다.
+2. **GitHub 및 배포**:
+   - main 병합 커밋 `0c0c76e1d6df61be494a38e4a3e52dded90fdd3f` (PR #5, 2026-09-23 12:56 KST).
+   - [main 검증 작업](https://github.com/DonghyunT/algorithm-studio/actions/runs/35816303373) success, [GitHub Pages 배포 작업](https://github.com/DonghyunT/algorithm-studio/actions/runs/35816303095) success.
+   - Vercel GitHub Production 배포 `6606016018` 상태 `success`, 배포 대상 SHA는 main 병합 SHA와 일치. Vercel이 표시한 개별 배포 URL은 로그인으로 보호되어 있었지만, 공개 고정 운영 주소 [algorithm-studio-ten.vercel.app](https://algorithm-studio-ten.vercel.app/)에서 `js/core/classroom.js`를 HTTP 200으로 읽고 저장소 파일과 내용이 일치함을 확인했습니다.
+3. **검증 범위**:
+   - `node --test tests/*.test.cjs`: 127개 통과. `tests/classroom-score-grid.test.cjs`: 10개 통과. `node tools/check.cjs`: 72개 스크립트 통과.
+   - 로컬 Edge 브라우저 점수판에서 이전 V4 캐시가 새 V4 회차와 V3 모의평가에 섞이지 않는 흐름을 확인했고 페이지 예외·콘솔 오류는 0건.
+   - 더 넓은 `tests/browser.cjs` 실행은 완료되지 않아 통과로 계산하지 않았습니다. 운영 교사 로그인, 실제 평가 시작, 학생 자료 조회·쓰기는 수행하지 않았습니다.
 
 ## 기록 해석 보완 — 2026-09-19
 

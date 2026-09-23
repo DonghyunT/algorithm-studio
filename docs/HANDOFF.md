@@ -6,16 +6,16 @@
 
 | 구분 | 인수인계 기준 |
 |---|---|
-| 운영 기준 | `main` (이 작업의 기준점 `10fa85d`; 최신 제품 코드 `9782b7d`) |
-| 현재 작업 | `codex/fix-live-score-cache` (실시간 점수 캐시 회차 격리 수정 및 회귀 검사 추가, 로컬 전용·원격 미게시) |
-| 최신 제품 수정 | `9782b7d`: 진행 중인 평가에 늦게 입장한 학생을 시험 화면으로 전환. 현재 작업은 V4 실시간 점수 캐시의 회차 혼입 방지이며 운영 반영 전 |
-| 전달 기준 | 기존 2026-09-22 배포 검증은 아래 기록과 [배포 기록](DEPLOYMENT.md) 참고. 현재 수정은 전체 테스트 127개, 정적 검사 72개, 로컬 Edge 브라우저 점수 표시 확인 통과. GitHub·운영 배포 검증은 진행 중 |
+| 운영 기준 | `main` (실시간 점수 수정 PR #5 merge `0c0c76e`; 제품 커밋 `2d13396`) |
+| 현재 작업 | 진행 중인 제품 변경 없음. 마지막 수정 브랜치 `codex/fix-live-score-cache`는 PR #5로 main에 통합됨 |
+| 최신 제품 수정 | V4 서버 점수 캐시를 `attemptId`로 격리해 이전 회차와 V3 모의평가 점수가 섞이지 않게 수정. 배포 근거는 [배포 기록](DEPLOYMENT.md) 참조 |
+| 전달 기준 | 전체 테스트 127개, 정적 검사 72개, 로컬 Edge 점수 화면 확인 통과. Vercel Production 성공과 기존 운영 주소의 수정 JS 일치 확인. 전체 브라우저 흐름은 미완료이며 운영 DB·실제 교사 로그인은 확인하지 않음 |
 | 평가 운영 | V4 실전평가 운영 중, V3 모의평가·기존 회차 호환 유지 |
 | 운영 프로젝트 | Firebase `donghyun-algo`, Vercel `algorithm-studio` · 새 PC에서 재생성하지 않음 |
 | 운영 웹 | [정보 알고리즘 스튜디오](https://algorithm-studio-ten.vercel.app/) |
 | 저장소 | [DonghyunT/algorithm-studio](https://github.com/DonghyunT/algorithm-studio) |
 
-최근 완료한 제품 변경 내역 (2026-09-22):
+최근 완료한 제품 변경 내역 (2026-09-22~23):
 1. **컴퓨터실 시계 오차(Clock Skew) 방어 알고리즘 (`api/evaluation.js`, `ai-service.js`, `eval-service.js`, `lab-eval.js`)**:
    - 특정 PC의 윈도우 로컬 시계가 15분 빠르게 설정되어 있어 학생 타이머가 조기 종료 및 자동 제출되던 사고 원천 방지.
    - `api/evaluation`의 경량 `ping` 및 응답 헤더/바디의 `serverTime`을 통해 클라이언트가 `serverTimeOffset`을 자동 산출.
@@ -44,11 +44,15 @@
    - 교사의 `[현재 답안으로 정상 제출 마감]` 수신 시 실시간으로 즉시 결과 화면 전환.
    - 이미 진행 중인 시험에 뒤늦게 입장한 학생이 대기실에서 멈추지 않고 즉시 시험 화면으로 직행하도록 보장.
 7. **검증**: `tests/eval-time-extension.test.cjs` 전용 테스트 6종(데모 BroadcastChannel 동기화 포함) 포함 전체 123개 단위 테스트 100% 통과, `tools/check.cjs` 72개 스크립트 정적 검사 통과.
+8. **관제탑 점수 회차 격리 (`js/core/classroom.js`) — 2026-09-23**:
+   - V4 `class-grades` 점수 캐시를 평가 `attemptId`와 묶고 회차·평가 유형 전환 때 초기화. 현재 V4 세션·학생·캐시 회차가 일치할 때만 서버 점수를 표시.
+   - 이전 회차의 늦은 API 응답과 학생 상세 응답을 무시하고, 회차 전환 중 엑셀 내보내기는 중단. V3 모의평가 소계 표시를 기존 방식으로 유지.
+   - PR #5, main merge `0c0c76e`, Vercel Production 성공. 회귀 테스트 10개·전체 127개·정적 검사 72개와 로컬 Edge 표시 확인 통과.
 
 ## 2. 읽는 순서와 다음 작업
 
 1. [AGENTS](../AGENTS.md) → [INTENT](../INTENT.md) → [PRD](../PRD.md) → 이 문서를 읽습니다.
-2. 2026-09-22 핵심 제품 변경은 `main`에 반영되었고, 운영 배포는 [배포 기록](DEPLOYMENT.md)에 당시 확인 범위와 함께 기록되어 있습니다. 로컬 Git 이력만으로 정확한 Vercel 배포 커밋은 확인되지 않습니다.
+2. 점수 캐시 수정 PR #5는 `main` merge `0c0c76e`로 통합됐고, Vercel Production `6606016018` 성공 및 기존 고정 운영 주소의 수정 JS 일치를 확인했습니다. 이전 배포의 세부 확인 범위는 [배포 기록](DEPLOYMENT.md)을 따릅니다.
 3. 다음 제품 점검은 로컬 시연에서 실습↔평가 왕복, 처방전·블록 조작, 학생·교사 대표 화면부터 진행합니다. 운영 평가를 임의로 개설하거나 기존 답안을 초기화하지 않습니다.
 4. V4 후속 설계는 [계획 8~11절](EVALUATION_V4_PLAN.md#8-다음-순서와-활성화-조건)의 회차 재현·버전 보관·복구 조건을 확인합니다. 이미 배포한 기반을 재구축하지 않습니다.
 
@@ -170,4 +174,4 @@ node tests/browser.cjs
 
 ## 다음 에이전트에게 전달할 문장
 
-> AGENTS.md, INTENT.md, PRD.md, docs/HANDOFF.md를 읽고 이어가 주세요. 운영 기준은 `main`이며 최신 운영 제품 커밋은 `9782b7d`입니다. 현재 작업 브랜치 `codex/fix-live-score-cache`에는 V4 실시간 점수 캐시 회차 격리 수정과 회귀 테스트가 있으며 아직 원격에 게시되지 않았습니다. 전체 테스트 127개, 정적 검사 72개, 로컬 Edge 브라우저 점수 표시 확인은 통과했습니다. GitHub 검사와 운영 배포 검증은 남아 있으며 병합·배포 상태는 PR과 [배포 기록](DEPLOYMENT.md)을 확인해 주세요. 회차별 문항·채점 재현과 보관·복구 설계는 `docs/EVALUATION_V4_PLAN.md`의 남은 과제입니다. AGENTS.md는 명시적 사전 승인 없이 수정하지 않습니다.
+> AGENTS.md, INTENT.md, PRD.md, docs/HANDOFF.md를 읽고 이어가 주세요. 운영 기준은 `main`입니다. V4 실시간 점수 캐시의 회차 격리 수정은 PR #5, merge `0c0c76e`로 통합했고 Vercel Production 배포 성공 및 기존 운영 주소의 수정 JS를 확인했습니다. 전체 테스트 127개, 정적 검사 72개, 로컬 Edge 점수 화면 검증은 통과했습니다. 전체 브라우저 흐름과 실제 교실 공동 사용은 별도 확인 대상입니다. 자세한 범위는 [배포 기록](DEPLOYMENT.md)을 확인하고, 회차별 문항·채점 재현과 보관·복구 설계는 `docs/EVALUATION_V4_PLAN.md`의 남은 과제를 따릅니다. AGENTS.md는 명시적 사전 승인 없이 수정하지 않습니다.
