@@ -28,7 +28,7 @@ function validateQuestion(question, part, ids) {
   if (!['easy', 'medium', 'hard'].includes(question.difficulty) || !isText(question.subType, 40)) fail('문항 난이도 구성을 확인해 주세요.');
   if (part === 'part1') {
     if (!Array.isArray(question.options) || question.options.length < 2 || question.options.length > 5 || question.options.some(option => !isText(option, LIMITS.optionText)) || !Number.isInteger(question.correctAnswer) || question.correctAnswer < 0 || question.correctAnswer >= question.options.length) fail('객관식 문항 형식을 확인해 주세요.');
-  } else if (!isText(question.placeholder || '정답 입력', 120) || !Array.isArray(question.answers) || question.answers.length < 1 || question.answers.length > 12 || question.answers.some(answer => !isText(answer, LIMITS.answerText))) {
+  } else if (!isText(question.placeholder || '정답 입력', 120) || !Array.isArray(question.answers) || question.answers.length < 1 || question.answers.length > 32 || question.answers.some(answer => !isText(answer, LIMITS.answerText))) {
     fail('단답형 문항 형식을 확인해 주세요.');
   }
   ids.add(question.id);

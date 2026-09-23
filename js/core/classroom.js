@@ -2085,6 +2085,7 @@ function archiveStudentStatus(student){
 }
 function archiveStudentScoreLabel(student){
   const scores=student?.scores;
+  const correction=window.ObjectiveCorrection?.get(student);
   if(!scores||typeof scores!=='object')return '저장 점수 없음';
   if(Number.isFinite(scores.teacherOverride))return `교사 조정 ${scores.teacherOverride}점`;
   if(scores.pendingReview){
@@ -2092,6 +2093,7 @@ function archiveStudentScoreLabel(student){
     return objective===null?(scores.serverGraded?'서버 채점 대기':'서술 검토 대기'):`소계 ${objective}점 · 서술 대기`;
   }
   if(Number.isFinite(scores.total))return `${scores.total}점`;
+  if(correction)return `단답형 ${correction.afterPart2} / 30점 · 정정 +${correction.delta}점`;
   const confirmed=student?.review?.confirmed?.criteria;
   if(Array.isArray(confirmed)&&confirmed.length)return '교사 확정 검토 기록 있음';
   if(student?.review?.proposal)return 'AI 제안 · 미확정';
@@ -2242,6 +2244,8 @@ function renderArchivedQuestionAnswers(answerMap,questions,isChoice){
   }).join('')}</div>`;
 }
 function renderArchivedStudentAnswer(student,version){
+  const correction=version===4?window.ObjectiveCorrection?.get(student):null;
+  const correctionHtml=correction?`<p class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900" data-objective-correction>인정 답안 확대에 따라 단답형 점수가 ${correction.beforePart2}점에서 ${correction.afterPart2}점으로 정정되었습니다. (+${correction.delta}점) 원본 답안과 서술형 검토 기록은 유지됩니다.</p>`:'';
   const answers=student?.answers&&typeof student.answers==='object'?student.answers:{},p1=answers.part1||{},p2=answers.part2||{},assigned=answers.assignedQuestions||answers.part3?.assignedQuestions;
   const submittedAt=archiveDateMillis(student.submittedAt),submittedAtText=Number.isFinite(submittedAt)?`${archiveSeoulDate(submittedAt,true)} KST`:'기록 없음';
   let questions=null;
@@ -2257,7 +2261,7 @@ function renderArchivedStudentAnswer(student,version){
   const planHtml=`<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">${[['현재 상태',plan.current],['목표 상태',plan.goal],['지켜야 할 조건',plan.conditions]].map(([label,value])=>`<div class="rounded-xl bg-slate-50 p-3"><span class="block text-[11px] font-bold text-slate-500">${label}</span><p class="mt-1 text-sm text-slate-800 whitespace-pre-wrap break-words">${escapeHtml(value||'작성하지 않음')}</p></div>`).join('')}</div>${stepsHtml?`<div class="mt-3"><h5 class="text-xs font-black text-slate-700">자연어 해결 순서</h5><ol class="mt-2 space-y-1">${stepsHtml}</ol></div>`:''}`;
   const blockHtml=blocks.length?`<canvas id="classroom-archive-flowchart-canvas" width="800" height="340" class="w-full max-h-[340px] object-contain rounded-xl border border-slate-200 bg-white" role="img" aria-label="보관된 학생 순서도"></canvas><p class="mt-2 text-xs text-slate-500">기호 ${blocks.length}개 · 연결 ${connections.length}개</p>`:'<p class="text-xs text-slate-500">보관된 순서도 블록이 없습니다.</p>';
   const questionNote=version===4?'<p class="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">V4 당시 문항 원문은 답안 보관 자료에 포함되지 않았습니다. 저장된 응답만 표시하며 현재 문항으로 대체하지 않습니다.</p>':version===3&&!assigned?'<p class="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">이전 답안에 문항 배정 정보가 없어 문항 원문 대신 저장된 응답을 표시합니다.</p>':'';
-  return `<div class="space-y-4"><div class="grid grid-cols-1 sm:grid-cols-3 gap-2"><div class="rounded-xl bg-indigo-50 border border-indigo-100 p-3"><span class="text-[11px] font-bold text-indigo-700">제출 상태</span><p class="mt-1 text-sm font-black text-indigo-950">${escapeHtml(archiveStudentStatus(student))}</p></div><div class="rounded-xl bg-slate-50 border border-slate-200 p-3"><span class="text-[11px] font-bold text-slate-500">보관된 점수</span><p class="mt-1 text-sm font-black text-slate-900">${escapeHtml(archiveStudentScoreLabel(student))}</p></div><div class="rounded-xl bg-slate-50 border border-slate-200 p-3"><span class="text-[11px] font-bold text-slate-500">제출 시각</span><p class="mt-1 text-xs font-bold text-slate-800">${escapeHtml(submittedAtText)}</p></div></div><section class="rounded-2xl border border-indigo-100 p-3 sm:p-4"><h5 class="mb-3 text-sm font-black text-indigo-950">Part 1 · 객관식 답안</h5>${questionNote}${renderArchivedQuestionAnswers(p1,p1Questions,true)}</section><section class="rounded-2xl border border-amber-100 p-3 sm:p-4"><h5 class="mb-3 text-sm font-black text-amber-950">Part 2 · 단답형 답안</h5>${renderArchivedQuestionAnswers(p2,p2Questions,false)}</section><section class="rounded-2xl border border-emerald-100 p-3 sm:p-4"><h5 class="mb-3 text-sm font-black text-emerald-950">Part 3 · 자연어 계획과 순서도</h5>${planHtml}<div class="mt-4"><h5 class="mb-2 text-xs font-black text-slate-700">보관된 순서도</h5>${blockHtml}</div>${reviewHtml}</section></div>`;
+  return `<div class="space-y-4"><div class="grid grid-cols-1 sm:grid-cols-3 gap-2"><div class="rounded-xl bg-indigo-50 border border-indigo-100 p-3"><span class="text-[11px] font-bold text-indigo-700">제출 상태</span><p class="mt-1 text-sm font-black text-indigo-950">${escapeHtml(archiveStudentStatus(student))}</p></div><div class="rounded-xl bg-slate-50 border border-slate-200 p-3"><span class="text-[11px] font-bold text-slate-500">보관된 점수</span><p class="mt-1 text-sm font-black text-slate-900">${escapeHtml(archiveStudentScoreLabel(student))}</p></div><div class="rounded-xl bg-slate-50 border border-slate-200 p-3"><span class="text-[11px] font-bold text-slate-500">제출 시각</span><p class="mt-1 text-xs font-bold text-slate-800">${escapeHtml(submittedAtText)}</p></div></div>${correctionHtml}<section class="rounded-2xl border border-indigo-100 p-3 sm:p-4"><h5 class="mb-3 text-sm font-black text-indigo-950">Part 1 · 객관식 답안</h5>${questionNote}${renderArchivedQuestionAnswers(p1,p1Questions,true)}</section><section class="rounded-2xl border border-amber-100 p-3 sm:p-4"><h5 class="mb-3 text-sm font-black text-amber-950">Part 2 · 단답형 답안</h5>${renderArchivedQuestionAnswers(p2,p2Questions,false)}</section><section class="rounded-2xl border border-emerald-100 p-3 sm:p-4"><h5 class="mb-3 text-sm font-black text-emerald-950">Part 3 · 자연어 계획과 순서도</h5>${planHtml}<div class="mt-4"><h5 class="mb-2 text-xs font-black text-slate-700">보관된 순서도</h5>${blockHtml}</div>${reviewHtml}</section></div>`;
 }
 
 if (typeof window !== 'undefined') {
