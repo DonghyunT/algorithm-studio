@@ -14,7 +14,7 @@ function environment() {
     return elements.get(id);
   };
   const context = {console, document:{getElementById:element}, sessionStorage:{getItem:()=>null,setItem(){},removeItem(){}},
-    window:{addEventListener(){},authService:{isDemo:()=>false}}, alert(){}, updateAssessmentNavigation(){},
+    window:{addEventListener(){},authService:{isDemo:()=>false,student:async()=>({uid:'synthetic-student'})}}, alert(){}, updateAssessmentNavigation(){},
     setTimeout(fn,ms){const id=++serial;timers.set(id,{fn,ms});return id;},clearTimeout(id){timers.delete(id);},
     setInterval(){return 1;},clearInterval(){}};
   vm.createContext(context);
@@ -148,4 +148,38 @@ test('teacher: failed requests remain retryable; switching to V3 does not read V
   e.notify([record()]);await e.tick();e.notify([record()]);await e.tick();assert.equal(calls,2);
   e.context.setCurrentLiveSession({questionVersion:3,attemptId:'mock'});
   e.notify([{...record(),attemptId:'mock'}]);await e.tick();assert.equal(calls,2);
+});
+
+test('teacher: an incomplete response is retried but never cached indefinitely',async()=>{
+  const e=teacherEnv();let calls=0;
+  e.context.requestSecureEvaluationClassGrades=async()=>{calls++;return {attemptId:'round',grades:calls===1?{}:{'01':{score:{objectiveTotal:50}}}};};
+  e.notify([record()]);await e.tick();await e.tick();
+  assert.equal(calls,2);assert.equal(e.timers.size,0);
+  e.notify([record()]);await e.tick();assert.equal(calls,2);
+});
+
+test('teacher: persistently incomplete responses stop after three reads',async()=>{
+  const e=teacherEnv();let calls=0;
+  e.context.requestSecureEvaluationClassGrades=async()=>{calls++;return {attemptId:'round',grades:{}};};
+  e.notify([record()]);for(let i=0;i<6;i++)await e.tick();
+  assert.equal(calls,3);assert.equal(e.timers.size,0);
+});
+
+test('student: review updates while away are fetched once when returning to results',async()=>{
+  const {context:c,app,notify,element}=studentEnv();let calls=0,review=null;
+  c.requestSecureEvaluationStudentScore=async()=>{calls++;return response(review);};
+  notify(record());await flush();
+  let hidden=true;element('eval-screen-result').classList.contains=()=>hidden;
+  review={total:35,confirmed:true};notify({...record(),review:{confirmed:review}});await flush();assert.equal(calls,1);
+  app.showScreen=()=>{hidden=false;};app.openLobby();await flush();
+  assert.equal(calls,2);assert.equal(app.serverScoreState.score.part3,35);
+});
+
+test('student: synchronous snapshot delivery cannot recursively attach duplicate listeners',()=>{
+  const {context:c,app}=studentEnv();let sessionSubscriptions=0,studentSubscriptions=0;
+  app.sessionUnsub=null;app.studentUnsub=null;
+  c.window.evalService.listenSession=()=>{sessionSubscriptions++;app.attachAssessmentListeners();return ()=>{};};
+  c.window.evalService.listenStudent=()=>{studentSubscriptions++;return ()=>{};};
+  app.attachAssessmentListeners();app.attachAssessmentListeners();
+  assert.equal(sessionSubscriptions,1);assert.equal(studentSubscriptions,1);assert.equal(app.attachingAssessmentListeners,false);
 });

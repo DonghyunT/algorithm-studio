@@ -138,6 +138,7 @@ class StudentEvalApp {
       window.authService.student().catch(() => {});
     }
     this.showScreen(this.isSubmitted ? 'result' : isAssessmentLocked() ? 'exam' : 'lobby');
+    if (this.isSubmitted) this.startServerScorePolling();
   }
 
   async checkSelectedClassStatus() {
@@ -313,6 +314,11 @@ class StudentEvalApp {
 
   attachAssessmentListeners() {
     if (!window.evalService || !this.currentClass || !this.studentNum) return;
+    // Demo listeners can deliver their first snapshot synchronously, including
+    // a startExam call which comes back here before subscribe has returned.
+    if (this.attachingAssessmentListeners) return;
+    this.attachingAssessmentListeners = true;
+    try {
 
     // 1) 전체 학급 세션 리스너 구독 (선생님이 [30분 동시 시작] 누를 시 시험장 진입)
     if (!this.sessionUnsub) {
@@ -473,6 +479,9 @@ class StudentEvalApp {
           this.saveDraft();
         }
       });
+    }
+    } finally {
+      this.attachingAssessmentListeners = false;
     }
   }
 
@@ -1659,9 +1668,11 @@ class StudentEvalApp {
     if (!this.isSubmitted || !this.isSecureServerScore() || !this.currentClass || !this.studentNum) return;
     if (document.getElementById('eval-screen-result')?.classList.contains('hidden')) return;
     const scope = `${this.currentClass}:${this.studentNum}:${this.attemptId || ''}`;
-    if (force || this.serverScoreScope !== scope) {
+    const sourceKey = this.studentScoreSourceKey(this.latestStudent);
+    if (force || this.serverScoreScope !== scope || this.serverScoreSourceKey !== sourceKey) {
       this.stopServerScorePolling();
       this.serverScoreScope = scope;
+      this.serverScoreSourceKey = sourceKey;
       this.serverScoreRequestKey = `${scope}:${++this.serverScoreGeneration}`;
       this.serverScoreRetries = 0;
       this.serverScoreState = { status: 'loading', score: null };

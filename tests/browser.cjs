@@ -7,6 +7,7 @@ fs.mkdirSync(output,{recursive:true});
     const pathname=decodeURIComponent(new URL(req.url,'http://localhost').pathname);
     if(pathname==='/js/data/firebase-config.js') {res.setHeader('Content-Type','application/javascript');return res.end('window.firebaseDb=null;function initFirebaseApp(){return null;}');}
     if(pathname==='/api/chat') {res.writeHead(503);return res.end('{}');}
+    if(pathname==='/api/evaluation') {res.setHeader('Content-Type','application/json');return res.end(JSON.stringify({serverTime:Date.now()}));}
     const file=path.resolve(root,'.'+(pathname==='/'?'/index.html':pathname));
     if(!file.startsWith(root+path.sep)||file.includes('.env')||file.endsWith('/config.js')) {res.writeHead(403);return res.end();}
     fs.readFile(file,(error,body)=>{if(error){res.writeHead(404);return res.end();}res.setHeader('Content-Type',file.endsWith('.js')?'application/javascript':file.endsWith('.css')?'text/css':'text/html');res.end(body);});
@@ -24,7 +25,7 @@ fs.mkdirSync(output,{recursive:true});
     });
     const page=await context.newPage();
     page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')consoleErrors.push(m.text());});page.on('dialog',d=>d.accept());
-    const url='http://127.0.0.1:'+server.address().port+'/?demo=1';
+    const url='http://127.0.0.1:'+server.address().port+'/?demo=1&classic=1';
     await page.goto(url,{waitUntil:'networkidle'});
     async function check(name,task) {try{await task();results.push({name,pass:true});}catch(error){results.push({name,pass:false,error:error.message});}}
     await check('header actions remain visible and separate across window widths',async()=>{
@@ -226,6 +227,10 @@ fs.mkdirSync(output,{recursive:true});
     const teacher=await context.newPage();teacher.on('dialog',d=>d.accept());teacher.on('pageerror',e=>errors.push(e.message));
     await teacher.goto(url,{waitUntil:'networkidle'});
     await teacher.evaluate(()=>{window.roster=[];evalService.listenStudents('2-1',list=>window.roster=list);});
+    // The current entry guard requires an explicitly opened round. V3 keeps this
+    // broad UI regression independent from the private V4 bank and server API.
+    await teacher.evaluate(()=>evalService.prepareSession('2-1', undefined, 3));
+    await page.waitForFunction(()=>evalService.read('EVAL_SESSION_2-1',{}).status==='waiting');
     await check('two tabs join and receive start',async()=>{
       await page.evaluate(async()=>{switchUnit('eval');document.getElementById('eval-st-name').value='검증학생';await studentEvalApp.enterWaitingRoom();});
       await teacher.waitForFunction(()=>window.roster.length===1);

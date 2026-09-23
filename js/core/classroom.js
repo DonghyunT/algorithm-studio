@@ -41,6 +41,7 @@ let currentLiveClassGradesAttemptId = null;
 const liveClassGradesRequests = new Map();
 let gradesRefreshTimeout = null;
 let liveClassGradesSourceKey = null;
+let liveClassGradesRetry = { key: null, count: 0 };
 let archiveViewGeneration = 0;
 let archivedSessions = [];
 let selectedArchivedSession = null;
@@ -135,6 +136,7 @@ function setCurrentLiveSession(session) {
 
   if (previousAttemptId !== nextAttemptId || previousVersion !== nextVersion) {
     liveClassGradesSourceKey = null;
+    liveClassGradesRetry = { key: null, count: 0 };
     currentLiveClassGrades = {};
     currentLiveClassGradesAttemptId = null;
     if (previousAttemptId && previousAttemptId !== nextAttemptId) closeLiveStudentModal();
@@ -172,11 +174,17 @@ async function refreshLiveClassGrades(classId) {
   const requestState = { refreshRequested: false };
   liveClassGradesRequests.set(requestKey, requestState);
   let succeeded = false;
+  let incomplete = false;
   try {
     const res = await requestSecureEvaluationClassGrades(classId);
     if (res?.grades && res.attemptId === session.attemptId && isCurrentLiveV4Attempt(session.attemptId, generation) && sourceKey === liveGradeSourceKey()) {
+      incomplete = currentLiveStudents.some(s => s.status === 'submitted' && s.attemptId === session.attemptId &&
+        !res.grades[s.numStr || String(s.num).padStart(2, '0')]?.score);
       succeeded = cacheLiveClassGrades(session.attemptId, res.grades);
-      if (succeeded) liveClassGradesSourceKey = sourceKey;
+      if (succeeded && !incomplete) {
+        liveClassGradesSourceKey = sourceKey;
+        liveClassGradesRetry = { key: null, count: 0 };
+      }
       if (succeeded && Array.isArray(currentLiveStudents) && currentLiveStudents.length > 0) {
         renderLiveGrid(currentLiveStudents);
       }
@@ -189,6 +197,11 @@ async function refreshLiveClassGrades(classId) {
     }
     if (requestState.refreshRequested && sourceKey !== liveGradeSourceKey() && isCurrentLiveV4Attempt(session.attemptId, generation)) {
       scheduleRefreshLiveClassGrades(classId, 300);
+    } else if (incomplete && isCurrentLiveV4Attempt(session.attemptId, generation)) {
+      // A local teacher submission may arrive before its write is acknowledged.
+      // Never mark an incomplete response as the final cached result.
+      if (liveClassGradesRetry.key !== sourceKey) liveClassGradesRetry = { key: sourceKey, count: 0 };
+      if (liveClassGradesRetry.count++ < 2) scheduleRefreshLiveClassGrades(classId, 1000);
     }
   }
 }
@@ -458,6 +471,7 @@ function clearUnavailableTeacherData() {
 
 function stopLiveEvalDashboard() {
   liveClassGradesSourceKey = null;
+  liveClassGradesRetry = { key: null, count: 0 };
   liveDashboardGeneration++;
   liveEvalUnsub?.(); liveEvalUnsub = null;
   liveSessionUnsub?.(); liveSessionUnsub = null;
