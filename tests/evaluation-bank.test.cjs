@@ -25,6 +25,16 @@ function bankJson() {
   });
 }
 
+test('V4 accepts up to 32 explicit aliases without accepting arbitrary text', () => {
+  const bank = JSON.parse(bankJson());
+  bank.part2[0].answers = Array.from({length:32}, (_,i) => `허용 표현 ${i}`);
+  const parsed = parseEvaluationBank(JSON.stringify(bank));
+  assert.equal(gradeAssignment({part1:[],part2:[parsed.part2[0]]},{part2:{p2a:'허용표현31'}}).part2,5);
+  assert.equal(gradeAssignment({part1:[],part2:[parsed.part2[0]]},{part2:{p2a:'허용표현31 아님'}}).part2,0);
+  bank.part2[0].answers.push('초과 답안');
+  assert.throws(() => parseEvaluationBank(JSON.stringify(bank)), /단답형/);
+});
+
 test('V4 assigns the required difficulty mix and never sends answers to students', () => {
   const bank = parseEvaluationBank(bankJson());
   const assignment = assignQuestions(bank, 's'.repeat(32), 'round-4:2-1:01');
