@@ -1,7 +1,8 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),crypto=require('node:crypto');
 function setup(){
- const records=new Map(),copy=value=>JSON.parse(JSON.stringify(value));let fail=false;
-  function ref(path){return {path,id:path.split('/').pop(),delete:async()=>{records.delete(path);},collection:name=>({doc:id=>ref(path+'/'+name+'/'+id),get:async()=>{const prefix=path+'/'+name+'/';const docs=[...records.keys()].filter(k=>k.startsWith(prefix)&&!k.slice(prefix.length).includes('/')).map(k=>({id:k.split('/').pop(),ref:ref(k),data:()=>copy(records.get(k)||{})}));return {forEach:fn=>docs.forEach(fn),docs};}}),update:async value=>{records.set(path,{...records.get(path),...copy(value)});},get:async()=>({exists:records.has(path),id:path.split('/').pop(),ref:ref(path),data:()=>copy(records.get(path)||{})})};}
+ const records=new Map(),copy=value=>JSON.parse(JSON.stringify(value)),stored=new Map();let fail=false,teacherDenied=false,demo=false;
+ const sessionStorage={get length(){return stored.size;},key:index=>[...stored.keys()][index]??null,getItem:key=>stored.get(key)??null,setItem:(key,value)=>stored.set(key,String(value))};
+  function ref(path){return {path,id:path.split('/').pop(),delete:async()=>{records.delete(path);},collection:name=>{const collectionPath=path+'/'+name,prefix=collectionPath+'/';const query=filter=>{const docs=[...records.keys()].filter(k=>k.startsWith(prefix)&&!k.slice(prefix.length).includes('/')).map(k=>({id:k.split('/').pop(),ref:ref(k),data:()=>copy(records.get(k)||{})})).filter(doc=>!filter||filter(doc.data()));return {forEach:fn=>docs.forEach(fn),docs};};return {doc:id=>ref(collectionPath+'/'+id),get:async()=>query(),where:(field,operator,value)=>({get:async()=>query(data=>operator==='=='&&data[field]===value)})};},update:async value=>{records.set(path,{...records.get(path),...copy(value)});},get:async()=>({exists:records.has(path),id:path.split('/').pop(),ref:ref(path),data:()=>copy(records.get(path)||{})})};}
   const db={collection:name=>({doc:id=>ref(name+'/'+id)}),batch:()=>({update:(d,val)=>{records.set(d.path,{...records.get(d.path),...copy(val)});},commit:async()=>{}}),runTransaction:async task=>{
     const writes=[];
     const result=await task({get:async doc=>({exists:records.has(doc.path),id:doc.id,ref:doc,data:()=>copy(records.get(doc.path)||{})}),set:(doc,value)=>writes.push(['set',doc.path,copy(value)]),update:(doc,value)=>writes.push(['update',doc.path,copy(value)]),delete:doc=>writes.push(['delete',doc.path])});
@@ -9,7 +10,7 @@ function setup(){
     for(const [type,path,value] of writes){if(type==='delete')records.delete(path);else records.set(path,type==='update'?{...records.get(path),...value}:value);}return result;
   }};
   let studentUid = 'new-student';
-  const ctx={window:{firebaseDb:db,authService:{isDemo:()=>false,teacher:async()=>({uid:'teacher'}),student:async()=>({uid:studentUid})}},crypto,console,Map,Set};
+  const ctx={window:{firebaseDb:db,authService:{isDemo:()=>demo,teacher:async()=>{if(teacherDenied){const error=Error('permission-denied');error.code='permission-denied';throw error;}return {uid:'teacher'};},student:async()=>({uid:studentUid})}},sessionStorage,crypto,console,Map,Set};
   vm.createContext(ctx);
   vm.runInContext(fs.readFileSync(require.resolve('../js/data/eval-question-bank.js'),'utf8'),ctx);
   vm.runInContext(fs.readFileSync(require.resolve('../js/data/eval-questions.js'),'utf8'),ctx);
@@ -17,7 +18,7 @@ function setup(){
   vm.runInContext(fs.readFileSync(require.resolve('../js/core/eval-service.js'),'utf8'),ctx);
   records.set('classrooms/2-1',{classId:'2-1',status:'ended',attemptId:'old',deadlineMs:1,schoolYear:2026});
   records.set('classrooms/2-1/students/01',{ownerUid:'old-student',status:'submitted',num:1,answers:{part1:{q1:2}},scores:{teacherOverride:85}});
-  return {records,service:ctx.window.evalService,setFail:value=>{fail=value},setStudentUid:uid=>{studentUid=uid}};
+  return {records,service:ctx.window.evalService,sessionStorage,setFail:value=>{fail=value},setStudentUid:uid=>{studentUid=uid},setTeacherDenied:value=>{teacherDenied=value},setDemo:value=>{demo=value}};
 }
 test('new round archives answers and grades, frees seats, and prevents accidental restart',async()=>{
  const {records,service}=setup();await service.prepareSession('2-1');
@@ -35,6 +36,48 @@ test('failed archival transaction preserves current answer',async()=>{
  assert.equal(records.get('classrooms/2-1/students/01').answers.part1.q1,2);
  assert.equal(records.get('classrooms/2-1').attemptId,'old');
  assert.equal([...records.keys()].some(path=>path.includes('/archives/')),false);
+});
+
+test('archive history reads only new-session rounds and their stored student snapshots without changing data',async()=>{
+ const {records,service}=setup(),archivePath='classrooms/2-1/archives/round-2026-09-23';
+ records.set(archivePath,{kind:'new-session',archivedAt:'2026-09-23T01:00:00.000Z',session:{classId:'2-1',questionVersion:3,status:'ended'}});
+ records.set(archivePath+'/students/01',{num:1,numStr:'01',name:'보관 학생',status:'submitted',answers:{part1:{q1:0}},scores:{part1:24,part2:26,objectiveTotal:50,pendingReview:true}});
+ records.set('classrooms/2-1/archives/reset-event',{kind:'student-reset'});
+ records.set('classrooms/2-2/archives/other-round',{kind:'new-session',session:{classId:'2-2'}});
+ const before=JSON.stringify([...records]);
+ const rounds=await service.listArchivedSessions('2-1');
+ assert.equal(rounds.length,1);assert.equal(rounds[0].id,'round-2026-09-23');
+ const students=await service.getArchivedSessionStudents('2-1',rounds[0].id);
+ assert.equal(students.length,1);assert.equal(students[0].archiveStudentId,'01');
+ assert.equal(students[0].scores.objectiveTotal,50);assert.equal(students[0].answers.part1.q1,0);
+ assert.equal(JSON.stringify([...records]),before,'archive reads must leave stored round and scores unchanged');
+ await assert.rejects(service.getArchivedSessionStudents('2-2',rounds[0].id),/보관 평가 회차를 찾을 수 없습니다/);
+ await assert.rejects(service.listArchivedSessions('2-12'),/학급과 번호를 확인해 주세요/);
+});
+
+test('archive history reads stop when teacher authorization is denied',async()=>{
+ const {records,service,setTeacherDenied}=setup();setTeacherDenied(true);
+ await assert.rejects(service.listArchivedSessions('2-1'),error=>error.code==='permission-denied');
+ await assert.rejects(service.getArchivedSessionStudents('2-1','any-round'),error=>error.code==='permission-denied');
+ assert.equal([...records.keys()].some(key=>key.includes('/archives/')),false);
+});
+
+test('demo archive history avoids blank first-round records and supports scoped legacy snapshots',async()=>{
+ const {service,sessionStorage,setDemo}=setup();setDemo(true);
+ await service.prepareSession('2-1');
+ assert.equal((await service.listArchivedSessions('2-1')).length,0,'a class with no prior session should not get a blank archive');
+ let session=await service.getSession('2-1');
+ await service.endSession('2-1',{attemptId:session.attemptId,status:'waiting'});
+ sessionStorage.setItem('EVAL_STUDENTS_2-1',JSON.stringify([{num:4,numStr:'04',name:'보관 학생',status:'submitted',answers:{part1:{q1:1}},scores:{objectiveTotal:55}}]));
+ await service.prepareSession('2-1',{attemptId:session.attemptId,status:'ended'});
+ sessionStorage.setItem('EVAL_ARCHIVE_legacy-demo',JSON.stringify({classId:'2-1',session:{questionVersion:3},students:[{num:2,numStr:'02',name:'이전 형식'}]}));
+ const archives=await service.listArchivedSessions('2-1');
+ assert.equal(archives.length,2);assert.ok(archives.every(archive=>archive.kind==='new-session'));
+ const current=archives.find(archive=>archive.id!=='legacy-demo');
+ const snapshot=await service.getArchivedSessionStudents('2-1',current.id);
+ assert.equal(snapshot[0].name,'보관 학생');assert.equal(snapshot[0].scores.objectiveTotal,55);
+ assert.equal((await service.getArchivedSessionStudents('2-1','legacy-demo'))[0].name,'이전 형식');
+ await assert.rejects(service.getArchivedSessionStudents('2-2',current.id),/보관 평가 회차를 찾을 수 없습니다/);
 });
 
 test('teacher controls reject stale rounds and failed end writes preserve the active exam',async()=>{
