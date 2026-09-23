@@ -72,3 +72,18 @@ body.assessment-active #global-header [onclick="switchUnit('roadmap')"] { cursor
   .eval-task-chooser { align-items:flex-start; flex-direction:column; gap:8px; }
   #eval-screen-exam > div:first-of-type { flex-wrap:wrap; gap:10px; }
 }
+
+.classroom-archive-round-layout { display:grid; grid-template-columns:minmax(250px,.8fr) minmax(0,1.6fr); gap:16px; align-items:start; }
+.classroom-archive-roster, .classroom-archive-answer { min-width:0; }
+.classroom-archive-student-list { max-height:min(68vh,760px); overflow-y:auto; overscroll-behavior:contain; }
+.classroom-archive-answer-body { max-height:min(68vh,760px); overflow-y:auto; overscroll-behavior:contain; }
+.classroom-archive-answer-body canvas { display:block; max-width:100%; height:auto; }
+.classroom-archive-back-roster { display:none; }
+.classroom-archive-round-layout button:focus-visible { outline:2px solid #4f46e5; outline-offset:3px; }
+@media (max-width:899px) {
+  .classroom-archive-round-layout { grid-template-columns:minmax(0,1fr); }
+  .classroom-archive-student-list, .classroom-archive-answer-body { max-height:none; overflow:visible; }
+  .classroom-archive-back-roster { display:inline-flex; }
+  .classroom-archive-round-layout[data-mobile-view="roster"] .classroom-archive-answer { display:none; }
+  .classroom-archive-round-layout[data-mobile-view="student"] .classroom-archive-roster { display:none; }
+}
