@@ -484,7 +484,7 @@
           <c r="J${r}" s="8">${typeof finalScore === 'number' ? `<v>${finalScore}</v>` : `<t>${finalScore}</t>`}</c>
           <c r="K${r}" s="1" t="inlineStr"><is><t>${escapeXml(submittedAtText)}</t></is></c>
           <c r="L${r}" s="8">${typeof finalScore==='number'?`<v>${2*Math.ceil(finalScore*0.3/2)}</v>`:'<v/>'}</c>
-          <c r="M${r}" s="1" t="inlineStr"><is><t>${escapeXml(p3Scores.effective?.status||(teacherConfirmed!=='-'?'교사 확정':'1차 채점'))}</t></is></c>
+          <c r="M${r}" s="1" t="inlineStr"><is><t>${escapeXml(p3Scores.effective?.status||(p3Scores.isV2?'채점 대기':teacherConfirmed!=='-'?'교사 확정':'1차 채점'))}</t></is></c>
         </row>`;
         r++;
       }
@@ -950,7 +950,7 @@
           <c r="J${r}" s="1">${typeof finalScore === 'number' ? `<v>${finalScore}</v>` : `<t>${finalScore}</t>`}</c>
           <c r="K${r}" s="1" t="inlineStr"><is><t>${escapeXml(submittedAtText)}</t></is></c>
           <c r="L${r}" s="1">${typeof finalScore==='number'?`<v>${2*Math.ceil(finalScore*0.3/2)}</v>`:'<v/>'}</c>
-          <c r="M${r}" s="1" t="inlineStr"><is><t>${escapeXml(p3Scores.effective?.status||(teacherConfirmed!==''?'교사 확정':'1차 채점'))}</t></is></c>
+          <c r="M${r}" s="1" t="inlineStr"><is><t>${escapeXml(p3Scores.effective?.status||(p3Scores.isV2?'채점 대기':teacherConfirmed!==''?'교사 확정':'1차 채점'))}</t></is></c>
         </row>`;
         r++;
       }

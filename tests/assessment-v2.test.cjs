@@ -19,5 +19,6 @@ test('six-row workbook uses floor, provisional status and even conversion; corre
  const s=student([0,0,0,2,0,0],{}),sheets=ctx.window.excelExportService.buildWorkbookXmls('2-1',[s],{}),summary=sheets[0].xml,individual=sheets[1].xml;
  assert.match(summary,/<c r="J5"[^>]*><v>41<\/v>/);assert.match(summary,/<c r="L5"[^>]*><v>14<\/v>/);assert.match(summary,/잠정/);assert.match(individual,/현재 상태/);assert.match(individual,/순서도 구조·표현/);assert.match(individual,/최저점 보정 \+4점/);assert.match(individual,/D24:F24/);assert.match(individual,/B25:D25/);assert.match(individual,/<mergeCells count="12">/);
  s.review.confirmed={...s.review.proposal,criteria:student([3,3,3,3,6,6]).review.proposal.criteria};const edited=ctx.window.excelExportService.buildWorkbookXmls('2-1',[s],{});assert.match(edited[0].xml,/교사 정정/);assert.match(edited[0].xml,/<c r="J5"[^>]*><v>59<\/v>/);
+ s.answers.part3={plan:{current:'수정된 답안'}};s.scores.total=99;const stale=ctx.window.excelExportService.buildWorkbookXmls('2-1',[s],{});assert.match(stale[0].xml,/채점 대기/);assert.doesNotMatch(stale[0].xml,/<c r="J5"[^>]*><v>99/);assert.match(stale[1].xml,/대기점 \/ 40점/);assert.match(stale[1].xml,/환산 대기/);
 });
 module.exports={student};
