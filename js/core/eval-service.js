@@ -158,10 +158,44 @@ class EvalService {
       const old=this.read('EVAL_SESSION_'+classId,{});
       this.checkSessionExpectation(old, expected);
       if(old.status==='in_progress')throw Error('진행 중인 평가를 먼저 마감해 주세요.');
-      this.write('EVAL_ARCHIVE_'+archiveId,{session:old,students:this.read('EVAL_STUDENTS_'+classId,[])});
+      const students=this.read('EVAL_STUDENTS_'+classId,[]);
+      if(Object.keys(old).length||students.length)this.write('EVAL_ARCHIVE_'+archiveId,{kind:'new-session',archivedAt,classId,session:old,students});
       this.write('EVAL_STUDENTS_'+classId,[]);this.write('EVAL_SESSION_'+classId,fresh);this.notify(classId,{session:fresh,replaceStudents:true,students:[]});
     }
     return fresh;
+  }
+  async listArchivedSessions(classId) {
+    await window.authService.teacher({classId});this.identity(classId,1);
+    const db=this.getDb();
+    if(db){
+      const snapshot=await db.collection('classrooms').doc(classId).collection('archives').where('kind','==','new-session').get();
+      return snapshot.docs.map(doc=>({...doc.data(),id:doc.id}));
+    }
+    const prefix='EVAL_ARCHIVE_',archives=[];
+    for(let i=0;i<sessionStorage.length;i++){
+      const key=sessionStorage.key(i);
+      if(!key?.startsWith(prefix))continue;
+      const archive=this.read(key,null);
+      if(!archive||!['', 'new-session'].includes(archive.kind||''))continue;
+      if((archive.classId||archive.session?.classId)!==classId)continue;
+      archives.push({...archive,id:key.slice(prefix.length),kind:'new-session'});
+    }
+    return archives;
+  }
+  async getArchivedSessionStudents(classId,archiveId) {
+    await window.authService.teacher({classId});this.identity(classId,1);
+    if(typeof archiveId!=='string'||!archiveId.trim()||archiveId.includes('/'))throw new Error('보관 회차를 확인해 주세요.');
+    const db=this.getDb();
+    if(db){
+      const archiveRef=db.collection('classrooms').doc(classId).collection('archives').doc(archiveId);
+      const archive=await archiveRef.get();
+      if(!archive.exists||archive.data()?.kind!=='new-session')throw new Error('해당 학급의 보관 평가 회차를 찾을 수 없습니다.');
+      const snapshot=await archiveRef.collection('students').get();
+      return snapshot.docs.map(doc=>({...doc.data(),archiveStudentId:doc.id}));
+    }
+    const archive=this.read('EVAL_ARCHIVE_'+archiveId,null);
+    if(!archive||!['', 'new-session'].includes(archive.kind||'')||(archive.classId||archive.session?.classId)!==classId)throw new Error('해당 학급의 보관 평가 회차를 찾을 수 없습니다.');
+    return Array.isArray(archive.students)?archive.students.map(student=>({...student})):[];
   }
   async endSession(classId, expected) {
     await window.authService.teacher({classId});

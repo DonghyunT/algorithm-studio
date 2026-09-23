@@ -3,9 +3,10 @@
  * 🎓 [클래스룸 및 수행평가 관리관 엔진 (Classroom & Assessment Engine)]
  * ==============================================================================
  * - 11개 반 (2학년 1반 ~ 11반) 지원 및 학급당 최대 27명 학생 관리
- * - 2대 탭 시스템:
- *   1. [ 📑 단원별 과제 취합 ] (추상화 처방전, 샌드위치 레시피, 순서도 카드)
- *   2. [ ⏱️ 30분 실시간 수행평가 관제실 ] (27명 실시간 신호등 바둑판 + 동시 시작 + 나이스 CSV)
+ * - 3대 탭 시스템:
+ *   1. [ ⏱️ 실시간 수행평가 관제실 ] (27명 실시간 신호등 바둑판 + 동시 시작 + 나이스 CSV)
+ *   2. [ 🗂 이전 평가 기록 ] (담당 학급 보관 답안 읽기 전용 조회)
+ *   3. [ 📑 단원별 과제 취합 ] (추상화 처방전, 샌드위치 레시피, 순서도 카드)
  * - Zero-Dependency 웹 표준 및 sessionStorage + Firestore 하이브리드 동기화
  */
 
@@ -39,6 +40,12 @@ let currentLiveClassGrades = {};
 let currentLiveClassGradesAttemptId = null;
 const liveClassGradesRequests = new Map();
 let gradesRefreshTimeout = null;
+let archiveViewGeneration = 0;
+let archivedSessions = [];
+let selectedArchivedSession = null;
+let archivedStudents = [];
+let selectedArchivedStudentId = null;
+let archivedStudentsError = '';
 
 function getTeacherAutoReviewQueue() {
   if (!teacherAutoReviewQueue && typeof AssessmentAutoReviewQueue === 'function') {
@@ -273,28 +280,45 @@ function exitClassroomView() {
   }
 }
 
-// 탭 전환 (live_eval | assignments)
+// 탭 전환 (live_eval | archives | assignments)
 function switchClassroomSubTab(tabName) {
-  currentClassroomTab = tabName;
-  const btnLive = document.getElementById('classroom-tab-btn-live');
-  const btnAssign = document.getElementById('classroom-tab-btn-assign');
-  const secLive = document.getElementById('classroom-section-live');
-  const secAssign = document.getElementById('classroom-section-assign');
+  const allowedTabs=['live_eval','archives','assignments'];
+  currentClassroomTab=allowedTabs.includes(tabName)?tabName:'live_eval';
+  const tabs=[
+    {name:'live_eval',button:'classroom-tab-btn-live',section:'classroom-section-live'},
+    {name:'archives',button:'classroom-tab-btn-archive',section:'classroom-section-archive'},
+    {name:'assignments',button:'classroom-tab-btn-assign',section:'classroom-section-assign'}
+  ];
+  tabs.forEach(tab=>{
+    const active=tab.name===currentClassroomTab,button=document.getElementById(tab.button),section=document.getElementById(tab.section);
+    if(button){
+      button.setAttribute('aria-selected',String(active));
+      button.tabIndex=active?0:-1;
+      button.className=`min-w-[132px] px-4 py-2.5 rounded-xl text-xs sm:text-sm ${active?'font-black bg-indigo-600 text-white shadow-xs':'font-bold bg-slate-100 hover:bg-slate-200 text-slate-700'} transition cursor-pointer flex flex-1 sm:flex-none items-center justify-center gap-2`;
+    }
+    section?.classList.toggle('hidden',!active);
+  });
 
-  if (tabName === 'live_eval') {
-    if (btnLive) btnLive.className = "px-4 py-2 rounded-xl text-xs sm:text-sm font-black bg-indigo-600 text-white shadow-xs transition cursor-pointer";
-    if (btnAssign) btnAssign.className = "px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer";
-    if (secLive) secLive.classList.remove('hidden');
-    if (secAssign) secAssign.classList.add('hidden');
-    initLiveEvalDashboard();
-  } else {
+  if(currentClassroomTab==='live_eval')initLiveEvalDashboard();
+  else{
     stopLiveEvalDashboard();
-    if (btnLive) btnLive.className = "px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer";
-    if (btnAssign) btnAssign.className = "px-4 py-2 rounded-xl text-xs sm:text-sm font-black bg-indigo-600 text-white shadow-xs transition cursor-pointer";
-    if (secLive) secLive.classList.add('hidden');
-    if (secAssign) secAssign.classList.remove('hidden');
-    renderAssignmentsTable();
+    archiveViewGeneration++;
+    if(currentClassroomTab==='archives')loadArchivedSessions();
+    else renderAssignmentsTable();
   }
+}
+
+function handleClassroomTabKeydown(event){
+  const current=event.target.closest?.('[role="tab"]');
+  if(!current)return;
+  const tabs=[...current.parentElement.querySelectorAll('[role="tab"]')],index=tabs.indexOf(current);
+  let nextIndex=index;
+  if(event.key==='ArrowRight')nextIndex=(index+1)%tabs.length;
+  else if(event.key==='ArrowLeft')nextIndex=(index-1+tabs.length)%tabs.length;
+  else if(event.key==='Home')nextIndex=0;
+  else if(event.key==='End')nextIndex=tabs.length-1;
+  else return;
+  event.preventDefault();tabs[nextIndex].focus();tabs[nextIndex].click();
 }
 
 function switchClassroomClass(className) {
@@ -302,6 +326,8 @@ function switchClassroomClass(className) {
   currentSelectedClass = className;
   if (currentClassroomTab === 'live_eval') {
     initLiveEvalDashboard();
+  } else if(currentClassroomTab==='archives'){
+    loadArchivedSessions();
   } else {
     renderAssignmentsTable();
   }
@@ -2019,6 +2045,220 @@ function renderAssignmentsTable() {
 function exportClassroomCSV() { alert('단원별 과제 취합은 아직 연결되지 않았습니다. 수행평가 성적은 실시간 관제실의 CSV 버튼을 사용해 주세요.'); }
 function closeStudentDetailModal() { document.getElementById('classroom-detail-modal')?.classList.add('hidden'); }
 function copyPadletFormat() { alert('단원별 과제 취합은 아직 연결되지 않았습니다.'); }
+
+function archiveTimestampInfo(archive){
+  const session=archive?.session||{};
+  for(const [value,source] of [[session.startTime,'start'],[session.preparedAt,'prepared'],[archive?.archivedAt,'archived']]){
+    if(value===undefined||value===null||value==='')continue;
+    const time=archiveDateMillis(value);
+    if(Number.isFinite(time))return {time,source};
+  }
+  return {time:null,source:'unknown'};
+}
+function archiveDateMillis(value){
+  try{
+    if(value instanceof Date)return value.getTime();
+    if(typeof value==='number')return value;
+    if(typeof value?.toDate==='function')return value.toDate().getTime();
+    if(Number.isFinite(value?.seconds))return value.seconds*1000;
+    return Date.parse(String(value));
+  }catch{return NaN;}
+}
+function archiveSeoulDate(time,withTime=false){
+  if(!Number.isFinite(time))return '날짜 확인 불가';
+  const parts=Object.fromEntries(new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit',...(withTime?{hour:'2-digit',minute:'2-digit',hourCycle:'h23'}:{})}).formatToParts(new Date(time)).map(part=>[part.type,part.value]));
+  return withTime?`${parts.year}.${parts.month}.${parts.day} ${parts.hour}:${parts.minute}`:`${parts.year}.${parts.month}.${parts.day}`;
+}
+function archiveAssessmentVersion(archive){
+  const raw=archive?.session?.questionVersion??archive?.session?.version;
+  const parsed=Number(String(raw??'').replace(/^v/i,''));
+  return Number.isFinite(parsed)?parsed:0;
+}
+function archiveAssessmentType(version){return version===3?'모의평가':version===4?'실전평가':'이전 평가';}
+function archiveStudentNumber(student){
+  const raw=student?.num??student?.numStr??student?.archiveStudentId??'';
+  const parsed=Number.parseInt(String(raw).replace(/\D/g,''),10);
+  return Number.isFinite(parsed)&&parsed>0?String(parsed).padStart(2,'0'):'--';
+}
+function archiveStudentStatus(student){
+  return student?.status==='submitted'?'제출 완료':student?.status==='in_progress'?'작성 중':student?.status==='waiting'?'대기 중':'상태 기록 없음';
+}
+function archiveStudentScoreLabel(student){
+  const scores=student?.scores;
+  if(!scores||typeof scores!=='object')return '저장 점수 없음';
+  if(Number.isFinite(scores.teacherOverride))return `교사 조정 ${scores.teacherOverride}점`;
+  if(scores.pendingReview){
+    const objective=Number.isFinite(scores.objectiveTotal)?scores.objectiveTotal:(Number.isFinite(scores.part1)&&Number.isFinite(scores.part2)?scores.part1+scores.part2:null);
+    return objective===null?(scores.serverGraded?'서버 채점 대기':'서술 검토 대기'):`소계 ${objective}점 · 서술 대기`;
+  }
+  if(Number.isFinite(scores.total))return `${scores.total}점`;
+  const confirmed=student?.review?.confirmed?.criteria;
+  if(Array.isArray(confirmed)&&confirmed.length)return '교사 확정 검토 기록 있음';
+  if(student?.review?.proposal)return 'AI 제안 · 미확정';
+  return '저장 점수 없음';
+}
+function archiveErrorText(error,kind='list'){
+  if(error?.code==='permission-denied')return '이 학급의 보관 답안을 읽을 권한이 없습니다. 담당 학급을 확인한 뒤 다시 로그인해 주세요.';
+  if(error?.message?.includes('보관 평가 회차를 찾을 수 없습니다.'))return error.message;
+  return kind==='students'?'학생 답안을 불러오지 못했습니다. 연결을 확인하고 다시 시도해 주세요.':'보관 평가 목록을 불러오지 못했습니다. 연결을 확인하고 다시 시도해 주세요.';
+}
+function ensureArchiveInteractions(container){
+  if(!container||container.dataset.archiveEvents==='bound')return;
+  container.dataset.archiveEvents='bound';
+  container.addEventListener('click',event=>{
+    const button=event.target.closest('[data-archive-action]');
+    if(!button||!container.contains(button))return;
+    const action=button.dataset.archiveAction;
+    if(action==='retry-list')loadArchivedSessions();
+    else if(action==='show-live')switchClassroomSubTab('live_eval');
+    else if(action==='open-round')openArchivedSession(button.dataset.archiveId);
+    else if(action==='back-list'){
+      const previousId=selectedArchivedSession?.id;
+      archiveViewGeneration++;selectedArchivedSession=null;archivedStudents=[];selectedArchivedStudentId=null;archivedStudentsError='';renderArchivedSessionList();
+      const rounds=[...container.querySelectorAll('[data-archive-action="open-round"]')];(rounds.find(item=>item.dataset.archiveId===previousId)||rounds[0])?.focus();
+    }else if(action==='retry-students'&&selectedArchivedSession)openArchivedSession(selectedArchivedSession.id);
+    else if(action==='select-student')selectArchivedStudent(button.dataset.archiveStudentId);
+    else if(action==='back-roster'){
+      selectedArchivedStudentId=null;renderArchivedSessionDetail();document.getElementById('classroom-archive-student-search')?.focus();
+    }
+  });
+  container.addEventListener('input',event=>{
+    if(event.target.id!=='classroom-archive-student-search')return;
+    const query=event.target.value.trim().toLocaleLowerCase('ko-KR');
+    let visible=0;
+    container.querySelectorAll('[data-archive-student-row]').forEach(row=>{
+      const matches=!query||row.dataset.searchText.includes(query);row.hidden=!matches;if(matches)visible++;
+    });
+    const count=container.querySelector('#classroom-archive-search-count');
+    if(count)count.textContent=query?`${visible}명 표시`:`${archivedStudents.length}명`;
+    const empty=container.querySelector('#classroom-archive-search-empty');
+    if(empty)empty.hidden=visible>0;
+  });
+}
+function archiveContentElement(){
+  const container=document.getElementById('classroom-archive-content');
+  ensureArchiveInteractions(container);
+  return container;
+}
+async function loadArchivedSessions(){
+  const container=archiveContentElement(),classLabel=document.getElementById('classroom-archive-class-label');
+  if(!container)return;
+  const classId=getClassIdFromSelected(),generation=++archiveViewGeneration;
+  selectedArchivedSession=null;archivedStudents=[];selectedArchivedStudentId=null;archivedStudentsError='';archivedSessions=[];
+  if(classLabel)classLabel.textContent=currentSelectedClass;
+  container.innerHTML='<p class="text-sm text-slate-500 py-10 text-center" role="status">보관된 평가 기록을 불러오는 중입니다.</p>';
+  try{
+    const sessions=await window.evalService.listArchivedSessions(classId);
+    if(generation!==archiveViewGeneration||currentClassroomTab!=='archives'||classId!==getClassIdFromSelected())return;
+    archivedSessions=Array.isArray(sessions)?sessions.filter(item=>item?.id&&item.kind==='new-session'):[];
+    renderArchivedSessionList();
+  }catch(error){
+    if(generation!==archiveViewGeneration||currentClassroomTab!=='archives')return;
+    container.innerHTML=`<div class="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-center" role="alert"><p class="text-sm font-bold text-rose-800">${escapeHtml(archiveErrorText(error))}</p><button type="button" data-archive-action="retry-list" class="mt-3 min-h-11 px-4 py-2 rounded-xl bg-white border border-rose-200 text-rose-800 text-sm font-bold">다시 불러오기</button></div>`;container.querySelector('[data-archive-action="retry-list"]')?.focus();
+  }
+}
+function renderArchivedSessionList(){
+  const container=archiveContentElement();if(!container)return;
+  if(!archivedSessions.length){
+    container.innerHTML='<div class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 sm:p-8 text-center"><div class="mx-auto w-11 h-11 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-400"><i class="fa-solid fa-box-open" aria-hidden="true"></i></div><h4 class="mt-3 font-black text-slate-800">아직 보관된 평가가 없습니다</h4><p class="max-w-xl mx-auto mt-1.5 text-xs sm:text-sm text-slate-600 leading-relaxed">평가가 끝난 뒤 새 평가를 준비하면 직전 회차의 답안이 이곳에 보관됩니다. 다음 평가를 아직 준비하지 않았다면 현재 회차는 실시간 수행평가 화면에서 확인하실 수 있습니다.</p><button type="button" data-archive-action="show-live" class="mt-4 min-h-11 px-4 py-2 rounded-xl bg-white border border-slate-300 text-slate-700 text-sm font-bold hover:bg-slate-100">실시간 평가로 이동</button></div>';
+    return;
+  }
+  const sorted=[...archivedSessions].sort((a,b)=>(archiveTimestampInfo(b).time??-Infinity)-(archiveTimestampInfo(a).time??-Infinity));
+  const labels=sorted.map(archive=>{
+    const version=archiveAssessmentVersion(archive),date=archiveTimestampInfo(archive),day=archiveSeoulDate(date.time),key=`${version}:${day}`;
+    return {archive,version,date,day,key};
+  });
+  const counts=new Map();labels.forEach(item=>counts.set(item.key,(counts.get(item.key)||0)+1));
+  container.innerHTML=`<div class="space-y-3"><p class="text-xs text-slate-500">${sorted.length}개 보관 회차 · 최근 평가부터 표시</p><div class="grid grid-cols-1 xl:grid-cols-2 gap-3">${labels.map(item=>{
+    const type=archiveAssessmentType(item.version),needsTime=(counts.get(item.key)||0)>1,dateText=item.date.time===null?'평가 날짜 확인 불가':`${item.date.source==='archived'?'보관일':'평가일'} ${item.day}${needsTime?` · ${archiveSeoulDate(item.date.time,true).slice(-5)}`:''}`;
+    return `<article class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border border-slate-200 bg-white hover:border-indigo-300 hover:shadow-sm transition"><div class="min-w-0"><div class="flex flex-wrap items-center gap-2"><span class="px-2 py-1 rounded-lg text-[11px] font-black ${item.version===3?'bg-blue-50 text-blue-700':item.version===4?'bg-emerald-50 text-emerald-700':'bg-slate-100 text-slate-700'}">${type}</span><h4 class="font-black text-slate-900">${type} · ${item.day}</h4></div><p class="mt-1 text-xs text-slate-500">${dateText}</p></div><button type="button" data-archive-action="open-round" data-archive-id="${escapeHtml(item.archive.id)}" class="shrink-0 min-h-11 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-black flex items-center justify-center gap-2"><span>답안 보기</span><i class="fa-solid fa-arrow-right text-xs" aria-hidden="true"></i></button></article>`;
+  }).join('')}</div></div>`;
+}
+async function openArchivedSession(archiveId){
+  const container=archiveContentElement(),classId=getClassIdFromSelected();
+  const archive=archivedSessions.find(item=>item.id===archiveId);
+  if(!container||!archive)return;
+  const generation=++archiveViewGeneration;
+  selectedArchivedSession=archive;archivedStudents=null;selectedArchivedStudentId=null;archivedStudentsError='';renderArchivedSessionDetail();
+  try{
+    const students=await window.evalService.getArchivedSessionStudents(classId,archive.id);
+    if(generation!==archiveViewGeneration||currentClassroomTab!=='archives'||classId!==getClassIdFromSelected()||selectedArchivedSession?.id!==archive.id)return;
+    archivedStudents=Array.isArray(students)?students.map(student=>({...student})).sort((a,b)=>Number(archiveStudentNumber(a))-Number(archiveStudentNumber(b))):[];
+    renderArchivedSessionDetail();
+    const focusTarget=container.querySelector('[data-archive-action="select-student"]')||container.querySelector('[data-archive-action="back-list"]');focusTarget?.focus();
+  }catch(error){
+    if(generation!==archiveViewGeneration||selectedArchivedSession?.id!==archive.id)return;
+    archivedStudents=[];archivedStudentsError=archiveErrorText(error,'students');renderArchivedSessionDetail();container.querySelector('[data-archive-action="retry-students"]')?.focus();
+  }
+}
+function selectArchivedStudent(studentId){
+  if(!Array.isArray(archivedStudents))return;
+  const student=archivedStudents.find(item=>String(item.archiveStudentId||item.numStr||item.num||'')===String(studentId));
+  if(!student)return;
+  selectedArchivedStudentId=String(student.archiveStudentId||student.numStr||student.num||'');renderArchivedSessionDetail();
+  const container=archiveContentElement(),focused=[...container.querySelectorAll('[data-archive-action="select-student"]')].find(button=>button.dataset.archiveStudentId===selectedArchivedStudentId);focused?.focus();
+}
+function renderArchivedSessionDetail(){
+  const container=archiveContentElement(),archive=selectedArchivedSession;
+  if(!container||!archive)return;
+  const version=archiveAssessmentVersion(archive),date=archiveTimestampInfo(archive),type=archiveAssessmentType(version),dateText=date.time===null?'날짜 정보 없음':`${date.source==='archived'?'보관일':'평가일'} ${archiveSeoulDate(date.time,true)}`;
+  const students=Array.isArray(archivedStudents)?archivedStudents:[],submitted=students.filter(student=>student.status==='submitted').length;
+  const selected=students.find(student=>String(student.archiveStudentId||student.numStr||student.num||'')===selectedArchivedStudentId);
+  const summary=Array.isArray(archivedStudents)?`${students.length}명 보관 · 제출 ${submitted}명`:'답안 목록 불러오는 중';
+  const rosterBody=archivedStudents===null?'<p class="p-5 text-sm text-slate-500" role="status">학생 답안을 불러오는 중입니다.</p>':archivedStudentsError?`<div class="p-5 text-center" role="alert"><p class="text-sm text-rose-700">${escapeHtml(archivedStudentsError)}</p><button type="button" data-archive-action="retry-students" class="mt-3 min-h-11 px-4 py-2 rounded-xl border border-rose-200 bg-white text-sm font-bold text-rose-800">다시 불러오기</button></div>`:students.length?students.map(student=>{
+    const id=String(student.archiveStudentId||student.numStr||student.num||''),num=archiveStudentNumber(student),name=String(student.name||'이름 기록 없음'),search=`${num} ${name}`.toLocaleLowerCase('ko-KR'),active=selectedArchivedStudentId===id;
+    return `<button type="button" data-archive-action="select-student" data-archive-student-id="${escapeHtml(id)}" data-archive-student-row data-search-text="${escapeHtml(search)}" aria-pressed="${active}" class="w-full text-left p-3 rounded-xl border ${active?'border-indigo-300 bg-indigo-50':'border-slate-200 bg-white hover:bg-slate-50'} transition"><span class="flex items-start justify-between gap-2"><span class="min-w-0"><span class="block text-xs font-black text-slate-500">${num}번 · ${escapeHtml(name)}</span><span class="mt-1 block text-[11px] text-slate-500">${archiveStudentStatus(student)}</span></span><span class="shrink-0 text-[11px] font-black text-slate-700">${escapeHtml(archiveStudentScoreLabel(student))}</span></span></button>`;
+  }).join(''):'<p class="p-5 text-sm text-slate-500 text-center">이 회차에 보관된 학생 답안이 없습니다.</p>';
+  const answer=selected?renderArchivedStudentAnswer(selected,version):'<div class="min-h-[280px] flex flex-col items-center justify-center text-center p-6"><span class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center"><i class="fa-regular fa-file-lines" aria-hidden="true"></i></span><h4 class="mt-3 font-black text-slate-800">학생을 선택해 답안을 확인하세요</h4><p class="mt-1 text-xs text-slate-500">보관된 기록만 표시하며 현재 회차에는 영향을 주지 않습니다.</p></div>';
+  container.innerHTML=`<div class="space-y-4"><div class="flex flex-wrap items-start justify-between gap-3"><div class="min-w-0"><button type="button" data-archive-action="back-list" class="min-h-10 px-3 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 flex items-center gap-1.5"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i><span>회차 목록</span></button><div class="mt-2 flex flex-wrap items-center gap-2"><span class="px-2 py-1 rounded-lg text-[11px] font-black ${version===3?'bg-blue-50 text-blue-700':version===4?'bg-emerald-50 text-emerald-700':'bg-slate-100 text-slate-700'}">${type}</span><h3 class="text-base sm:text-lg font-black text-slate-900">${type} · ${archiveSeoulDate(date.time)}</h3><span class="px-2 py-1 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-black">읽기 전용</span></div><p class="mt-1 text-xs text-slate-500">${dateText} · ${summary}</p></div><span class="text-xs font-bold text-slate-500">${escapeHtml(currentSelectedClass)}</span></div><div class="classroom-archive-round-layout" id="classroom-archive-round-layout" data-mobile-view="${selected?'student':'roster'}"><section class="classroom-archive-roster rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:p-4"><div class="flex items-center justify-between gap-2"><h4 class="font-black text-slate-800">학생 답안</h4><span id="classroom-archive-search-count" class="text-[11px] text-slate-500">${students.length}명</span></div><label class="block mt-3"><span class="sr-only">학생 번호 또는 이름 검색</span><input id="classroom-archive-student-search" type="search" placeholder="번호 또는 이름 검색" class="w-full min-h-11 px-3 py-2 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:border-indigo-500"></label><div class="classroom-archive-student-list mt-3 space-y-2">${rosterBody}<p id="classroom-archive-search-empty" class="p-4 text-sm text-slate-500 text-center" hidden>검색 결과가 없습니다.</p></div></section><section class="classroom-archive-answer rounded-2xl border border-slate-200 bg-white overflow-hidden"><div class="flex flex-wrap items-center justify-between gap-2 p-3 sm:p-4 border-b border-slate-100"><div><h4 class="font-black text-slate-800">${selected?`${archiveStudentNumber(selected)}번 · ${escapeHtml(selected.name||'이름 기록 없음')}`:'답안 상세'}</h4><p class="mt-1 text-[11px] text-slate-500">보관된 답안과 확정 기록을 수정 없이 표시합니다.</p></div>${selected?'<button type="button" data-archive-action="back-roster" class="classroom-archive-back-roster min-h-11 px-3 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">학생 목록으로</button>':''}</div><div class="classroom-archive-answer-body p-3 sm:p-4">${answer}</div></section></div></div>`;
+  if(selected){
+    const canvas=container.querySelector('#classroom-archive-flowchart-canvas'),graph=selected.answers?.part3||{};
+    if(canvas&&typeof drawFlowchartPreview==='function')drawFlowchartPreview(canvas,Array.isArray(graph.blocks)?graph.blocks:[],Array.isArray(graph.connections)?graph.connections:[]);
+  }
+}
+function renderArchivedQuestionAnswers(answerMap,questions,isChoice){
+  const answers=answerMap&&typeof answerMap==='object'?answerMap:{};
+  const choiceIndex=value=>Number.isInteger(value)?value:(typeof value==='string'&&/^[0-4]$/.test(value)?Number(value):null);
+  if(Array.isArray(questions)&&questions.length){
+    return questions.map((question,index)=>{
+      const value=answers[question.id],hasAnswer=Object.prototype.hasOwnProperty.call(answers,question.id)&&value!==null&&value!==undefined&&!(typeof value==='string'&&!value.trim());
+      let answer='미응답';
+      if(hasAnswer){
+        const choice=choiceIndex(value);
+        if(isChoice&&choice!==null&&question.options?.[choice]!==undefined){const symbols=['①','②','③','④','⑤'];answer=`${symbols[choice]||''} ${question.options[choice]}`.trim();}
+        else answer=typeof value==='string'?value:JSON.stringify(value);
+      }
+      return `<article class="p-3 rounded-xl border border-slate-200 bg-slate-50"><h5 class="text-xs font-black text-slate-800">${escapeHtml(question.title||`${index+1}번 문항`)}</h5>${question.desc?`<p class="mt-1 text-[11px] text-slate-500 whitespace-pre-wrap">${escapeHtml(question.desc)}</p>`:''}<p class="mt-2 text-sm text-slate-800 whitespace-pre-wrap break-words"><span class="text-slate-500 font-bold">학생 답안:</span> ${escapeHtml(answer)}</p></article>`;
+    }).join('');
+  }
+  const entries=Object.entries(answers);
+  if(!entries.length)return '<p class="text-xs text-slate-500">저장된 답안이 없습니다.</p>';
+  return `<div class="space-y-2">${entries.map(([key,value])=>{
+    const match=String(key).match(/(?:q|question)[_-]?(\d+)/i)||String(key).match(/(\d+)$/),label=match?`${Number(match[1])}번 문항`:String(key);
+    let answer=value===null||value===undefined||typeof value==='string'&&!value.trim()?'미응답':typeof value==='string'?value:JSON.stringify(value);
+    const index=choiceIndex(value);
+    if(isChoice&&index!==null){const symbols=['①','②','③','④','⑤'];answer=symbols[index]||String(value);}
+    return `<article class="p-3 rounded-xl border border-slate-200 bg-slate-50"><h5 class="text-xs font-black text-slate-800">${escapeHtml(label)}</h5><p class="mt-2 text-sm text-slate-800 whitespace-pre-wrap break-words"><span class="text-slate-500 font-bold">학생 답안:</span> ${escapeHtml(answer??'미응답')}</p></article>`;
+  }).join('')}</div>`;
+}
+function renderArchivedStudentAnswer(student,version){
+  const answers=student?.answers&&typeof student.answers==='object'?student.answers:{},p1=answers.part1||{},p2=answers.part2||{},assigned=answers.assignedQuestions||answers.part3?.assignedQuestions;
+  const submittedAt=archiveDateMillis(student.submittedAt),submittedAtText=Number.isFinite(submittedAt)?`${archiveSeoulDate(submittedAt,true)} KST`:'기록 없음';
+  let questions=null;
+  if(version!==4&&!(version===3&&!assigned)&&typeof window.evaluationQuestions==='function'){
+    try{questions=window.evaluationQuestions(answers,version);}catch{}
+  }
+  const p1Questions=questions?.part1||[],p2Questions=questions?.part2||{};
+  const part3=answers.part3||{},plan=part3.plan||{},steps=Array.isArray(plan.steps)?plan.steps:typeof plan.steps==='string'&&plan.steps.trim()?[plan.steps]:[];
+  const stepsHtml=steps.map((step,index)=>`<li class="ml-5 list-decimal text-sm text-slate-700 whitespace-pre-wrap break-words">${escapeHtml(typeof step==='string'?step:step?.text??JSON.stringify(step))}</li>`).join('');
+  const blocks=Array.isArray(part3.blocks)?part3.blocks:[],connections=Array.isArray(part3.connections)?part3.connections:[];
+  const review=student.review||{},confirmed=Array.isArray(review.confirmed?.criteria)?review.confirmed.criteria:[];
+  const reviewHtml=confirmed.length?`<div class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3"><h5 class="text-xs font-black text-emerald-900">교사 확정 검토 기록</h5><ul class="mt-2 space-y-1">${confirmed.map(item=>{const rule=(typeof ASSESSMENT_RUBRIC!=='undefined'?ASSESSMENT_RUBRIC:[]).find(entry=>entry.id===item.id);return `<li class="text-xs text-slate-700">${escapeHtml(rule?.label||item.id||'평가 기준')}: ${escapeHtml(item.score)} / 10점${item.evidence?` · ${escapeHtml(item.evidence)}`:''}</li>`;}).join('')}</ul></div>`:review.proposal?'<p class="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">AI 초벌 제안이 저장되어 있습니다. 교사 확정 점수와 구분하여 표시합니다.</p>':'';
+  const planHtml=`<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">${[['현재 상태',plan.current],['목표 상태',plan.goal],['지켜야 할 조건',plan.conditions]].map(([label,value])=>`<div class="rounded-xl bg-slate-50 p-3"><span class="block text-[11px] font-bold text-slate-500">${label}</span><p class="mt-1 text-sm text-slate-800 whitespace-pre-wrap break-words">${escapeHtml(value||'작성하지 않음')}</p></div>`).join('')}</div>${stepsHtml?`<div class="mt-3"><h5 class="text-xs font-black text-slate-700">자연어 해결 순서</h5><ol class="mt-2 space-y-1">${stepsHtml}</ol></div>`:''}`;
+  const blockHtml=blocks.length?`<canvas id="classroom-archive-flowchart-canvas" width="800" height="340" class="w-full max-h-[340px] object-contain rounded-xl border border-slate-200 bg-white" role="img" aria-label="보관된 학생 순서도"></canvas><p class="mt-2 text-xs text-slate-500">기호 ${blocks.length}개 · 연결 ${connections.length}개</p>`:'<p class="text-xs text-slate-500">보관된 순서도 블록이 없습니다.</p>';
+  const questionNote=version===4?'<p class="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">V4 당시 문항 원문은 답안 보관 자료에 포함되지 않았습니다. 저장된 응답만 표시하며 현재 문항으로 대체하지 않습니다.</p>':version===3&&!assigned?'<p class="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">이전 답안에 문항 배정 정보가 없어 문항 원문 대신 저장된 응답을 표시합니다.</p>':'';
+  return `<div class="space-y-4"><div class="grid grid-cols-1 sm:grid-cols-3 gap-2"><div class="rounded-xl bg-indigo-50 border border-indigo-100 p-3"><span class="text-[11px] font-bold text-indigo-700">제출 상태</span><p class="mt-1 text-sm font-black text-indigo-950">${escapeHtml(archiveStudentStatus(student))}</p></div><div class="rounded-xl bg-slate-50 border border-slate-200 p-3"><span class="text-[11px] font-bold text-slate-500">보관된 점수</span><p class="mt-1 text-sm font-black text-slate-900">${escapeHtml(archiveStudentScoreLabel(student))}</p></div><div class="rounded-xl bg-slate-50 border border-slate-200 p-3"><span class="text-[11px] font-bold text-slate-500">제출 시각</span><p class="mt-1 text-xs font-bold text-slate-800">${escapeHtml(submittedAtText)}</p></div></div><section class="rounded-2xl border border-indigo-100 p-3 sm:p-4"><h5 class="mb-3 text-sm font-black text-indigo-950">Part 1 · 객관식 답안</h5>${questionNote}${renderArchivedQuestionAnswers(p1,p1Questions,true)}</section><section class="rounded-2xl border border-amber-100 p-3 sm:p-4"><h5 class="mb-3 text-sm font-black text-amber-950">Part 2 · 단답형 답안</h5>${renderArchivedQuestionAnswers(p2,p2Questions,false)}</section><section class="rounded-2xl border border-emerald-100 p-3 sm:p-4"><h5 class="mb-3 text-sm font-black text-emerald-950">Part 3 · 자연어 계획과 순서도</h5>${planHtml}<div class="mt-4"><h5 class="mb-2 text-xs font-black text-slate-700">보관된 순서도</h5>${blockHtml}</div>${reviewHtml}</section></div>`;
+}
 
 if (typeof window !== 'undefined') {
   window.sortBlocksByExecution = sortBlocksByExecution;
