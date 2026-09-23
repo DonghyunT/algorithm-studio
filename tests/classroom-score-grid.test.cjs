@@ -65,6 +65,7 @@ function createClassroomEnv() {
   };
 
   vm.createContext(sandbox);
+  vm.runInContext(fs.readFileSync(path.join(__dirname,'../js/core/assessment-policy.js'),'utf8'),sandbox);
 
   const classroomCode = fs.readFileSync(path.join(__dirname, '../js/core/classroom.js'), 'utf8');
   vm.runInContext(classroomCode, sandbox);
@@ -171,11 +172,12 @@ test('V4 실전평가 제출 학생: Part 3 AI 제안 점수가 있으면 지필
     scores: { serverGraded: true },
     review: {
       proposal: {
+        attemptId:'attempt-v4',sourceKey:require('../js/core/assessment-policy.js').assessmentSourceKey({}),
         criteria: [
-          { id: 'c1', score: 8 },
-          { id: 'c2', score: 8 },
-          { id: 'c3', score: 8 },
-          { id: 'c4', score: 8 }
+          { id: 'problem', score: 8 },
+          { id: 'logic', score: 8 },
+          { id: 'consistency', score: 8 },
+          { id: 'flow', score: 8 }
         ]
       }
     },
@@ -215,11 +217,12 @@ test('V4 실전평가 제출 학생: Part 3 교사 점수 확정 시 "88점 (확
     scores: { serverGraded: true },
     review: {
       confirmed: {
+        attemptId:'attempt-v4',sourceKey:require('../js/core/assessment-policy.js').assessmentSourceKey({}),
         criteria: [
-          { id: 'c1', score: 8 },
-          { id: 'c2', score: 8 },
-          { id: 'c3', score: 8 },
-          { id: 'c4', score: 8 }
+          { id: 'problem', score: 8 },
+          { id: 'logic', score: 8 },
+          { id: 'consistency', score: 8 },
+          { id: 'flow', score: 8 }
         ]
       }
     },

@@ -4,8 +4,8 @@
  * ==============================================================================
  * - 학생이 Part 3를 제출(submitted)하면 교사 관제탑 백그라운드에서 순차적으로 Solar AI 초벌 채점(proposal) 요청
  * - API Rate Limit(분당 10회)를 철저히 준수하기 위해 요청 간 최소 6.8초 안전 간격 유지 (분당 최대 ~8.8회)
- * - Part 3 블록 0~1개인 빈 답안은 API 호출 없이 즉시 0점 제안 처리하여 비용 및 토큰 100% 절감
- * - 교사 최종 확정 원칙: 저장되는 데이터는 항상 'proposal'이며 교사의 최종 승인 전까지 점수를 확정하지 않음
+ * - 상태/조건/자연어/의미 있는 순서도가 모두 비면 AI 없이 처리한다. V2는 최저 6점.
+ * - V2 proposal은 배부용 잠정점수이며 교사 정정이 항상 우선한다. 이전 기준은 유지한다.
  */
 
 class AssessmentAutoReviewQueue {
@@ -13,6 +13,7 @@ class AssessmentAutoReviewQueue {
     this.classId = null;
     this.attemptId = null;
     this.questionVersion = null;
+    this.rubricVersion = 'open-design-v1';
     this.isTeacher = false;
     this.queue = [];
     this.processing = false;
@@ -28,6 +29,7 @@ class AssessmentAutoReviewQueue {
   }
 
   static isPart3Empty(student) {
+    if(typeof assessmentIsEmpty==='function')return assessmentIsEmpty(student?.answers?.part3);
     const part3 = student?.answers?.part3;
     if (!part3) return true;
     const blocks = Array.isArray(part3.blocks) ? part3.blocks : [];
@@ -41,6 +43,9 @@ class AssessmentAutoReviewQueue {
   }
 
   static createZeroProposal(student, sourceKey) {
+    if(typeof assessmentVersion==='function'&&assessmentVersion(student)==='open-design-v2'){
+      const criteria=assessmentEmptyCriteria();return {criteria,...assessmentTotals(criteria,'open-design-v2'),sourceKey,attemptId:student.attemptId,rubricVersion:'open-design-v2',model:'deterministic-empty',uncertainties:[],createdAt:new Date().toISOString()};
+    }
     return {
       criteria: [
         { id: 'problem', score: 0, evidence: '제출된 기획서 내용 및 문제 조건 증거가 없습니다.' },
@@ -72,6 +77,7 @@ class AssessmentAutoReviewQueue {
       this.isTeacher = !!isTeacher;
     }
 
+    this.rubricVersion=session.assessmentRubricVersion||'open-design-v1';
     // 실전평가 회차(4)이고 교사 권한일 때만 자동 초벌 채점 수행 (모의평가 3은 토큰 절약을 위해 제외)
     if (this.questionVersion !== 4 || !this.isTeacher) {
       return;
@@ -80,6 +86,7 @@ class AssessmentAutoReviewQueue {
     const helperSourceKey = typeof assessmentSourceKey === 'function' ? assessmentSourceKey : (() => '');
 
     for (const student of students) {
+      const version=student.assessmentRubricVersion||this.rubricVersion;
       if (student.status !== 'submitted') continue;
       if (student.attemptId !== this.attemptId) continue;
 
@@ -89,14 +96,14 @@ class AssessmentAutoReviewQueue {
       // 이미 proposal 또는 confirmed가 저장되어 있다면 건너뜀
       const hasProposal = student.review?.proposal &&
         student.review.proposal.sourceKey === sourceKey &&
-        student.review.proposal.attemptId === this.attemptId;
+        student.review.proposal.attemptId === this.attemptId && (student.review.proposal.rubricVersion||'open-design-v1')===version;
       const hasConfirmed = student.review?.confirmed &&
         student.review.confirmed.sourceKey === sourceKey &&
-        student.review.confirmed.attemptId === this.attemptId;
+        student.review.confirmed.attemptId === this.attemptId && (student.review.confirmed.rubricVersion||'open-design-v1')===version;
 
       if (hasProposal || hasConfirmed) continue;
 
-      const itemKey = `${this.classId}:${this.attemptId}:${studentNum}:${sourceKey}`;
+      const itemKey = `${this.classId}:${this.attemptId}:${version}:${studentNum}:${sourceKey}`;
       if (this.processedKeys.has(itemKey)) continue;
       if (this.queue.some(q => q.itemKey === itemKey)) continue;
       if (this.processingStudentNum === studentNum) continue;
@@ -104,7 +111,7 @@ class AssessmentAutoReviewQueue {
       // 빈 답안 감지 시 API를 호출하지 않고 즉시 0점 Proposal 저장
       if (AssessmentAutoReviewQueue.isPart3Empty(student)) {
         this.processedKeys.add(itemKey);
-        this.saveZeroProposalImmediate(student, sourceKey);
+        this.saveZeroProposalImmediate({...student,assessmentRubricVersion:version}, sourceKey);
         continue;
       }
 

@@ -2,7 +2,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),vm=require(
 function setup(){
  const records=new Map(),copy=value=>JSON.parse(JSON.stringify(value)),stored=new Map();let fail=false,teacherDenied=false,demo=false;
  const sessionStorage={get length(){return stored.size;},key:index=>[...stored.keys()][index]??null,getItem:key=>stored.get(key)??null,setItem:(key,value)=>stored.set(key,String(value))};
-  function ref(path){return {path,id:path.split('/').pop(),delete:async()=>{records.delete(path);},collection:name=>{const collectionPath=path+'/'+name,prefix=collectionPath+'/';const query=filter=>{const docs=[...records.keys()].filter(k=>k.startsWith(prefix)&&!k.slice(prefix.length).includes('/')).map(k=>({id:k.split('/').pop(),ref:ref(k),data:()=>copy(records.get(k)||{})})).filter(doc=>!filter||filter(doc.data()));return {forEach:fn=>docs.forEach(fn),docs};};return {doc:id=>ref(collectionPath+'/'+id),get:async()=>query(),where:(field,operator,value)=>({get:async()=>query(data=>operator==='=='&&data[field]===value)})};},update:async value=>{records.set(path,{...records.get(path),...copy(value)});},get:async()=>({exists:records.has(path),id:path.split('/').pop(),ref:ref(path),data:()=>copy(records.get(path)||{})})};}
+  function ref(path){return {path,id:path.split('/').pop(),delete:async()=>{records.delete(path);},collection:name=>{const collectionPath=path+'/'+name,prefix=collectionPath+'/';const query=filter=>{const docs=[...records.keys()].filter(k=>k.startsWith(prefix)&&!k.slice(prefix.length).includes('/')).map(k=>({id:k.split('/').pop(),ref:ref(k),data:()=>copy(records.get(k)||{})})).filter(doc=>!filter||filter(doc.data()));return {forEach:fn=>docs.forEach(fn),docs};};return {doc:id=>ref(collectionPath+'/'+id),get:async()=>query(),where:(field,operator,value)=>({get:async()=>query(data=>operator==='=='&&data[field]===value)})};},set:async value=>{if(fail)throw Error('write failed');records.set(path,copy(value));},update:async value=>{records.set(path,{...records.get(path),...copy(value)});},get:async()=>({exists:records.has(path),id:path.split('/').pop(),ref:ref(path),data:()=>copy(records.get(path)||{})})};}
   const db={collection:name=>({doc:id=>ref(name+'/'+id)}),batch:()=>({update:(d,val)=>{records.set(d.path,{...records.get(d.path),...copy(val)});},commit:async()=>{}}),runTransaction:async task=>{
     const writes=[];
     const result=await task({get:async doc=>({exists:records.has(doc.path),id:doc.id,ref:doc,data:()=>copy(records.get(doc.path)||{})}),set:(doc,value)=>writes.push(['set',doc.path,copy(value)]),update:(doc,value)=>writes.push(['update',doc.path,copy(value)]),delete:doc=>writes.push(['delete',doc.path])});
@@ -101,12 +101,12 @@ test('teacher controls reject stale rounds and failed end writes preserve the ac
 test('teacher review is bound to the submitted answer; failures and resets do not confirm stale scores',async()=>{
  const {records,service,setFail}=setup(),policy=require('../js/core/assessment-policy.js');
  await service.prepareSession('2-1');const s=await service.joinWaitingRoom('2-1',1,'검증');await service.startSession('2-1');
- const criteria=policy.ASSESSMENT_RUBRIC.map(r=>({id:r.id,score:7})),source=policy.assessmentSourceKey(s.answers.part3);
+ const criteria=policy.ASSESSMENT_RUBRIC_V2.map(r=>({id:r.id,score:r.max})),source=policy.assessmentSourceKey(s.answers.part3);
  await assert.rejects(service.savePart3Review('2-1',1,source,{criteria},'confirmed'));
  records.get('classrooms/2-1/students/01').status='submitted';
  await assert.rejects(service.savePart3Review('2-1',1,'stale',{criteria},'confirmed'));
  setFail(true);await assert.rejects(service.savePart3Review('2-1',1,source,{criteria},'confirmed'));assert.equal(records.get('classrooms/2-1/students/01').review,undefined);setFail(false);
- await service.savePart3Review('2-1',1,source,{criteria,attemptId:s.attemptId,uncertainties:[]},'proposal');assert.equal(records.get('classrooms/2-1/students/01').review.confirmed,undefined);
+ await service.savePart3Review('2-1',1,source,{criteria,rubricVersion:policy.ASSESSMENT_V2,attemptId:s.attemptId,uncertainties:[]},'proposal');assert.equal(records.get('classrooms/2-1/students/01').review.confirmed,undefined);
  await service.savePart3Review('2-1',1,source,{criteria},'confirmed');assert.equal(records.get('classrooms/2-1/students/01').review.confirmed.reviewerUid,'teacher');
   await service.resetStudentExam('2-1',1);assert.equal(records.get('classrooms/2-1/students/01').review,null);
 });
@@ -120,6 +120,18 @@ test('waiting session can be directly closed with endSession and getSession fetc
   await service.endSession('2-1',{attemptId:ready.attemptId,status:'waiting'});
   const ended=await service.getSession('2-1');
   assert.equal(ended.status,'ended');
+});
+test('archived V2 overlay and teacher correction preserve the original round and enforce teacher scope',async()=>{
+ const {records,service,setTeacherDenied}=setup(),p=require('../js/core/assessment-policy.js');
+ const part={plan:{current:'현재',goal:'목표',conditions:'조건'},blocks:[],connections:[]};
+ const source={num:1,numStr:'01',status:'submitted',attemptId:'history',answers:{part3:part},scores:{part1:30,part2:30}};
+ const root='classrooms/2-1/archives/';records.set(root+'old',{kind:'new-session',session:{attemptId:'history',questionVersion:4,status:'ended'}});records.set(root+'old/students/01',source);
+ const criteria=p.ASSESSMENT_RUBRIC_V2.map(r=>({id:r.id,score:r.max,evidence:'초기 근거'}));
+ records.set(root+'part3-v2-history',{kind:'part3-regrade',sourceArchiveId:'old'});records.set(root+'part3-v2-history/students/01',{...source,assessmentRubricVersion:p.ASSESSMENT_V2,review:{proposal:{criteria,sourceKey:p.assessmentSourceKey(part),attemptId:'history',rubricVersion:p.ASSESSMENT_V2}}});
+ let rows=await service.getArchivedSessionStudents('2-1','old');assert.equal(rows[0].assessmentRubricVersion,p.ASSESSMENT_V2);
+ criteria[0].score=4;await service.saveArchivedPart3Review('2-1','old','01',p.assessmentSourceKey(part),criteria);rows=await service.getArchivedSessionStudents('2-1','old');assert.equal(p.assessmentEffectiveReview(rows[0]).total,39);assert.deepEqual(records.get(root+'old/students/01'),source);
+ assert.equal([...records.values()].filter(r=>r.kind==='part3-review-correction').length,1);
+ setTeacherDenied(true);await assert.rejects(service.getArchivedSessionStudents('2-1','old'));await assert.rejects(service.saveArchivedPart3Review('2-1','old','01',p.assessmentSourceKey(part),criteria));
 });
 
 test('bulk closing waiting rooms targets only waiting sessions and leaves in_progress intact',async()=>{

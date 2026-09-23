@@ -126,6 +126,7 @@ class EvalService {
         this.checkSessionExpectation(old.exists?old.data():null, expected);
         if(!old.exists || old.data().status!=='waiting')throw Error('새 평가 준비를 먼저 눌러 주세요. 진행 중인 평가를 다시 시작할 수 없습니다.');
         payload.questionVersion=old.data().questionVersion||1;
+        payload.assessmentRubricVersion=old.data().assessmentRubricVersion||(payload.questionVersion===4?'open-design-v2':'open-design-v1');
         payload.attemptId=old.data().attemptId;tx.update(ref,payload);
       });
     } else {
@@ -133,6 +134,7 @@ class EvalService {
       this.checkSessionExpectation(old, expected);
       if(old.status!=='waiting')throw Error('새 평가 준비를 먼저 눌러 주세요.');
       payload.questionVersion=old.questionVersion||1;
+      payload.assessmentRubricVersion=old.assessmentRubricVersion||(payload.questionVersion===4?'open-design-v2':'open-design-v1');
       payload.attemptId=old.attemptId||crypto.randomUUID();this.write('EVAL_SESSION_' + classId, payload); this.notify(classId, { session: payload });
     }
     return payload;
@@ -141,7 +143,7 @@ class EvalService {
     await window.authService.teacher({classId});this.identity(classId,1);
     const db=this.getDb(), archivedAt=new Date().toISOString(), archiveId=crypto.randomUUID();
     const qv = (questionVersion === 3 || questionVersion === 4) ? questionVersion : 4;
-    const fresh={...this.defaultSession(classId),questionVersion:qv,schemaVersion:2,status:'waiting',attemptId:crypto.randomUUID(),preparedAt:archivedAt};
+    const fresh={...this.defaultSession(classId),questionVersion:qv,assessmentRubricVersion:qv===4?'open-design-v2':'open-design-v1',schemaVersion:2,status:'waiting',attemptId:crypto.randomUUID(),preparedAt:archivedAt};
     if(db){
       const ref=db.collection('classrooms').doc(classId);
       await db.runTransaction(async tx=>{
@@ -191,11 +193,23 @@ class EvalService {
       const archive=await archiveRef.get();
       if(!archive.exists||archive.data()?.kind!=='new-session')throw new Error('해당 학급의 보관 평가 회차를 찾을 수 없습니다.');
       const snapshot=await archiveRef.collection('students').get();
-      return snapshot.docs.map(doc=>({...doc.data(),archiveStudentId:doc.id}));
+      let students=snapshot.docs.map(doc=>({...doc.data(),questionVersion:archive.data().session?.questionVersion||doc.data().questionVersion||1,archiveStudentId:doc.id,sourceArchiveId:archiveId}));
+      const attempt=archive.data().session?.attemptId;
+      if(attempt){
+        const audits=db.collection('classrooms').doc(classId).collection('archives');
+        const audit=await audits.doc('part3-v2-'+attempt).get(),restored=await audits.doc('restore-part3-v2-'+attempt).get();
+        if(audit.exists&&!restored.exists&&audit.data().sourceArchiveId===archiveId){
+          const overlay=await audits.doc('part3-v2-'+attempt).collection('students').get();
+          students=students.map(s=>{const d=overlay.docs.find(d=>d.id===s.archiveStudentId)?.data();return d&&assessmentSourceKey(d.answers?.part3)===assessmentSourceKey(s.answers?.part3)?{...s,review:d.review,scores:d.scores,assessmentRubricVersion:d.assessmentRubricVersion}:s;});
+        }
+        const edits=await audits.where('kind','==','part3-review-correction').get();
+        students=students.map(s=>{const latest=edits.docs.map(d=>({...d.data(),id:d.id})).filter(d=>d.sourceArchiveId===archiveId&&d.studentId===s.archiveStudentId&&d.attemptId===s.attemptId&&d.sourceKey===assessmentSourceKey(s.answers?.part3)).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt))||b.id.localeCompare(a.id))[0];return latest?{...s,review:latest.review}:s;});
+      }
+      return students;
     }
     const archive=this.read('EVAL_ARCHIVE_'+archiveId,null);
     if(!archive||!['', 'new-session'].includes(archive.kind||'')||(archive.classId||archive.session?.classId)!==classId)throw new Error('해당 학급의 보관 평가 회차를 찾을 수 없습니다.');
-    return Array.isArray(archive.students)?archive.students.map(student=>({...student})):[];
+    return Array.isArray(archive.students)?archive.students.map(student=>({...student,questionVersion:archive.session?.questionVersion||student.questionVersion||1})):[];
   }
   async endSession(classId, expected) {
     await window.authService.teacher({classId});
@@ -796,19 +810,34 @@ class EvalService {
   async savePart3Review(classId,studentNum,sourceKey,details,kind='proposal'){
     const user=await window.authService.teacher({classId}),docId=this.identity(classId,studentNum),db=this.getDb();
     if(!['proposal','confirmed'].includes(kind))throw Error('검토 종류를 확인해 주세요.');
-    const criteria=validateAssessmentCriteria(details.criteria);
     const update=(student,session)=>{
       if(![3, 4].includes(session?.questionVersion)||student?.status!=='submitted'||student.attemptId!==session.attemptId||sourceKey!==assessmentSourceKey(student.answers?.part3))throw Error('답안이나 회차가 변경되었습니다. 답안을 다시 열어 검토해 주세요.');
       if(kind==='proposal'&&details.attemptId!==student.attemptId)throw Error('이전 회차의 AI 결과입니다.');
-      return {...student.review,[kind]:{criteria,sourceKey,attemptId:student.attemptId,reviewerUid:user.uid,createdAt:new Date().toISOString(),rubricVersion:'open-design-v1',...(kind==='proposal'?{model:String(details.model||''),uncertainties:(details.uncertainties||[]).slice(0,5)}:{})}};
+      const rubricVersion=assessmentVersion(student,session),criteria=validateAssessmentCriteria(details.criteria,rubricVersion);
+      if(kind==='proposal'&&details.rubricVersion!==rubricVersion)throw Error('채점 기준이 변경되었습니다. 화면을 새로고침해 주세요.');
+      const saved=assessmentEffectiveReview({...student,assessmentRubricVersion:rubricVersion});
+      if(kind==='proposal'&&rubricVersion===ASSESSMENT_V2&&saved)return student.review;
+      const prior=student.review?.[kind],history=Array.isArray(student.review?.history)?student.review.history:[];
+      return {...student.review,...(prior&&kind==='confirmed'?{history:[...history,prior]}:{}),[kind]:{criteria,...assessmentTotals(criteria,rubricVersion),sourceKey,attemptId:student.attemptId,reviewerUid:user.uid,createdAt:new Date().toISOString(),rubricVersion,...(kind==='proposal'?{model:String(details.model||''),uncertainties:(details.uncertainties||[]).slice(0,5)}:{})}};
     };
     if(db){
       const sessionRef=db.collection('classrooms').doc(classId),ref=sessionRef.collection('students').doc(docId);
-      await db.runTransaction(async tx=>{const session=await tx.get(sessionRef),student=await tx.get(ref);tx.update(ref,{review:update(student.data(),session.data())});});
+      return db.runTransaction(async tx=>{const session=await tx.get(sessionRef),student=await tx.get(ref),review=update(student.data(),session.data());tx.update(ref,{review});return review;});
     }else{
       const student=this.read('EVAL_STUDENTS_'+classId,[]).find(s=>s.numStr===docId),session=this.read('EVAL_SESSION_'+classId,null);
       const review=update(student,session);this.mergeLocalStudent(classId,{...student,review});this.notify(classId,{students:[{...student,review}]});
+      return review;
     }
+  }
+  async saveArchivedPart3Review(classId,archiveId,studentId,sourceKey,criteria){
+    const user=await window.authService.teacher({classId}),db=this.getDb();
+    if(!db)throw Error('보관 답안 정정은 서버 연결 후 사용할 수 있습니다.');
+    const students=await this.getArchivedSessionStudents(classId,archiveId),student=students.find(s=>s.archiveStudentId===studentId);
+    if(!student||student.status!=='submitted'||assessmentVersion(student)!==ASSESSMENT_V2||sourceKey!==assessmentSourceKey(student.answers?.part3))throw Error('보관 답안이 변경되었습니다. 다시 열어 확인해 주세요.');
+    criteria=validateAssessmentCriteria(criteria,ASSESSMENT_V2);
+    const createdAt=new Date().toISOString(),review={...student.review,confirmed:{criteria,...assessmentTotals(criteria,ASSESSMENT_V2),sourceKey,attemptId:student.attemptId,rubricVersion:ASSESSMENT_V2,reviewerUid:user.uid,createdAt}};
+    await db.collection('classrooms').doc(classId).collection('archives').doc('part3-review-'+crypto.randomUUID()).set({kind:'part3-review-correction',sourceArchiveId:archiveId,studentId,sourceKey,attemptId:student.attemptId,createdAt,review});
+    return review;
   }
   formatNeisCSVRows(classId, studentList=[], classGrades={}) {
     const statusMap = {
@@ -827,12 +856,14 @@ class EvalService {
         return String(iso);
       }
     };
-    const rows = [['학급','번호','이름','응시상태','객관식/30','단답형/30','지필소계/60','순서도/40','자동채점 총점','교사 조정','최종 점수','제출시각']];
+    const rows = [['학급','번호','이름','응시상태','객관식/30','단답형/30','지필소계/60','순서도/40','자동채점 총점','교사 조정','최종 점수','제출시각','환산점수/30','성적 상태']];
     [...studentList].sort((a,b)=>a.num-b.num).forEach(student=>{
       const numStr = student.numStr || String(Number(student.num)).padStart(2, '0');
       const grade = classGrades[numStr] || {};
-      const score = (grade && grade.scores) ? grade.scores : (student.scores || {});
-      const serverPending = !grade.scores && score.serverGraded === true;
+      let score = grade.scores||grade.score||student.scores||{};
+      const effective=assessmentEffectiveReview(student);
+      if(effective?.rubricVersion===ASSESSMENT_V2&&Number.isFinite(score.part1)&&Number.isFinite(score.part2))score={...score,part3:effective.total,total:score.part1+score.part2+effective.total,pendingReview:false,teacherOverride:null};
+      const serverPending = !Number.isFinite(score.part1)||!Number.isFinite(score.part2);
       const statusText = statusMap[student.status] || student.status || '';
       const part1 = serverPending ? '서버 채점 확인' : (Number(score.part1) || 0);
       const part2 = serverPending ? '서버 채점 확인' : (Number(score.part2) || 0);
@@ -842,7 +873,7 @@ class EvalService {
       const override = score.teacherOverride ?? '';
       const finalScore = score.pendingReview ? '채점 대기' : (score.teacherOverride ?? score.total ?? 0);
       const submittedAt = formatTime(student.submittedAt);
-      rows.push([classId, student.num, student.name, statusText, part1, part2, writtenSubtotal, part3, total, override, finalScore, submittedAt]);
+      rows.push([classId, student.num, student.name, statusText, part1, part2, writtenSubtotal, part3, total, override, finalScore, submittedAt, typeof finalScore==='number'?assessmentConvert(finalScore):'', effective?.status||'채점 대기']);
     });
     return rows;
   }

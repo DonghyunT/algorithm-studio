@@ -14,6 +14,7 @@ function createEvalServiceContext() {
     exports: {}
   };
   vm.createContext(ctx);
+  vm.runInContext(fs.readFileSync(path.join(__dirname,'../js/core/assessment-policy.js'),'utf8'),ctx);
   const code = fs.readFileSync(path.join(__dirname, '../js/core/eval-service.js'), 'utf8');
   vm.runInContext(code, ctx);
   return ctx.window.evalService;
@@ -26,7 +27,7 @@ test('formatNeisCSVRows generates correct header with 지필소계/60', () => {
   assert.deepEqual(JSON.parse(JSON.stringify(rows[0])), [
     '학급', '번호', '이름', '응시상태',
     '객관식/30', '단답형/30', '지필소계/60', '순서도/40',
-    '자동채점 총점', '교사 조정', '최종 점수', '제출시각'
+    '자동채점 총점', '교사 조정', '최종 점수', '제출시각', '환산점수/30', '성적 상태'
   ]);
 });
 
@@ -97,5 +98,5 @@ test('formatNeisCSVRows correctly computes 지필소계 and formats Korean statu
   assert.equal(s3[1], 3);
   assert.equal(s3[2], '강감찬');
   assert.equal(s3[3], '대기중');
-  assert.equal(s3[6], 0); // 기본 0
+  assert.equal(s3[6], '서버 채점 확인'); // 누락된 점수를 0점으로 만들지 않는다.
 });

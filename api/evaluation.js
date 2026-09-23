@@ -1,5 +1,6 @@
 const { verifyFirebaseToken } = require('../server/firebase-token.cjs');
 const { loadEvaluationBank, assignQuestions, publicAssignment, teacherReview, gradeAssignment } = require('../server/evaluation-bank.cjs');
+const {assessmentEffectiveReview}=require('../js/core/assessment-policy.js');
 
 const CLASS_ID = /^2-(?:[1-9]|10|11)$/;
 const STUDENT_NUM = /^(?:0[1-9]|1[0-9]|2[0-7])$/;
@@ -80,11 +81,8 @@ module.exports = async (req, res) => {
       if (student.status !== 'submitted') return res.status(200).json({ ready: false, status: 'pending' });
       const assignment = assignQuestions(bank, process.env.EVAL_ASSIGNMENT_SECRET, scopeFor(session, body.classId, body.studentNum));
       const score = gradeAssignment(assignment, student.answers);
-      const part3Review = student.review?.confirmed
-        ? { total: Number(student.review.confirmed.total) || 0, confirmed: true, criteria: student.review.confirmed.criteria || [] }
-        : (student.review?.proposal
-          ? { total: Number(student.review.proposal.total) || 0, confirmed: false, criteria: student.review.proposal.criteria || [] }
-          : null);
+      const validReview=assessmentEffectiveReview(student);
+      const part3Review=validReview?{total:validReview.total,rawTotal:validReview.rawTotal,minimumAdjustment:validReview.minimumAdjustment,confirmed:validReview.confirmed,criteria:validReview.criteria,rubricVersion:validReview.rubricVersion,status:validReview.status}:null;
       return res.status(200).json({
         ready: true,
         status: 'ready',
@@ -114,11 +112,8 @@ module.exports = async (req, res) => {
       const assignment = assignQuestions(bank, process.env.EVAL_ASSIGNMENT_SECRET, scopeFor(session, body.classId, body.studentNum));
       const score = gradeAssignment(assignment, student.answers);
       const review = teacherReview(assignment, student.answers);
-      const part3Review = student.review?.confirmed
-        ? { total: Number(student.review.confirmed.total) || 0, confirmed: true, criteria: student.review.confirmed.criteria || [], feedback: student.review.confirmed.feedback || '' }
-        : (student.review?.proposal
-          ? { total: Number(student.review.proposal.total) || 0, confirmed: false, criteria: student.review.proposal.criteria || [], feedback: student.review.proposal.feedback || '' }
-          : null);
+      const validReview=assessmentEffectiveReview(student);
+      const part3Review=validReview?{total:validReview.total,rawTotal:validReview.rawTotal,minimumAdjustment:validReview.minimumAdjustment,confirmed:validReview.confirmed,criteria:validReview.criteria,rubricVersion:validReview.rubricVersion,status:validReview.status,feedback:validReview.feedback||''}:null;
       return res.status(200).json({
         ready: true,
         attemptId: session.attemptId,
