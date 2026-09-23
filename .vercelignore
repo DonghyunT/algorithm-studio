@@ -9,6 +9,8 @@ docs
 tests
 tools
 scratch
+teacher_tacit_knowledge_report.html
+diff.txt
 firebase-debug.log
 firestore-debug.log
 *.md

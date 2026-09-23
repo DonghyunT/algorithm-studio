@@ -11,6 +11,10 @@ temp/
 *.tmp
 scratch/
 
+# 개인 자기점검 보고서 및 일회성 Git 차이 출력
+teacher_tacit_knowledge_report.html
+/diff.txt
+
 # 스크린샷 및 개발 검증용 이미지
 screenshot_*.png
 step5_*.png
