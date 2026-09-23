@@ -20,6 +20,9 @@ class StudentEvalApp {
     this.serverScorePollTimer = null;
     this.serverScoreRequest = null;
     this.serverScoreRequestKey = null;
+    this.serverScoreGeneration = 0;
+    this.serverScoreScope = null;
+    this.serverScoreRetries = 0;
 
     // 답안 보관함
     this.answers = {
@@ -375,6 +378,7 @@ class StudentEvalApp {
           location.reload();
           return;
         }
+        const scoreSourceChanged = this.studentScoreSourceKey(this.latestStudent) !== this.studentScoreSourceKey(stData);
         this.latestStudent = stData;
         this.makeupAllowed = !!stData?.makeupAllowed;
         this.updateLobbyMakeupUI();
@@ -394,20 +398,21 @@ class StudentEvalApp {
             try { this.calculateScores(); } catch (e) { console.warn('점수 계산 경고:', e); }
             this.showScreen('result');
             try { this.renderResult(); } catch (e) { console.warn('결과 렌더링 경고:', e); }
-            this.startServerScorePolling();
+            this.startServerScorePolling(scoreSourceChanged);
             alert("🔔 선생님께서 시험을 마감하여 현재 작성 답안으로 정상 제출되었습니다.");
           } else {
             this.calculateScores();
             if (!document.getElementById('eval-screen-result').classList.contains('hidden')) {
               this.renderResult();
             }
-            this.startServerScorePolling();
+            this.startServerScorePolling(scoreSourceChanged);
           }
           return;
         }
 
         // 교사에 의한 제출 취소 및 풀던 답안 유지 시험 재오픈 실시간 감지
         if (this.isSubmitted && stData?.status === 'in_progress') {
+          this.resetServerScoreState();
           this.isSubmitted = false;
           this.sessionStatus = 'reopened';
           this.individualDeadlineMs = stData.individualDeadlineMs || stData.deadlineMs;
@@ -1629,11 +1634,20 @@ class StudentEvalApp {
     return (this.latestSession?.questionVersion || this.answers?.part3?.questionVersion) === 4;
   }
 
+  studentScoreSourceKey(student) {
+    if (!student) return null;
+    return JSON.stringify([student.attemptId, student.status, student.submittedAt,
+      student.answers?.part1 || {}, student.answers?.part2 || {}, student.review || null], (_, value) =>
+      value && typeof value === 'object' && !Array.isArray(value)
+        ? Object.fromEntries(Object.keys(value).sort().map(key => [key, value[key]])) : value);
+  }
+
   stopServerScorePolling() {
     clearTimeout(this.serverScorePollTimer);
     this.serverScorePollTimer = null;
     this.serverScoreRequest = null;
     this.serverScoreRequestKey = null;
+    this.serverScoreScope = null;
   }
 
   resetServerScoreState() {
@@ -1643,10 +1657,13 @@ class StudentEvalApp {
 
   startServerScorePolling(force = false) {
     if (!this.isSubmitted || !this.isSecureServerScore() || !this.currentClass || !this.studentNum) return;
-    const key = `${this.currentClass}:${this.studentNum}:${this.attemptId || ''}`;
-    if (force || this.serverScoreRequestKey !== key) {
+    if (document.getElementById('eval-screen-result')?.classList.contains('hidden')) return;
+    const scope = `${this.currentClass}:${this.studentNum}:${this.attemptId || ''}`;
+    if (force || this.serverScoreScope !== scope) {
       this.stopServerScorePolling();
-      this.serverScoreRequestKey = key;
+      this.serverScoreScope = scope;
+      this.serverScoreRequestKey = `${scope}:${++this.serverScoreGeneration}`;
+      this.serverScoreRetries = 0;
       this.serverScoreState = { status: 'loading', score: null };
     }
     if (this.serverScoreRequest || this.serverScorePollTimer || this.serverScoreState.status === 'ready') {
@@ -1655,17 +1672,22 @@ class StudentEvalApp {
     }
     this.serverScoreState = { status: 'loading', score: null };
     this.renderServerScoreReveal();
-    this.pollServerScore(key);
+    this.pollServerScore(this.serverScoreRequestKey);
   }
 
   async pollServerScore(key) {
-    if (this.serverScoreRequest || key !== this.serverScoreRequestKey) return;
+    if (!this.isSubmitted || this.serverScoreRequest || key !== this.serverScoreRequestKey) return;
+    this.serverScorePollTimer = null;
     this.serverScoreRequest = requestSecureEvaluationStudentScore(this.currentClass, this.studentNum)
       .then(result => {
         if (!this.isSubmitted || key !== this.serverScoreRequestKey) return;
         if (result?.ready && result.score && Number.isFinite(Number(result.score.objectiveTotal))) {
-          const part3Score = (result.score.part3 != null) ? Number(result.score.part3) : null;
-          const part3Status = result.score.part3Status || (part3Score != null ? 'first_graded' : 'pending');
+          const part3 = result.part3;
+          const rawPart3 = part3?.total ?? result.score.part3;
+          const part3Score = rawPart3 != null && Number.isFinite(Number(rawPart3)) ? Number(rawPart3) : null;
+          const part3Status = part3Score == null ? 'pending' : part3
+            ? (part3.confirmed === true ? 'confirmed' : 'first_graded')
+            : (result.score.part3Status || 'first_graded');
           this.serverScoreState = {
             status: 'ready',
             score: {
@@ -1674,21 +1696,19 @@ class StudentEvalApp {
               objectiveTotal: Number(result.score.objectiveTotal) || 0,
               part3: part3Score,
               part3Status: part3Status,
-              criteria: result.score.criteria || null
+              criteria: part3?.criteria || result.score.criteria || null
             }
           };
-          this.renderResult();
-
-          // Part 3 채점이 아직 대기 중이면 3초 간격으로 계속 폴링
-          if (part3Status === 'pending') {
-            this.serverScorePollTimer = setTimeout(() => this.pollServerScore(key), 3000);
-            if (typeof this.serverScorePollTimer?.unref === 'function') this.serverScorePollTimer.unref();
-          }
+          if (!document.getElementById('eval-screen-result')?.classList.contains('hidden')) this.renderResult();
+          // Existing student snapshots notify us when the teacher review changes.
+          // A pending Part 3 review is not a reason to repeatedly read Firestore.
           return;
         }
-        this.serverScoreState = { status: 'pending', score: null };
+        this.serverScoreRetries++;
+        this.serverScoreState = { status: this.serverScoreRetries >= 3 ? 'error' : 'pending', score: null };
         this.renderServerScoreReveal();
-        this.serverScorePollTimer = setTimeout(() => this.pollServerScore(key), 2500);
+        if (this.serverScoreRetries >= 3) return;
+        this.serverScorePollTimer = setTimeout(() => this.pollServerScore(key), 2500 * this.serverScoreRetries);
         if (typeof this.serverScorePollTimer?.unref === 'function') this.serverScorePollTimer.unref();
       })
       .catch(error => {
@@ -1719,6 +1739,8 @@ class StudentEvalApp {
       const part2El = document.getElementById('eval-result-part2-score');
       if (part1El && this.scores?.serverGraded) part1El.textContent = '🔒 •• / 30점';
       if (part2El && this.scores?.serverGraded) part2El.textContent = '🔒 •• / 30점';
+      const grandTotalEl = document.getElementById('eval-result-grand-total-score');
+      if (grandTotalEl && this.scores?.serverGraded) grandTotalEl.textContent = '🔒 ••';
       if (label && this.serverScoreState.status === 'ready') label.textContent = '👁️ 누르고 있는 동안 점수 확인';
     };
     const show = () => {
@@ -1730,6 +1752,8 @@ class StudentEvalApp {
       const part2El = document.getElementById('eval-result-part2-score');
       if (part1El) part1El.textContent = `${score.part1} / 30점`;
       if (part2El) part2El.textContent = `${score.part2} / 30점`;
+      const grandTotalEl = document.getElementById('eval-result-grand-total-score');
+      if (grandTotalEl && score.part3 != null) grandTotalEl.textContent = `${score.objectiveTotal + score.part3}점`;
       if (label) label.textContent = '점수 확인 중...';
       panel.textContent = `객관·단답 자동채점 참고 점수: ${score.objectiveTotal} / 60점 (객관식 ${score.part1}/30점 · 단답형 ${score.part2}/30점)`;
       panel.hidden = false;
@@ -1871,6 +1895,8 @@ class StudentEvalApp {
     const scoreBreakdownEl = document.getElementById('eval-result-breakdown');
     const reviewStatusEl = document.querySelector('.eval-review-status');
     const serverScoreReady = this.scores.serverGraded && this.serverScoreState.status === 'ready';
+    const reviewedPart3 = serverScoreReady ? this.serverScoreState.score?.part3 : null;
+    const reviewedPart3Status = this.serverScoreState.score?.part3Status;
     if (scoreTotalEl) {
       scoreTotalEl.textContent = this.scores.serverGraded
         ? (serverScoreReady ? '🔒 • • / 60점' : '점수 확인 중...')
@@ -1878,13 +1904,16 @@ class StudentEvalApp {
     }
     if (reviewStatusEl) {
       reviewStatusEl.textContent = this.scores.serverGraded
-        ? 'Part 3(순서도)은 선생님 검토 후 반영됩니다.'
+        ? (reviewedPart3 == null ? 'Part 3(순서도)은 선생님 검토 후 반영됩니다.'
+          : reviewedPart3Status === 'confirmed' ? 'Part 3(순서도) 선생님 검토가 완료되었습니다.' : 'Part 3(순서도)은 1차 채점 결과이며, 최종 확정 전입니다.')
         : (this.scores.pendingReview ? 'Part 1·2 참고 점수 · Part 3 교사 채점 대기' : (this.isFreeDesign() ? '교사 검토 완료' : '교사 검토 전'));
     }
     if (scoreBreakdownEl) {
       const part1Text = this.scores.serverGraded ? (serverScoreReady ? '🔒 •• / 30점' : '채점 중...') : `${this.scores.part1} / 30점`;
       const part2Text = this.scores.serverGraded ? (serverScoreReady ? '🔒 •• / 30점' : '채점 중...') : `${this.scores.part2} / 30점`;
-      const part3Text = this.scores.pendingReview ? '선생님 검토 대기' : `${this.scores.part3} / 40점`;
+      const part3Text = reviewedPart3 != null
+        ? `${reviewedPart3} / 40점 (${reviewedPart3Status === 'confirmed' ? '확정' : '1차'})`
+        : this.scores.pendingReview ? '선생님 검토 대기' : `${this.scores.part3} / 40점`;
       scoreBreakdownEl.innerHTML = `
         <div class="grid grid-cols-3 gap-3 text-center">
           <div class="p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
@@ -1919,6 +1948,8 @@ class StudentEvalApp {
         const noticeEl = document.getElementById('eval-result-part3-notice');
 
         const isConfirmed = part3Status === 'confirmed';
+        const titleEl = document.getElementById('eval-result-part3-title');
+        if (titleEl) titleEl.textContent = isConfirmed ? 'Part 3 순서도 설계 확정 점수' : 'Part 3 순서도 설계 1차 채점';
         if (badgeEl) {
           badgeEl.textContent = isConfirmed ? '선생님 확정 완료' : '1차 채점 완료';
           badgeEl.className = isConfirmed
@@ -1930,7 +1961,7 @@ class StudentEvalApp {
         }
         if (grandTotalEl) {
           const objScore = serverScore ? serverScore.objectiveTotal : ((this.scores.part1 || 0) + (this.scores.part2 || 0));
-          grandTotalEl.textContent = `${objScore + part3Score}점`;
+          grandTotalEl.textContent = this.scores.serverGraded ? '🔒 ••' : `${objScore + part3Score}점`;
         }
         if (noticeEl) {
           noticeEl.textContent = isConfirmed

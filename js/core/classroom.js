@@ -40,6 +40,7 @@ let currentLiveClassGrades = {};
 let currentLiveClassGradesAttemptId = null;
 const liveClassGradesRequests = new Map();
 let gradesRefreshTimeout = null;
+let liveClassGradesSourceKey = null;
 let archiveViewGeneration = 0;
 let archivedSessions = [];
 let selectedArchivedSession = null;
@@ -92,6 +93,32 @@ function isV4AssessmentSession(session) {
   return session?.questionVersion === 4 || session?.version === 'v4';
 }
 
+function liveObjectiveSource(student) {
+  return JSON.stringify([student.numStr || String(student.num), student.attemptId, student.submittedAt,
+    student.answers?.part1 || {}, student.answers?.part2 || {}], (_, value) =>
+    value && typeof value === 'object' && !Array.isArray(value)
+      ? Object.fromEntries(Object.keys(value).sort().map(key => [key, value[key]])) : value);
+}
+
+function liveGradeSourceKey(students = currentLiveStudents) {
+  return JSON.stringify(students.filter(s => s.status === 'submitted' && s.attemptId === currentLiveSession?.attemptId)
+    .map(liveObjectiveSource).sort());
+}
+
+function updateLiveStudents(students) {
+  const previousKey = liveGradeSourceKey();
+  const previous = new Map(currentLiveStudents.map(s => [s.numStr || String(s.num), s]));
+  for (const num of Object.keys(currentLiveClassGrades)) {
+    const next = students.find(s => (s.numStr || String(s.num)) === num);
+    const old = previous.get(num);
+    if (!next || next.status !== 'submitted' || !old || liveObjectiveSource(next) !== liveObjectiveSource(old)) {
+      delete currentLiveClassGrades[num];
+    }
+  }
+  currentLiveStudents = students;
+  if (previousKey !== liveGradeSourceKey()) liveClassGradesSourceKey = null;
+}
+
 function isCurrentLiveV4Attempt(attemptId, generation = liveDashboardGeneration) {
   return generation === liveDashboardGeneration &&
     isV4AssessmentSession(currentLiveSession) &&
@@ -107,6 +134,7 @@ function setCurrentLiveSession(session) {
   currentLiveSession = nextSession;
 
   if (previousAttemptId !== nextAttemptId || previousVersion !== nextVersion) {
+    liveClassGradesSourceKey = null;
     currentLiveClassGrades = {};
     currentLiveClassGradesAttemptId = null;
     if (previousAttemptId && previousAttemptId !== nextAttemptId) closeLiveStudentModal();
@@ -131,6 +159,8 @@ async function refreshLiveClassGrades(classId) {
 
   if (!isV4 || !session?.attemptId || !hasSubmitted) return;
   if (typeof requestSecureEvaluationClassGrades !== 'function' || (window.authService && window.authService.isDemo())) return;
+  const sourceKey = liveGradeSourceKey();
+  if (sourceKey === liveClassGradesSourceKey) return;
   const generation = liveDashboardGeneration;
   const requestKey = `${generation}:${session.attemptId}`;
   const inFlight = liveClassGradesRequests.get(requestKey);
@@ -144,8 +174,9 @@ async function refreshLiveClassGrades(classId) {
   let succeeded = false;
   try {
     const res = await requestSecureEvaluationClassGrades(classId);
-    if (res?.grades && res.attemptId === session.attemptId && isCurrentLiveV4Attempt(session.attemptId, generation)) {
+    if (res?.grades && res.attemptId === session.attemptId && isCurrentLiveV4Attempt(session.attemptId, generation) && sourceKey === liveGradeSourceKey()) {
       succeeded = cacheLiveClassGrades(session.attemptId, res.grades);
+      if (succeeded) liveClassGradesSourceKey = sourceKey;
       if (succeeded && Array.isArray(currentLiveStudents) && currentLiveStudents.length > 0) {
         renderLiveGrid(currentLiveStudents);
       }
@@ -156,7 +187,7 @@ async function refreshLiveClassGrades(classId) {
     if (liveClassGradesRequests.get(requestKey) === requestState) {
       liveClassGradesRequests.delete(requestKey);
     }
-    if (succeeded && requestState.refreshRequested && isCurrentLiveV4Attempt(session.attemptId, generation)) {
+    if (requestState.refreshRequested && sourceKey !== liveGradeSourceKey() && isCurrentLiveV4Attempt(session.attemptId, generation)) {
       scheduleRefreshLiveClassGrades(classId, 300);
     }
   }
@@ -399,7 +430,7 @@ function initLiveEvalDashboard() {
       if (generation !== liveDashboardGeneration) return;
       const label=document.getElementById('classroom-connection-status');
       if(label) label.textContent=window.evalService.isDemo() ? '로컬 시연 · 운영 DB와 분리됨' : '답안 수신됨 · 연결 상태는 갱신 시 확인';
-      currentLiveStudents = students || [];
+      updateLiveStudents(students || []);
       renderLiveGrid(currentLiveStudents);
       syncTeacherAutoReviewQueue(currentLiveStudents);
       if (currentLiveStudents.some(s => s.status === 'submitted')) {
@@ -426,6 +457,7 @@ function clearUnavailableTeacherData() {
 }
 
 function stopLiveEvalDashboard() {
+  liveClassGradesSourceKey = null;
   liveDashboardGeneration++;
   liveEvalUnsub?.(); liveEvalUnsub = null;
   liveSessionUnsub?.(); liveSessionUnsub = null;
