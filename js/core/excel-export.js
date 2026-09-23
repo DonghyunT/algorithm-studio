@@ -532,7 +532,7 @@
       const rubric=isV2?assessmentRules('open-design-v2'):RUBRIC_DEF.map(r=>({...r,max:10}));
       const part3Proposal = p3Scores.proposal;
       const part3Confirmed = p3Scores.confirmed;
-      const part3Final = p3Scores.final !== null ? p3Scores.final : 0;
+      const part3Final = p3Scores.final !== null ? p3Scores.final : (isV2?'대기':0);
       const totalScore = isV2?((p3Scores.effective&&Number.isFinite(score.part1)&&Number.isFinite(score.part2))?writtenSubtotal+part3Final:null):(typeof score.finalScore === 'number' && part3Confirmed !== null)
         ? score.finalScore
         : (writtenSubtotal + part3Final);
@@ -598,8 +598,8 @@
       // 3. 종합 성적 요약 카드 (행 3)
       rows += `<row r="3" ht="26" customHeight="1">
         <c r="A3" s="10" t="inlineStr"><is><t>지필평가 소계</t></is></c>
-        <c r="B3" s="1" t="inlineStr"><is><t>${writtenSubtotal}점 / 60점 (객관 ${part1Score} + 단답 ${part2Score})</t></is></c>
-        <c r="C3" s="10" t="inlineStr"><is><t>순서도 1차 채점</t></is></c>
+        <c r="B3" s="1" t="inlineStr"><is><t>${isV2&&(!Number.isFinite(score.part1)||!Number.isFinite(score.part2))?'대기':writtenSubtotal}점 / 60점 (객관 ${isV2&&!Number.isFinite(score.part1)?'대기':part1Score} + 단답 ${isV2&&!Number.isFinite(score.part2)?'대기':part2Score})</t></is></c>
+        <c r="C3" s="10" t="inlineStr"><is><t>${isV2?'순서도 '+(p3Scores.effective?.status||'채점 대기'):'순서도 1차 채점'}</t></is></c>
         <c r="D3" s="7" t="inlineStr"><is><t>${part3Final}점 / 40점</t></is></c>
         <c r="E3" s="10" t="inlineStr"><is><t>종합 최종 점수</t></is></c>
         <c r="F3" s="8" t="inlineStr"><is><t>${totalScore??'대기'}점 / 100점</t></is></c>
