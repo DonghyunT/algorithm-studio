@@ -36,7 +36,8 @@ let currentModalStudent = null;
 let teacherAutoReviewQueue = null;
 let autoEndHandledAttemptId = null;
 let currentLiveClassGrades = {};
-let isFetchingClassGrades = false;
+let currentLiveClassGradesAttemptId = null;
+const liveClassGradesRequests = new Map();
 let gradesRefreshTimeout = null;
 
 function getTeacherAutoReviewQueue() {
@@ -80,30 +81,77 @@ function syncTeacherAutoReviewQueue(students = currentLiveStudents) {
   });
 }
 
+function isV4AssessmentSession(session) {
+  return session?.questionVersion === 4 || session?.version === 'v4';
+}
+
+function isCurrentLiveV4Attempt(attemptId, generation = liveDashboardGeneration) {
+  return generation === liveDashboardGeneration &&
+    isV4AssessmentSession(currentLiveSession) &&
+    Boolean(attemptId) && currentLiveSession?.attemptId === attemptId;
+}
+
+function setCurrentLiveSession(session) {
+  const previousAttemptId = currentLiveSession?.attemptId ?? null;
+  const previousVersion = currentLiveSession?.questionVersion ?? currentLiveSession?.version ?? null;
+  const nextSession = session || null;
+  const nextAttemptId = nextSession?.attemptId ?? null;
+  const nextVersion = nextSession?.questionVersion ?? nextSession?.version ?? null;
+  currentLiveSession = nextSession;
+
+  if (previousAttemptId !== nextAttemptId || previousVersion !== nextVersion) {
+    currentLiveClassGrades = {};
+    currentLiveClassGradesAttemptId = null;
+    if (previousAttemptId && previousAttemptId !== nextAttemptId) closeLiveStudentModal();
+  }
+}
+
+function cacheLiveClassGrades(attemptId, grades, merge = false) {
+  if (!isCurrentLiveV4Attempt(attemptId) || !grades || typeof grades !== 'object' || Array.isArray(grades)) return false;
+  const existing = currentLiveClassGradesAttemptId === attemptId ? currentLiveClassGrades : {};
+  currentLiveClassGrades = merge ? { ...existing, ...grades } : { ...grades };
+  currentLiveClassGradesAttemptId = attemptId;
+  return true;
+}
+
 async function refreshLiveClassGrades(classId) {
   if (!classId) return;
   const session = typeof currentLiveSession !== 'undefined' ? currentLiveSession : null;
-  const isV4 = session ? (session.questionVersion === 4 || session.version === 'v4') : false;
-  const hasSubmitted = Array.isArray(currentLiveStudents) && currentLiveStudents.some(s => s.status === 'submitted');
-  const hasServerGraded = Array.isArray(currentLiveStudents) && currentLiveStudents.some(s => s.scores && s.scores.serverGraded);
+  const isV4 = isV4AssessmentSession(session);
+  const hasSubmitted = Array.isArray(currentLiveStudents) && currentLiveStudents.some(s =>
+    s.status === 'submitted' && s.attemptId === session?.attemptId
+  );
 
-  if ((!isV4 && !hasServerGraded) || !hasSubmitted) return;
+  if (!isV4 || !session?.attemptId || !hasSubmitted) return;
   if (typeof requestSecureEvaluationClassGrades !== 'function' || (window.authService && window.authService.isDemo())) return;
-  if (isFetchingClassGrades) return;
+  const generation = liveDashboardGeneration;
+  const requestKey = `${generation}:${session.attemptId}`;
+  const inFlight = liveClassGradesRequests.get(requestKey);
+  if (inFlight) {
+    inFlight.refreshRequested = true;
+    return;
+  }
 
-  isFetchingClassGrades = true;
+  const requestState = { refreshRequested: false };
+  liveClassGradesRequests.set(requestKey, requestState);
+  let succeeded = false;
   try {
     const res = await requestSecureEvaluationClassGrades(classId);
-    if (res && res.grades) {
-      currentLiveClassGrades = { ...currentLiveClassGrades, ...res.grades };
-      if (Array.isArray(currentLiveStudents) && currentLiveStudents.length > 0) {
+    if (res?.grades && res.attemptId === session.attemptId && isCurrentLiveV4Attempt(session.attemptId, generation)) {
+      succeeded = cacheLiveClassGrades(session.attemptId, res.grades);
+      if (succeeded && Array.isArray(currentLiveStudents) && currentLiveStudents.length > 0) {
         renderLiveGrid(currentLiveStudents);
       }
     }
   } catch (err) {
     console.warn('[CLASSROOM] class-grades 자동 조회 알림:', err.message);
   } finally {
-    isFetchingClassGrades = false;
+    if (liveClassGradesRequests.get(requestKey) === requestState) {
+      liveClassGradesRequests.delete(requestKey);
+    }
+    if (succeeded && requestState.refreshRequested && isCurrentLiveV4Attempt(session.attemptId, generation)) {
+      scheduleRefreshLiveClassGrades(classId, 300);
+    }
   }
 }
 
@@ -299,6 +347,7 @@ function initLiveEvalDashboard() {
   liveSessionError = false;
   currentLiveStudents = [];
   currentLiveClassGrades = {};
+  currentLiveClassGradesAttemptId = null;
   clearTimeout(gradesRefreshTimeout);
   setTeacherSessionFeedback('');
   renderLiveGrid([]);
@@ -308,7 +357,7 @@ function initLiveEvalDashboard() {
     try {
     liveSessionUnsub = window.evalService.listenSession(classId, (session, metadata) => {
       if (generation !== liveDashboardGeneration || metadata?.hasPendingWrites) return;
-      currentLiveSession = session;
+      setCurrentLiveSession(session);
       liveSessionError = false;
       renderTeacherSessionControl();
       syncTeacherAutoReviewQueue(currentLiveStudents);
@@ -341,6 +390,7 @@ function clearUnavailableTeacherData() {
   stopLiveEvalDashboard();
   currentLiveStudents=[];currentLiveSession=null;liveSessionError=true;
   currentLiveClassGrades={};
+  currentLiveClassGradesAttemptId=null;
   renderLiveGrid([]);closeLiveStudentModal();
   ['classroom-live-modal-title','classroom-live-modal-summary','classroom-live-modal-p1','classroom-live-modal-p2','classroom-live-modal-p3'].forEach(id=>{const el=document.getElementById(id);if(el)el.replaceChildren();});
   const score=document.getElementById('classroom-live-override-score');if(score)score.value='';
@@ -356,6 +406,7 @@ function stopLiveEvalDashboard() {
   clearInterval(liveSessionTimer); liveSessionTimer = null;
   clearTimeout(gradesRefreshTimeout);
   currentLiveClassGrades = {};
+  currentLiveClassGradesAttemptId = null;
   teacherAutoReviewQueue?.reset();
   updateTeacherAiQueueBadge({ isBusy: false, pendingCount: 0, totalProcessed: 0 });
 }
@@ -469,7 +520,7 @@ async function handleCloseWaitingRoom() {
   try {
     const session = {...currentLiveSession, ...await window.evalService.endSession(classId, expected)};
     if (generation === liveDashboardGeneration) {
-      currentLiveSession = session;
+      setCurrentLiveSession(session);
       setTeacherSessionFeedback('대기실을 닫았습니다. 학생 입장이 차단되었습니다.');
     }
   } catch(error) {
@@ -642,7 +693,7 @@ async function handleTeacherSessionAction() {
       session = {...currentLiveSession, ...await window.evalService.endSession(classId, expected)};
     }
     if (generation === liveDashboardGeneration) {
-      currentLiveSession = session;
+      setCurrentLiveSession(session);
       const isMockSession = currentLiveSession?.questionVersion === 3;
       const prepFeedback = isMockSession
         ? '모의평가를 준비했습니다. 학생 입장 후 시작해 주세요.'
@@ -717,7 +768,13 @@ function renderLiveGrid(students = []) {
         statusBg = "bg-emerald-50 border-emerald-400 text-emerald-950 shadow-xs";
 
         // 1. 서버 지필 채점 점수 (Part 1 + Part 2 객관·단답 소계)
-        const serverData = currentLiveClassGrades[s.numStr] || currentLiveClassGrades[numStr];
+        const isCurrentV4Student = isV4AssessmentSession(currentLiveSession) &&
+          s.attemptId === currentLiveSession?.attemptId;
+        const hasCurrentAttemptGrades = isCurrentV4Student &&
+          currentLiveClassGradesAttemptId === currentLiveSession?.attemptId;
+        const serverData = hasCurrentAttemptGrades
+          ? (currentLiveClassGrades[s.numStr] || currentLiveClassGrades[numStr])
+          : null;
         const serverObjScore = serverData?.score?.objectiveTotal ?? (
           (s.scores?.part1 !== null && s.scores?.part1 !== undefined && s.scores?.part2 !== null && s.scores?.part2 !== undefined)
             ? ((s.scores.part1 || 0) + (s.scores.part2 || 0))
@@ -761,7 +818,7 @@ function renderLiveGrid(students = []) {
           } else {
             scoreDisplay = `<span class="text-xs font-bold text-amber-700">AI제안 ${proposalP3}점</span>`;
           }
-        } else if (serverObjScore !== null) {
+        } else if (isCurrentV4Student && serverObjScore !== null) {
           scoreDisplay = `<span class="text-sm font-black text-emerald-700">지필 ${serverObjScore}점 (서술대기)</span>`;
         } else if (s.scores?.serverGraded || s.questionVersion === 4) {
           scoreDisplay = `<span class="text-xs text-slate-500 font-medium animate-pulse"><i class="fa-solid fa-spinner fa-spin text-[10px] mr-1"></i>채점 확인 중</span>`;
@@ -815,6 +872,10 @@ function toggleScoreBlindMode() {
 // 성적표 엑셀(Multi-Sheet XLSX: 학급종합 + 개별학생 + 나이스) 다운로드
 async function handleTeacherExportExcel() {
   const classId = getClassIdFromSelected();
+  const session = currentLiveSession;
+  const attemptId = session?.attemptId ?? null;
+  const generation = liveDashboardGeneration;
+  const students = [...currentLiveStudents];
   const btn = document.getElementById('btn-export-excel');
   const originalHtml = btn ? btn.innerHTML : '';
   if (btn) {
@@ -824,28 +885,34 @@ async function handleTeacherExportExcel() {
 
   try {
     let classGrades = {};
-    // V4 평가이거나 서버 채점 데이터가 필요한 경우 class-grades API 호출
-    const session = typeof currentLiveSession !== 'undefined' ? currentLiveSession : null;
-    const isV4 = session ? (session.questionVersion === 4 || session.version === 'v4') : false;
-    const hasServerGradedStudents = Array.isArray(currentLiveStudents) && currentLiveStudents.some(s => s.scores && s.scores.serverGraded);
+    // V4 평가의 서버 채점 결과를 요청하고 현재 회차 응답인지 확인
+    const isV4 = isV4AssessmentSession(session);
 
-    if ((isV4 || hasServerGradedStudents) && typeof requestSecureEvaluationClassGrades === 'function' && !window.authService.isDemo()) {
+    if (isV4 && typeof requestSecureEvaluationClassGrades === 'function' && !window.authService.isDemo()) {
+      if (!attemptId) throw new Error('현재 평가 회차를 확인할 수 없습니다. 관제실을 새로고침한 뒤 다시 다운로드해 주세요.');
+      let res = null;
       try {
-        const res = await requestSecureEvaluationClassGrades(classId);
-        if (res && res.grades) {
-          classGrades = res.grades;
-          currentLiveClassGrades = { ...currentLiveClassGrades, ...res.grades };
-        }
+        res = await requestSecureEvaluationClassGrades(classId);
       } catch (apiErr) {
         console.warn('[EXPORT_EXCEL] class-grades API 조회 실패 (로컬 데이터로 대체):', apiErr);
+      }
+      if (!isCurrentLiveV4Attempt(attemptId, generation)) {
+        throw new Error('평가 회차가 바뀌어 성적표를 만들지 않았습니다. 현재 회차를 확인한 뒤 다시 다운로드해 주세요.');
+      }
+      if (res && (res.attemptId !== attemptId || !isCurrentLiveV4Attempt(attemptId, generation))) {
+        throw new Error('평가 회차가 바뀌어 성적표를 만들지 않았습니다. 현재 회차를 확인한 뒤 다시 다운로드해 주세요.');
+      }
+      if (res?.grades) {
+        classGrades = res.grades;
+        cacheLiveClassGrades(attemptId, res.grades);
       }
     }
 
     if (window.excelExportService) {
-      window.excelExportService.exportAssessmentWorkbook(classId, currentLiveStudents, classGrades);
+      window.excelExportService.exportAssessmentWorkbook(classId, students, classGrades);
     } else if (window.evalService) {
       // Fallback: evalService
-      window.evalService.exportAssessmentExcel(classId, currentLiveStudents, classGrades);
+      window.evalService.exportAssessmentExcel(classId, students, classGrades);
     } else {
       throw new Error('엑셀 내보내기 모듈을 찾을 수 없습니다.');
     }
@@ -1700,33 +1767,47 @@ function openLiveStudentModal(studentNum) {
       if (p2El) p2El.textContent='진행 중에는 정답이 보이지 않으며, 객관·단답 점수도 서버에서만 계산합니다.';
       if (summaryEl) summaryEl.textContent='학생이 제출하면 실전평가 서버 채점 결과를 확인할 수 있습니다.';
     } else {
+      const expectedAttemptId = s.attemptId;
+      const requestGeneration = liveDashboardGeneration;
+      const isCurrentStudentAttempt = () => currentModalStudent === s &&
+        s.attemptId === expectedAttemptId &&
+        isCurrentLiveV4Attempt(expectedAttemptId, requestGeneration);
       if (p1El) p1El.textContent='실전평가 객관식 문항 검토 내용을 서버에서 확인하고 있습니다…';
       if (p2El) p2El.textContent='실전평가 단답형 문항 검토 내용을 서버에서 확인하고 있습니다…';
       if (summaryEl) {
-        summaryEl.textContent='실전평가 객관·단답 답안의 서버 채점 결과를 확인하고 있습니다…';
-      requestSecureEvaluationGrade(getClassIdFromSelected(), s.numStr).then(result=>{
-        if (currentModalStudent !== s) return;
-        const score=result.score;
-        currentLiveClassGrades[s.numStr] = { ...(currentLiveClassGrades[s.numStr] || {}), score };
-        renderLiveGrid(currentLiveStudents);
-        summaryEl.replaceChildren();
-        [['Part 1. 객관식',score.part1,30],['Part 2. 단답형',score.part2,30],['객관·단답 서버 채점 소계',score.objectiveTotal,60]].forEach(([label,value,max])=>{
-          const row=document.createElement('div');row.className='p-3 bg-slate-50 border border-slate-200 rounded-2xl';
-          const name=document.createElement('div');name.className='text-[11px] font-bold text-slate-600';name.textContent=label;
-          const resultText=document.createElement('div');resultText.className='text-base font-black text-slate-900 mt-1';resultText.textContent=`${value} / ${max}점`;
-          row.append(name,resultText);summaryEl.appendChild(row);
-        });
-      }).catch(error=>{if(currentModalStudent===s)summaryEl.textContent='실전평가 서버 채점 결과를 확인하지 못했습니다. '+error.message;});
+        if (!expectedAttemptId || !isCurrentStudentAttempt()) {
+          summaryEl.textContent='현재 평가 회차와 학생 답안 회차가 일치하지 않아 서버 점수를 표시하지 않았습니다. 관제실을 새로고침해 주세요.';
+        } else {
+          summaryEl.textContent='실전평가 객관·단답 답안의 서버 채점 결과를 확인하고 있습니다…';
+          requestSecureEvaluationGrade(getClassIdFromSelected(), s.numStr).then(result=>{
+            if (!isCurrentStudentAttempt() || result.attemptId !== expectedAttemptId) return;
+            const score=result.score;
+            cacheLiveClassGrades(expectedAttemptId, { [s.numStr]: { score } }, true);
+            renderLiveGrid(currentLiveStudents);
+            summaryEl.replaceChildren();
+            [['Part 1. 객관식',score.part1,30],['Part 2. 단답형',score.part2,30],['객관·단답 서버 채점 소계',score.objectiveTotal,60]].forEach(([label,value,max])=>{
+              const row=document.createElement('div');row.className='p-3 bg-slate-50 border border-slate-200 rounded-2xl';
+              const name=document.createElement('div');name.className='text-[11px] font-bold text-slate-600';name.textContent=label;
+              const resultText=document.createElement('div');resultText.className='text-base font-black text-slate-900 mt-1';resultText.textContent=`${value} / ${max}점`;
+              row.append(name,resultText);summaryEl.appendChild(row);
+            });
+          }).catch(error=>{if(isCurrentStudentAttempt())summaryEl.textContent='실전평가 서버 채점 결과를 확인하지 못했습니다. '+error.message;});
+        }
       }
-      requestSecureEvaluationReview(getClassIdFromSelected(), s.numStr).then(result=>{
-        if (currentModalStudent !== s) return;
-        renderSecureV4TeacherQuestions(p1El, result.review?.part1, 'part1');
-        renderSecureV4TeacherQuestions(p2El, result.review?.part2, 'part2');
-      }).catch(error=>{
-        if (currentModalStudent !== s) return;
-        if (p1El) p1El.textContent='실전평가 문항 검토 내용을 확인하지 못했습니다. '+error.message;
-        if (p2El) p2El.textContent='실전평가 문항 검토 내용을 확인하지 못했습니다. '+error.message;
-      });
+      if (expectedAttemptId && isCurrentStudentAttempt()) {
+        requestSecureEvaluationReview(getClassIdFromSelected(), s.numStr).then(result=>{
+          if (!isCurrentStudentAttempt() || result.attemptId !== expectedAttemptId) return;
+          renderSecureV4TeacherQuestions(p1El, result.review?.part1, 'part1');
+          renderSecureV4TeacherQuestions(p2El, result.review?.part2, 'part2');
+        }).catch(error=>{
+          if (!isCurrentStudentAttempt()) return;
+          if (p1El) p1El.textContent='실전평가 문항 검토 내용을 확인하지 못했습니다. '+error.message;
+          if (p2El) p2El.textContent='실전평가 문항 검토 내용을 확인하지 못했습니다. '+error.message;
+        });
+      } else {
+        if (p1El) p1El.textContent='현재 평가 회차와 학생 답안 회차가 일치하지 않아 문항 정보를 표시하지 않았습니다.';
+        if (p2El) p2El.textContent='현재 평가 회차와 학생 답안 회차가 일치하지 않아 문항 정보를 표시하지 않았습니다.';
+      }
     }
   }
 

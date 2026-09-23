@@ -72,11 +72,16 @@ function createClassroomEnv() {
   return { sandbox, gridEl, elements };
 }
 
+function setLiveV4Attempt(sandbox, attemptId = 'attempt-v4') {
+  sandbox.setCurrentLiveSession({ questionVersion: 4, attemptId });
+}
+
 test('V4 실전평가 제출 학생: 서버 채점 데이터 수신 전에는 허위 "소계 0점 (검토대기)" 대신 "채점 확인 중" 표시', () => {
   const { sandbox, gridEl } = createClassroomEnv();
 
   // 블라인드 모드 해제
   vm.runInContext('isScoreBlindMode = false;', sandbox);
+  setLiveV4Attempt(sandbox);
 
   // V4 실전평가에서 학생이 제출한 직후의 데이터 상태 (scores의 part1, part2가 null)
   const submittedV4Student = {
@@ -85,6 +90,7 @@ test('V4 실전평가 제출 학생: 서버 채점 데이터 수신 전에는 �
     name: '김테스트',
     status: 'submitted',
     questionVersion: 4,
+    attemptId: 'attempt-v4',
     scores: {
       part1: null,
       part2: null,
@@ -112,12 +118,14 @@ test('V4 실전평가 제출 학생: 서버 지필 점수가 캐시되면 "지�
   const { sandbox, gridEl } = createClassroomEnv();
 
   vm.runInContext('isScoreBlindMode = false;', sandbox);
+  setLiveV4Attempt(sandbox);
 
   // 서버 성적 캐시에 1번 학생 점수 주입 (Part 1 + Part 2 = 56점)
   vm.runInContext(`
     currentLiveClassGrades['01'] = {
       score: { part1: 28, part2: 28, objectiveTotal: 56 }
     };
+    currentLiveClassGradesAttemptId = 'attempt-v4';
   `, sandbox);
 
   const submittedV4Student = {
@@ -126,6 +134,7 @@ test('V4 실전평가 제출 학생: 서버 지필 점수가 캐시되면 "지�
     name: '김테스트',
     status: 'submitted',
     questionVersion: 4,
+    attemptId: 'attempt-v4',
     scores: { serverGraded: true, pendingReview: true },
     answers: {}
   };
@@ -141,12 +150,14 @@ test('V4 실전평가 제출 학생: Part 3 AI 제안 점수가 있으면 지필
   const { sandbox, gridEl } = createClassroomEnv();
 
   vm.runInContext('isScoreBlindMode = false;', sandbox);
+  setLiveV4Attempt(sandbox);
 
   // 서버 지필 56점 캐시
   vm.runInContext(`
     currentLiveClassGrades['01'] = {
       score: { part1: 28, part2: 28, objectiveTotal: 56 }
     };
+    currentLiveClassGradesAttemptId = 'attempt-v4';
   `, sandbox);
 
   // AI 1차 초벌 채점 32점 (8 + 8 + 8 + 8)
@@ -156,6 +167,7 @@ test('V4 실전평가 제출 학생: Part 3 AI 제안 점수가 있으면 지필
     name: '김테스트',
     status: 'submitted',
     questionVersion: 4,
+    attemptId: 'attempt-v4',
     scores: { serverGraded: true },
     review: {
       proposal: {
@@ -182,12 +194,14 @@ test('V4 실전평가 제출 학생: Part 3 교사 점수 확정 시 "88점 (확
   const { sandbox, gridEl } = createClassroomEnv();
 
   vm.runInContext('isScoreBlindMode = false;', sandbox);
+  setLiveV4Attempt(sandbox);
 
   // 서버 지필 56점 캐시
   vm.runInContext(`
     currentLiveClassGrades['01'] = {
       score: { part1: 28, part2: 28, objectiveTotal: 56 }
     };
+    currentLiveClassGradesAttemptId = 'attempt-v4';
   `, sandbox);
 
   // 교사 확정 32점
@@ -197,6 +211,7 @@ test('V4 실전평가 제출 학생: Part 3 교사 점수 확정 시 "88점 (확
     name: '김테스트',
     status: 'submitted',
     questionVersion: 4,
+    attemptId: 'attempt-v4',
     scores: { serverGraded: true },
     review: {
       confirmed: {
@@ -222,6 +237,7 @@ test('V4 실전평가 제출 학생: 교사 전체 수동 조정 시 "95점 (확
   const { sandbox, gridEl } = createClassroomEnv();
 
   vm.runInContext('isScoreBlindMode = false;', sandbox);
+  setLiveV4Attempt(sandbox);
 
   const submittedV4Student = {
     num: 1,
@@ -229,6 +245,7 @@ test('V4 실전평가 제출 학생: 교사 전체 수동 조정 시 "95점 (확
     name: '김테스트',
     status: 'submitted',
     questionVersion: 4,
+    attemptId: 'attempt-v4',
     scores: { serverGraded: true, teacherOverride: 95 },
     answers: {}
   };
@@ -243,7 +260,8 @@ test('블라인드 모드 ON 상태에서는 점수 대신 "제출 완료 (비�
   const { sandbox, gridEl } = createClassroomEnv();
 
   vm.runInContext('isScoreBlindMode = true;', sandbox);
-  vm.runInContext(`currentLiveClassGrades['01'] = { score: { objectiveTotal: 60 } };`, sandbox);
+  setLiveV4Attempt(sandbox);
+  vm.runInContext(`currentLiveClassGrades['01'] = { score: { objectiveTotal: 60 } }; currentLiveClassGradesAttemptId = 'attempt-v4';`, sandbox);
 
   const submittedV4Student = {
     num: 1,
@@ -251,6 +269,7 @@ test('블라인드 모드 ON 상태에서는 점수 대신 "제출 완료 (비�
     name: '김테스트',
     status: 'submitted',
     questionVersion: 4,
+    attemptId: 'attempt-v4',
     scores: { serverGraded: true }
   };
 
@@ -259,4 +278,79 @@ test('블라인드 모드 ON 상태에서는 점수 대신 "제출 완료 (비�
   const output = gridEl.innerHTML;
   assert.match(output, /제출 완료 \(비공개\)/);
   assert.doesNotMatch(output, /60점/);
+});
+
+test('새 평가 회차로 바뀌면 이전 회차 서버 점수 캐시를 비운다', () => {
+  const { sandbox } = createClassroomEnv();
+  setLiveV4Attempt(sandbox, 'old-attempt');
+  sandbox.cacheLiveClassGrades('old-attempt', { '01': { score: { objectiveTotal: 56 } } });
+
+  sandbox.setCurrentLiveSession({ questionVersion: 3, attemptId: 'new-attempt' });
+
+  assert.equal(vm.runInContext('currentLiveClassGradesAttemptId', sandbox), null);
+  assert.deepEqual(JSON.parse(vm.runInContext('JSON.stringify(currentLiveClassGrades)', sandbox)), {});
+});
+
+test('현재 회차와 표시 학생 회차가 다르면 오래된 서버 점수를 좌석에 쓰지 않는다', () => {
+  const { sandbox, gridEl } = createClassroomEnv();
+  vm.runInContext('isScoreBlindMode = false;', sandbox);
+  setLiveV4Attempt(sandbox, 'current-attempt');
+  vm.runInContext(`
+    currentLiveClassGrades['01'] = { score: { objectiveTotal: 56 } };
+    currentLiveClassGradesAttemptId = 'old-attempt';
+  `, sandbox);
+
+  sandbox.renderLiveGrid([{
+    num: 1,
+    numStr: '01',
+    name: '김테스트',
+    status: 'submitted',
+    questionVersion: 4,
+    attemptId: 'current-attempt',
+    scores: { part1: 21, part2: 18, pendingReview: true, serverGraded: true },
+    answers: {}
+  }]);
+
+  assert.match(gridEl.innerHTML, /지필 39점 \(서술대기\)/);
+  assert.doesNotMatch(gridEl.innerHTML, /56점/);
+});
+
+test('모의평가 좌석은 남아 있는 V4 캐시 대신 모의평가 소계를 표시한다', () => {
+  const { sandbox, gridEl } = createClassroomEnv();
+  vm.runInContext('isScoreBlindMode = false;', sandbox);
+  sandbox.setCurrentLiveSession({ questionVersion: 3, attemptId: 'current-v3' });
+  vm.runInContext(`
+    currentLiveClassGrades['01'] = { score: { objectiveTotal: 56 } };
+    currentLiveClassGradesAttemptId = 'old-v4';
+  `, sandbox);
+
+  sandbox.renderLiveGrid([{
+    num: 1,
+    numStr: '01',
+    name: '김테스트',
+    status: 'submitted',
+    questionVersion: 3,
+    attemptId: 'current-v3',
+    scores: { part1: 21, part2: 18, total: 0, pendingReview: true },
+    answers: {}
+  }]);
+
+  assert.match(gridEl.innerHTML, /소계 39점 \(검토대기\)/);
+  assert.doesNotMatch(gridEl.innerHTML, /56점|지필 39점/);
+});
+
+test('이전 회차 class-grades 응답이 늦게 도착해도 새 회차 캐시에 저장하지 않는다', async () => {
+  const { sandbox } = createClassroomEnv();
+  let resolveRequest;
+  sandbox.requestSecureEvaluationClassGrades = () => new Promise(resolve => { resolveRequest = resolve; });
+  setLiveV4Attempt(sandbox, 'old-attempt');
+  vm.runInContext(`currentLiveStudents = [{ status: 'submitted', attemptId: 'old-attempt' }];`, sandbox);
+
+  const pending = sandbox.refreshLiveClassGrades('2-1');
+  sandbox.setCurrentLiveSession({ questionVersion: 4, attemptId: 'new-attempt' });
+  resolveRequest({ attemptId: 'old-attempt', grades: { '01': { score: { objectiveTotal: 56 } } } });
+  await pending;
+
+  assert.equal(vm.runInContext('currentLiveClassGradesAttemptId', sandbox), null);
+  assert.deepEqual(JSON.parse(vm.runInContext('JSON.stringify(currentLiveClassGrades)', sandbox)), {});
 });
