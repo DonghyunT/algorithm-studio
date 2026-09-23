@@ -170,6 +170,11 @@
   ];
 
   function extractPart3Scores(review = {}, score = {}, student = {}) {
+    if(typeof assessmentVersion==='function'&&assessmentVersion(student)==='open-design-v2'){
+      const effective=assessmentEffectiveReview({...student,review});
+      const proposal=assessmentEffectiveReview({...student,review:{proposal:review.proposal}});
+      return {proposal:proposal?.total??null,confirmed:effective?.confirmed?effective.total:null,final:effective?.total??null,effective,isV2:true};
+    }
     const sReview = student?.review || {};
     const sScore = student?.scores || student?.score || {};
 
@@ -423,7 +428,7 @@
         ['H', '1차 채점/40', 13],
         ['I', '교사 확정', 12],
         ['J', '최종 점수', 13],
-        ['K', '제출시각', 18]
+        ['K', '제출시각', 18], ['L','환산점수/30',14], ['M','성적 상태',14]
       ];
 
       rows += `<row r="${r}" ht="26" customHeight="1">`;
@@ -458,9 +463,9 @@
           finalScore = writtenSub + teacherConfirmed;
         } else if (typeof part3Proposal === 'number' && typeof writtenSub === 'number') {
           finalScore = writtenSub + part3Proposal;
-        } else if (typeof score.finalScore === 'number') {
+        } else if (!p3Scores.isV2&&typeof score.finalScore === 'number') {
           finalScore = score.finalScore;
-        } else if (typeof score.total === 'number') {
+        } else if (!p3Scores.isV2&&typeof score.total === 'number') {
           finalScore = score.total;
         }
 
@@ -478,6 +483,8 @@
           <c r="I${r}" s="1">${typeof teacherConfirmed === 'number' ? `<v>${teacherConfirmed}</v>` : `<t>${teacherConfirmed}</t>`}</c>
           <c r="J${r}" s="8">${typeof finalScore === 'number' ? `<v>${finalScore}</v>` : `<t>${finalScore}</t>`}</c>
           <c r="K${r}" s="1" t="inlineStr"><is><t>${escapeXml(submittedAtText)}</t></is></c>
+          <c r="L${r}" s="8">${typeof finalScore==='number'?`<v>${2*Math.ceil(finalScore*0.3/2)}</v>`:'<v/>'}</c>
+          <c r="M${r}" s="1" t="inlineStr"><is><t>${escapeXml(p3Scores.effective?.status||(p3Scores.isV2?'채점 대기':teacherConfirmed!=='-'?'교사 확정':'1차 채점'))}</t></is></c>
         </row>`;
         r++;
       }
@@ -496,10 +503,11 @@
     <col min="9" max="9" width="12" customWidth="1"/>
     <col min="10" max="10" width="13" customWidth="1"/>
     <col min="11" max="11" width="18" customWidth="1"/>
+    <col min="12" max="13" width="15" customWidth="1"/>
   </cols>
   <sheetData>${rows}</sheetData>
   <mergeCells count="2">
-    <mergeCell ref="A1:K1"/>
+    <mergeCell ref="A1:M1"/>
     <mergeCell ref="D2:H2"/>
   </mergeCells>
   <pageSetup orientation="landscape" paperSize="9" fitToWidth="1" fitToHeight="0"/>
@@ -520,17 +528,19 @@
       const part2Score = typeof score.part2 === 'number' ? score.part2 : (Number(score.part2) || 0);
       const writtenSubtotal = (typeof score.writtenSubtotal === 'number') ? score.writtenSubtotal : (part1Score + part2Score);
       const p3Scores = extractPart3Scores(review, score, s);
+      const isV2=typeof assessmentVersion==='function'&&assessmentVersion(s)==='open-design-v2';
+      const rubric=isV2?assessmentRules('open-design-v2'):RUBRIC_DEF.map(r=>({...r,max:10}));
       const part3Proposal = p3Scores.proposal;
       const part3Confirmed = p3Scores.confirmed;
-      const part3Final = p3Scores.final !== null ? p3Scores.final : 0;
-      const totalScore = (typeof score.finalScore === 'number' && part3Confirmed !== null)
+      const part3Final = p3Scores.final !== null ? p3Scores.final : (isV2?'대기':0);
+      const totalScore = isV2?((p3Scores.effective&&Number.isFinite(score.part1)&&Number.isFinite(score.part2))?writtenSubtotal+part3Final:null):(typeof score.finalScore === 'number' && part3Confirmed !== null)
         ? score.finalScore
         : (writtenSubtotal + part3Final);
-      const gradeStatusLabel = part3Confirmed !== null ? '(교사 확정)' : (part3Proposal !== null ? '(1차 채점 반영)' : '(검토 대기)');
+      const gradeStatusLabel = isV2?'('+ (p3Scores.effective?.status||'채점 대기')+')':part3Confirmed !== null ? '(교사 확정)' : (part3Proposal !== null ? '(1차 채점 반영)' : '(검토 대기)');
 
       // Part 1 & Part 2 문제 및 답안 목록 복원 (review 데이터 우선, 미존재 시 eval-questions 또는 answers 매핑)
       let p1List = Array.isArray(review.part1) && review.part1.length > 0 ? review.part1 : [];
-      if (p1List.length === 0 && typeof EVAL_QUESTIONS !== 'undefined' && Array.isArray(EVAL_QUESTIONS.part1)) {
+      if (s.questionVersion!==4&&p1List.length === 0 && typeof EVAL_QUESTIONS !== 'undefined' && Array.isArray(EVAL_QUESTIONS.part1)) {
         const sP1 = s.answers?.part1 || {};
         p1List = EVAL_QUESTIONS.part1.map((eq, idx) => {
           const studentAnsIdx = Array.isArray(sP1) ? sP1[idx] : (sP1[eq.id] !== undefined ? sP1[eq.id] : sP1[idx]);
@@ -549,7 +559,7 @@
       }
 
       let p2List = Array.isArray(review.part2) && review.part2.length > 0 ? review.part2 : [];
-      if (p2List.length === 0 && typeof EVAL_QUESTIONS !== 'undefined' && Array.isArray(EVAL_QUESTIONS.part2)) {
+      if (s.questionVersion!==4&&p2List.length === 0 && typeof EVAL_QUESTIONS !== 'undefined' && Array.isArray(EVAL_QUESTIONS.part2)) {
         const sP2 = s.answers?.part2 || {};
         p2List = EVAL_QUESTIONS.part2.map((eq, idx) => {
           const studentAnsText = (Array.isArray(sP2) ? sP2[idx] : (sP2[eq.id] || sP2[idx] || '')).trim();
@@ -588,11 +598,11 @@
       // 3. 종합 성적 요약 카드 (행 3)
       rows += `<row r="3" ht="26" customHeight="1">
         <c r="A3" s="10" t="inlineStr"><is><t>지필평가 소계</t></is></c>
-        <c r="B3" s="1" t="inlineStr"><is><t>${writtenSubtotal}점 / 60점 (객관 ${part1Score} + 단답 ${part2Score})</t></is></c>
-        <c r="C3" s="10" t="inlineStr"><is><t>순서도 1차 채점</t></is></c>
+        <c r="B3" s="1" t="inlineStr"><is><t>${isV2&&(!Number.isFinite(score.part1)||!Number.isFinite(score.part2))?'대기':writtenSubtotal}점 / 60점 (객관 ${isV2&&!Number.isFinite(score.part1)?'대기':part1Score} + 단답 ${isV2&&!Number.isFinite(score.part2)?'대기':part2Score})</t></is></c>
+        <c r="C3" s="10" t="inlineStr"><is><t>${isV2?'순서도 '+(p3Scores.effective?.status||'채점 대기'):'순서도 1차 채점'}</t></is></c>
         <c r="D3" s="7" t="inlineStr"><is><t>${part3Final}점 / 40점</t></is></c>
         <c r="E3" s="10" t="inlineStr"><is><t>종합 최종 점수</t></is></c>
-        <c r="F3" s="8" t="inlineStr"><is><t>${totalScore}점 / 100점</t></is></c>
+        <c r="F3" s="8" t="inlineStr"><is><t>${totalScore??'대기'}점 / 100점</t></is></c>
       </row>`;
 
       // 4. 지필평가(Part 1 & 2) 통합 헤더 띠지 (행 4)
@@ -772,26 +782,26 @@
       const scoreColHeader = part3Confirmed !== null ? '확정 점수' : '1차 채점';
       rows += `<row r="18" ht="20" customHeight="1">
         <c r="A18" s="2" t="inlineStr"><is><t>번호</t></is></c>
-        <c r="B18" s="2" t="inlineStr"><is><t>평가 기준 항목 (각 10점 만점)</t></is></c>
+        <c r="B18" s="2" t="inlineStr"><is><t>평가 기준 항목${isV2?'':' (각 10점 만점)'}</t></is></c>
         <c r="C18" s="2" t="inlineStr"><is><t>${scoreColHeader}</t></is></c>
         <c r="D18" s="2" t="inlineStr"><is><t>평가 근거 및 상세 피드백 (AI 분석)</t></is></c>
         <c r="E18" s="2"/><c r="F18" s="2"/>
       </row>`;
 
       // 10. 4대 평가 기준 본문 (행 19 ~ 22)
-      const criteriaData = review.confirmed?.criteria || review.proposal?.criteria || s.review?.confirmed?.criteria || s.review?.proposal?.criteria || {};
+      const criteriaData = isV2?(p3Scores.effective?.criteria||[]):review.confirmed?.criteria || review.proposal?.criteria || s.review?.confirmed?.criteria || s.review?.proposal?.criteria || {};
       let criteriaList = [];
       if (Array.isArray(criteriaData) && criteriaData.length > 0) {
         criteriaList = criteriaData.map((c, idx) => {
-          const matchedDef = RUBRIC_DEF.find(r => r.id === c.id) || RUBRIC_DEF[idx] || { label: `항목 ${idx + 1}`, defaultEv: '특이사항 없음' };
+          const matchedDef = rubric.find(r => r.id === c.id) || rubric[idx] || { label: `항목 ${idx + 1}`, defaultEv: '특이사항 없음' };
           const title = (c.title && !c.title.startsWith('항목')) ? c.title : matchedDef.label;
           return {
-            title,
+            title, max:matchedDef.max||10,
             score: c.score !== undefined ? Number(c.score) : 0,
             evidence: c.evidence || c.feedback || matchedDef.defaultEv
           };
         });
-      } else if (typeof criteriaData === 'object' && criteriaData !== null) {
+      } else if (!isV2&&typeof criteriaData === 'object' && criteriaData !== null) {
         criteriaList = [
           { title: RUBRIC_DEF[0].label, score: criteriaData.planScore ?? 10, evidence: criteriaData.planFeedback || RUBRIC_DEF[0].defaultEv },
           { title: RUBRIC_DEF[1].label, score: criteriaData.terminalScore ?? 10, evidence: criteriaData.terminalFeedback || RUBRIC_DEF[1].defaultEv },
@@ -800,16 +810,16 @@
         ];
       }
 
-      while (criteriaList.length < 4) {
+      while (criteriaList.length < rubric.length) {
         const idx = criteriaList.length;
         criteriaList.push({
-          title: RUBRIC_DEF[idx]?.label || `항목 ${idx + 1}`,
-          score: 0,
+          title: rubric[idx]?.label || `항목 ${idx + 1}`, max:rubric[idx]?.max||10,
+          score: isV2?null:0,
           evidence: '평가 데이터 대기 중'
         });
       }
 
-      criteriaList.slice(0, 4).forEach((c, idx) => {
+      criteriaList.slice(0, rubric.length).forEach((c, idx) => {
         const crRow = 19 + idx;
         const sc = c.score !== undefined ? Number(c.score) : 0;
         const ev = c.evidence || '특이사항 없음';
@@ -823,20 +833,21 @@
         rows += `<row r="${crRow}" ht="${rowHt}" customHeight="1">
           <c r="A${crRow}" s="1"><v>${idx + 1}</v></c>
           <c r="B${crRow}" s="0" t="inlineStr"><is><t>${escapeXml(c.title)}</t></is></c>
-          <c r="C${crRow}" s="7" t="inlineStr"><is><t>${sc} / 10점</t></is></c>
+          <c r="C${crRow}" s="7" t="inlineStr"><is><t>${c.score===null?'대기':sc} / ${c.max||10}점</t></is></c>
           <c r="D${crRow}" s="12" t="inlineStr"><is><t>${escapeXml(ev)}</t></is></c>
           <c r="E${crRow}" s="12"/><c r="F${crRow}" s="12"/>
         </row>`;
       });
 
       // 11. 교사 서명 및 종합 피드백란 (행 23)
-      const generalFeedback = review.confirmed?.feedback || review.proposal?.feedback || s.review?.proposal?.feedback || (part3Confirmed !== null ? `선생님 최종 확정 점수: ${part3Confirmed}점 / 40점` : '선생님께서 최종 검토 중입니다.');
-      rows += `<row r="23" ht="28" customHeight="1">
-        <c r="A23" s="10" t="inlineStr"><is><t>교사 종합 의견</t></is></c>
-        <c r="B23" s="9" t="inlineStr"><is><t>${escapeXml(generalFeedback)}</t></is></c>
-        <c r="C23" s="9"/><c r="D23" s="9"/>
-        <c r="E23" s="10" t="inlineStr"><is><t>교사 서명(인)</t></is></c>
-        <c r="F23" s="1" t="inlineStr"><is><t>(인)</t></is></c>
+      const fr=19+rubric.length;
+      const generalFeedback = isV2?`${gradeStatusLabel} 항목 합계 ${p3Scores.effective?.rawTotal??'대기'}점 · 최저점 보정 +${p3Scores.effective?.minimumAdjustment??0}점. 환산 ${totalScore!==null?2*Math.ceil(totalScore*0.3/2):'대기'} / 30점. 이의가 있으면 선생님께 알려 주세요.`:review.confirmed?.feedback || review.proposal?.feedback || s.review?.proposal?.feedback || (part3Confirmed !== null ? `선생님 최종 확정 점수: ${part3Confirmed}점 / 40점` : '선생님께서 최종 검토 중입니다.');
+      rows += `<row r="${fr}" ht="44" customHeight="1">
+        <c r="A${fr}" s="10" t="inlineStr"><is><t>종합 안내</t></is></c>
+        <c r="B${fr}" s="9" t="inlineStr"><is><t>${escapeXml(generalFeedback)}</t></is></c>
+        <c r="C${fr}" s="9"/><c r="D${fr}" s="9"/>
+        <c r="E${fr}" s="10" t="inlineStr"><is><t>교사 서명(인)</t></is></c>
+        <c r="F${fr}" s="1" t="inlineStr"><is><t>(인)</t></is></c>
       </row>`;
 
       return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -853,17 +864,14 @@
     <col min="6" max="6" width="14" customWidth="1"/>
   </cols>
   <sheetData>${rows}</sheetData>
-  <mergeCells count="10">
+  <mergeCells count="${6+rubric.length}">
     <mergeCell ref="A1:F1"/>
     <mergeCell ref="A4:F4"/>
     <mergeCell ref="D12:F15"/>
     <mergeCell ref="A16:F16"/>
     <mergeCell ref="D18:F18"/>
-    <mergeCell ref="D19:F19"/>
-    <mergeCell ref="D20:F20"/>
-    <mergeCell ref="D21:F21"/>
-    <mergeCell ref="D22:F22"/>
-    <mergeCell ref="B23:D23"/>
+    ${rubric.map((_,i)=>`<mergeCell ref="D${19+i}:F${19+i}"/>`).join('')}
+    <mergeCell ref="B${fr}:D${fr}"/>
   </mergeCells>
   <pageSetup orientation="portrait" paperSize="9" fitToWidth="1" fitToHeight="1"/>
 </worksheet>`;
@@ -889,7 +897,7 @@
         ['H', '순서도(1차)/40', 14],
         ['I', '교사확정', 12],
         ['J', '최종점수', 13],
-        ['K', '제출일시', 18]
+        ['K', '제출일시', 18], ['L','환산점수/30',14], ['M','성적 상태',14]
       ];
 
       rows += `<row r="${r}" ht="24" customHeight="1">`;
@@ -921,9 +929,9 @@
           finalScore = writtenSub + teacherConfirmed;
         } else if (typeof part3Proposal === 'number' && typeof writtenSub === 'number') {
           finalScore = writtenSub + part3Proposal;
-        } else if (typeof score.finalScore === 'number') {
+        } else if (!p3Scores.isV2&&typeof score.finalScore === 'number') {
           finalScore = score.finalScore;
-        } else if (typeof score.total === 'number') {
+        } else if (!p3Scores.isV2&&typeof score.total === 'number') {
           finalScore = score.total;
         }
 
@@ -941,6 +949,8 @@
           <c r="I${r}" s="1">${typeof teacherConfirmed === 'number' ? `<v>${teacherConfirmed}</v>` : `<t>${teacherConfirmed}</t>`}</c>
           <c r="J${r}" s="1">${typeof finalScore === 'number' ? `<v>${finalScore}</v>` : `<t>${finalScore}</t>`}</c>
           <c r="K${r}" s="1" t="inlineStr"><is><t>${escapeXml(submittedAtText)}</t></is></c>
+          <c r="L${r}" s="1">${typeof finalScore==='number'?`<v>${2*Math.ceil(finalScore*0.3/2)}</v>`:'<v/>'}</c>
+          <c r="M${r}" s="1" t="inlineStr"><is><t>${escapeXml(p3Scores.effective?.status||(p3Scores.isV2?'채점 대기':teacherConfirmed!==''?'교사 확정':'1차 채점'))}</t></is></c>
         </row>`;
         r++;
       }
@@ -959,6 +969,7 @@
     <col min="9" max="9" width="12" customWidth="1"/>
     <col min="10" max="10" width="13" customWidth="1"/>
     <col min="11" max="11" width="18" customWidth="1"/>
+    <col min="12" max="13" width="15" customWidth="1"/>
   </cols>
   <sheetData>${rows}</sheetData>
 </worksheet>`;
@@ -1016,11 +1027,14 @@
       files.push({ name: 'xl/workbook.xml', data: wbXml, content: wbXml });
 
       // xl/styles.xml
-      files.push({ name: 'xl/styles.xml', data: STYLES_XML, content: STYLES_XML });
+      // Keep authoring comments out of sequence-valued style collections for spreadsheet readers.
+      const styles=STYLES_XML.replace(/<!--[\s\S]*?-->/g,'').replace('</styleSheet>','<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>');
+      files.push({ name: 'xl/styles.xml', data: styles, content: styles });
 
       // sheets
       sheets.forEach((s, i) => {
-        files.push({ name: `xl/worksheets/sheet${i + 1}.xml`, data: s.xml, content: s.xml });
+        const xml=s.xml.replace(/<c (r="[A-Z]+\d+" s="\d+")><t>([\s\S]*?)<\/t><\/c>/g,'<c $1 t="inlineStr"><is><t>$2</t></is></c>');
+        files.push({ name: `xl/worksheets/sheet${i + 1}.xml`, data: xml, content: xml });
       });
 
       return files;

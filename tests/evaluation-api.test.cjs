@@ -3,6 +3,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const bank = require('../server/evaluation-bank.cjs');
+const policy=require('../js/core/assessment-policy.js');
+const legacyReview=scores=>({sourceKey:policy.assessmentSourceKey({}),attemptId:'round-4',criteria:policy.ASSESSMENT_RUBRIC.map((r,i)=>({id:r.id,score:scores[i]}))});
 
 function field(value) {
   if (Array.isArray(value)) return { arrayValue: { values: value.map(field) } };
@@ -163,7 +165,7 @@ test('V4 student-review shields answers during in_progress and reveals after end
   const h = harness();
   const assigned = bank.assignQuestions(bank.parseEvaluationBank(bankJson()), 's'.repeat(32), 'round-4:2-1:01');
   assigned.part1.forEach(question => { h.documents.student.answers.part1[question.id] = question.correctAnswer; });
-  h.documents.student.review = { proposal: { total: 35, criteria: [{ id: 'problem', score: 9 }], feedback: '순서도 구성이 좋습니다.' } };
+  h.documents.student.review = { proposal: { ...legacyReview([9,9,9,8]), feedback: '순서도 구성이 좋습니다.' } };
 
   // While in_progress: inProgress message, no answers revealed
   h.documents.classroom.status = 'in_progress';
@@ -187,13 +189,13 @@ test('V4 student-review shields answers during in_progress and reveals after end
 
 test('V4 student-score includes part3 review when available', async () => {
   const h = harness();
-  h.documents.student.review = { proposal: { total: 32, criteria: [] } };
+  h.documents.student.review = { proposal: legacyReview([8,8,8,8]) };
   const res1 = await h.request({ action: 'student-score', classId: '2-1', studentNum: '01' }, 'student');
   assert.equal(res1.status, 200);
   assert.equal(res1.body.part3.total, 32);
   assert.equal(res1.body.part3.confirmed, false);
 
-  h.documents.student.review.confirmed = { total: 38, criteria: [] };
+  h.documents.student.review.confirmed = legacyReview([10,10,9,9]);
   const res2 = await h.request({ action: 'student-score', classId: '2-1', studentNum: '01' }, 'student');
   assert.equal(res2.status, 200);
   assert.equal(res2.body.part3.total, 38);

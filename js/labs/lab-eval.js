@@ -563,6 +563,11 @@ class StudentEvalApp {
     const isExamActive = !document.getElementById('eval-screen-exam')?.classList.contains('hidden');
     if (!options?.force && isExamActive && (this.sessionStatus === 'in_progress' || this.startingExam)) return;
     const qVersion = (sessionData && sessionData.questionVersion) || this.answers?.part3?.questionVersion || 1;
+    const rubricDescription=document.getElementById('eval-rubric-description');
+    if(rubricDescription&&typeof assessmentVersion==='function'){
+      const version=assessmentVersion(this.latestStudent,sessionData);
+      rubricDescription.innerHTML=assessmentRules(version).map(r=>`<li>${r.label} (${r.max}점)</li>`).join('')+(version==='open-design-v2'?'<li>자연어 미작성 2점 · Part 3 최저 6점</li>':'');
+    }
     this.startingExam = true;
     if (qVersion === 4) {
       try {
@@ -2066,6 +2071,7 @@ class StudentEvalApp {
       ? part3.confirmed
       : ((part3.proposal && typeof part3.proposal === 'object') ? part3.proposal : part3);
     const p3Score = p3Review?.total != null ? Number(p3Review.total) : (p3Review?.score != null ? Number(p3Review.score) : null);
+    const rubricV2=p3Review?.rubricVersion==='open-design-v2';
 
     const p1Score = scores?.part1 != null ? Number(scores.part1) : part1Items.reduce((acc, it) => acc + (it.isCorrect ? (it.points || 3) : 0), 0);
     const p2Score = scores?.part2 != null ? Number(scores.part2) : part2Items.reduce((acc, it) => acc + (it.isCorrect ? (it.points || 5) : 0), 0);
@@ -2222,7 +2228,8 @@ class StudentEvalApp {
     let criteriaList = [];
     if (Array.isArray(rawCriteria) && rawCriteria.length > 0) {
       criteriaList = rawCriteria.map((c, idx) => ({
-        title: c.title || (idx === 0 ? '1. 문제 해결 계획의 적절성' : idx === 1 ? '2. 시작/종료 기호의 올바른 사용' : idx === 2 ? '3. 제어 구조(순차·선택·반복) 구현' : '4. 실행 결과의 올바름'),
+        title: rubricV2?assessmentRules('open-design-v2').find(r=>r.id===c.id)?.label:c.title || (idx === 0 ? '1. 문제 해결 계획의 적절성' : idx === 1 ? '2. 시작/종료 기호의 올바른 사용' : idx === 2 ? '3. 제어 구조(순차·선택·반복) 구현' : '4. 실행 결과의 올바름'),
+        max:rubricV2?assessmentRules('open-design-v2').find(r=>r.id===c.id)?.max:10,
         score: c.score !== undefined ? Number(c.score) : null,
         feedback: c.evidence || c.feedback || ''
       }));
@@ -2250,7 +2257,7 @@ class StudentEvalApp {
             <h4 class="font-black text-slate-800 text-sm sm:text-base">순서도 설계 (배점 40점)</h4>
           </div>
           <span class="text-xs font-black px-2.5 py-0.5 rounded-full ${isP3Confirmed ? 'bg-violet-100 text-violet-800' : (p3Score != null ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600')}">
-            ${isP3Confirmed ? '선생님 확정 완료' : (p3Score != null ? '1차 채점 완료' : '채점 진행 중')}
+            ${isP3Confirmed ? (rubricV2?'선생님 정정 완료':'선생님 확정 완료') : (p3Score != null ? (rubricV2?'잠정점수':'1차 채점 완료') : '채점 진행 중')}
           </span>
         </div>
 
@@ -2263,7 +2270,7 @@ class StudentEvalApp {
         <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
           <div class="flex items-center justify-between font-bold text-slate-700">
             <span>${escape(c.title)}</span>
-            <span class="font-mono text-indigo-600 font-black">${c.score != null ? c.score + ' / 10점' : '--'}</span>
+            <span class="font-mono text-indigo-600 font-black">${c.score != null ? c.score + ' / '+(c.max||10)+'점' : '--'}</span>
           </div>
           <p class="text-[11px] text-slate-600 leading-relaxed">${escape(c.feedback || '검토 전입니다.')}</p>
         </div>
@@ -2280,7 +2287,7 @@ class StudentEvalApp {
             <span class="text-lg font-black text-emerald-950 font-mono">${p3Score != null ? p3Score + ' / 40점' : '채점 중...'}</span>
           </div>
           <p class="text-xs text-emerald-800 leading-relaxed">
-            ${escape(p3Review?.feedback || (isP3Confirmed ? '선생님 평가가 확정되었습니다.' : (p3Score != null ? '1차 채점이 완료되었습니다. 선생님 검토 후 확정됩니다.' : '선생님의 최종 확인 후 피드백이 확정됩니다.')))}
+            ${escape(rubricV2?`잠정점수이며 이의가 있으면 선생님께 알려 주세요.${p3Review.minimumAdjustment?` 항목 합계 ${p3Review.rawTotal}점에 최저점 보정 ${p3Review.minimumAdjustment}점을 반영했습니다.`:''}`:p3Review?.feedback || (isP3Confirmed ? '선생님 평가가 확정되었습니다.' : (p3Score != null ? '1차 채점이 완료되었습니다. 선생님 검토 후 확정됩니다.' : '선생님의 최종 확인 후 피드백이 확정됩니다.')))}
           </p>
         </div>
       </div>

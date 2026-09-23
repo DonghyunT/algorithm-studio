@@ -518,7 +518,7 @@ test('CBT round 3: terminology unified to 현재 상태 in 17-1 and 17-2 summary
 
   const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
   assert.ok(html.includes('🚩 현재 상태 (주어진 상황)'), 'index.html에 🚩 현재 상태 (주어진 상황)이 표기되어야 함');
-  assert.ok(html.includes('① 현재/목표 상태 정의 (10점)'), 'index.html 채점 기준에 현재/목표 상태 정의가 표기되어야 함');
+  assert.ok(html.includes('① 현재 상태 · 목표 상태 · 조건 (각 5점)'), '새 실전평가의 상태·조건 배점을 표시한다');
   assert.ok(!html.includes('🚩 시작 상태'), 'index.html에 🚩 시작 상태가 없어야 함');
 
   app.goToCbtPart3Step(2);
