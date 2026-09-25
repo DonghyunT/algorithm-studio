@@ -21,6 +21,12 @@
   - 전체 단위 테스트 170개(100%) 통과 (`node --test tests/*.test.cjs`).
   - 정적 문법 검사 92개 스크립트 통과 (`node tools/check.cjs`).
   - 로컬 프리뷰 서버(포트 4173) HTTP 200 검증 완료.
+  - 데모 모드 학생·V3 모의평가·V4 실전평가 흐름은 [인수인계](HANDOFF.md)에 완료로 기록했습니다. 이 항목에는 창 폭별 화면 검사나 페이지·콘솔 오류 결과가 별도로 기록되지 않았습니다.
+- **Vercel Production 배포 확인 (2026-09-25 KST)**:
+  - GitHub의 `Vercel` 상태 검사는 성공했고, Vercel 배포 메타데이터에서 `dpl_DV2vPntg98HGmw59M5y4i877UYwE`가 `READY`, 대상 `production`으로 확인되었습니다.
+  - 배포된 소스는 `main`의 `6acb25141cb177cf26496318d4ebbfa03cf16584` (`feat: merge CBT flowchart workspace UX improvements and review modal fixes`)와 일치합니다. Vercel은 `algorithm-studio-ten.vercel.app`, `algorithm-studio-donghyunt.vercel.app`, `algorithm-studio-git-main-donghyunt.vercel.app` 별칭을 반환했습니다.
+  - [배포 상세](https://vercel.com/donghyunt/algorithm-studio/DV2vPntg98HGmw59M5y4i877UYwE) · [기본 운영 주소](https://algorithm-studio-ten.vercel.app/).
+  - **검증 경계:** Production 배포 상태와 별칭은 확인했습니다. 운영 페이지를 브라우저에서 열어 최신 화면·반응형 동작·콘솔을 검사한 것은 아닙니다. 위 테스트 및 데모 흐름은 로컬 검증 기록입니다.
 
 ## 2026-09-24 Part 3 실제 재채점·잠정점수 반영 완료
 
