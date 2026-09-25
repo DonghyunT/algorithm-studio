@@ -2298,103 +2298,58 @@ class StudentEvalApp {
 
   // 로컬/모의평가(V3) 리뷰 모달 렌더링
   renderLocalReviewModalContent(container) {
-    const escape = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     const questions = this.currentQuestions();
     const p1Questions = questions.part1 || [];
     const p2Questions = questions.part2 || [];
 
-    let html = `
-      <div class="p-4 bg-slate-100 rounded-2xl border border-slate-200 text-xs text-slate-600 leading-relaxed">
-        모의평가(실습) 답안과 정답 해설입니다. 내가 작성한 내용과 비교해 보세요.
-      </div>
-      <div class="space-y-4">
-        <div class="flex items-center gap-2 border-b border-slate-200 pb-2">
-          <span class="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-700 text-xs font-black">Part 1</span>
-          <h4 class="font-black text-slate-800 text-sm sm:text-base">객관식 문항</h4>
-        </div>
-        <div class="space-y-3">
-    `;
+    const norm = v => String(v || '').toLowerCase().replace(/\s+/g, '').trim();
 
-    p1Questions.forEach((q, idx) => {
-      const myChoice = this.answers.part1[q.id];
-      const isCorrect = Number(myChoice) === Number(q.answer);
-      const myChoiceText = myChoice != null ? `${myChoice + 1}번` : '미응답';
-      const ansText = q.answer != null ? `${q.answer + 1}번` : '미지정';
-      html += `
-        <div class="p-4 rounded-2xl border ${isCorrect ? 'bg-emerald-50/40 border-emerald-200' : 'bg-rose-50/40 border-rose-200'} space-y-2">
-          <div class="flex items-start justify-between gap-2">
-            <span class="text-xs font-black ${isCorrect ? 'text-emerald-800' : 'text-rose-800'}">
-              Q${idx + 1}. ${escape(q.prompt)}
-            </span>
-            <span class="text-xs font-black px-2 py-0.5 rounded-full ${isCorrect ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'} shrink-0">
-              ${isCorrect ? '⭕ 정답 (+3점)' : '❌ 오답 (0점)'}
-            </span>
-          </div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
-            <div class="p-2 rounded-xl bg-white/80 border border-slate-200">
-              <span class="text-slate-500 font-bold">내가 선택한 답:</span>
-              <span class="font-black ${isCorrect ? 'text-emerald-700' : 'text-rose-700'} ml-1">${escape(myChoiceText)}</span>
-            </div>
-            <div class="p-2 rounded-xl bg-white/80 border border-slate-200">
-              <span class="text-slate-500 font-bold">실제 정답:</span>
-              <span class="font-black text-indigo-700 ml-1">${escape(ansText)}</span>
-            </div>
-          </div>
-          ${q.explanation ? `
-            <div class="text-[11px] text-slate-600 bg-white/70 p-2.5 rounded-xl border border-slate-100 leading-relaxed">
-              💡 <strong>해설:</strong> ${escape(q.explanation)}
-            </div>
-          ` : ''}
-        </div>
-      `;
+    const part1Items = p1Questions.map((q) => {
+      const myChoice = this.answers?.part1?.[q.id];
+      const correctIdx = q.correctAnswer !== undefined && q.correctAnswer !== null ? q.correctAnswer : q.answer;
+      const isCorrect = myChoice !== undefined && myChoice !== null && correctIdx !== undefined && correctIdx !== null && Number(myChoice) === Number(correctIdx);
+      return {
+        ...q,
+        prompt: q.desc || q.title || q.prompt || '',
+        studentAnswer: myChoice,
+        correctAnswer: correctIdx,
+        isCorrect,
+        points: q.points || 3,
+        explanation: q.teacherNote || q.explanation || ''
+      };
     });
-    html += `</div></div>`;
 
-    // Part 2 단답형
-    html += `
-      <div class="space-y-4 pt-2">
-        <div class="flex items-center gap-2 border-b border-slate-200 pb-2">
-          <span class="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-xs font-black">Part 2</span>
-          <h4 class="font-black text-slate-800 text-sm sm:text-base">단답형 문항</h4>
-        </div>
-        <div class="space-y-3">
-    `;
-
-    p2Questions.forEach((q, idx) => {
-      const myText = String(this.answers.part2[q.id] ?? '').trim();
-      const acceptable = Array.isArray(q.acceptableAnswers) ? q.acceptableAnswers : [q.answer];
-      const isCorrect = acceptable.some(a => String(a).trim().toLowerCase() === myText.toLowerCase());
-      html += `
-        <div class="p-4 rounded-2xl border ${isCorrect ? 'bg-emerald-50/40 border-emerald-200' : 'bg-rose-50/40 border-rose-200'} space-y-2">
-          <div class="flex items-start justify-between gap-2">
-            <span class="text-xs font-black ${isCorrect ? 'text-emerald-800' : 'text-rose-800'}">
-              Q${idx + 11}. ${escape(q.prompt)}
-            </span>
-            <span class="text-xs font-black px-2 py-0.5 rounded-full ${isCorrect ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'} shrink-0">
-              ${isCorrect ? '⭕ 정답 (+5점)' : '❌ 오답 (0점)'}
-            </span>
-          </div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
-            <div class="p-2 rounded-xl bg-white/80 border border-slate-200">
-              <span class="text-slate-500 font-bold">내가 입력한 답:</span>
-              <span class="font-black ${isCorrect ? 'text-emerald-700' : 'text-rose-700'} ml-1">${escape(myText || '미입력')}</span>
-            </div>
-            <div class="p-2 rounded-xl bg-white/80 border border-slate-200">
-              <span class="text-slate-500 font-bold">인정 정답:</span>
-              <span class="font-black text-indigo-700 ml-1">${escape(acceptable.join(', '))}</span>
-            </div>
-          </div>
-          ${q.explanation ? `
-            <div class="text-[11px] text-slate-600 bg-white/70 p-2.5 rounded-xl border border-slate-100 leading-relaxed">
-              💡 <strong>해설:</strong> ${escape(q.explanation)}
-            </div>
-          ` : ''}
-        </div>
-      `;
+    const part2Items = p2Questions.map((q) => {
+      const myInput = this.answers?.part2?.[q.id];
+      const myText = String(myInput || '').trim();
+      const acceptableList = Array.isArray(q.answers)
+        ? q.answers
+        : (Array.isArray(q.acceptableAnswers) ? q.acceptableAnswers : (q.answer != null ? [q.answer] : []));
+      const isCorrect = myText !== '' && acceptableList.some(a => norm(a) === norm(myText));
+      return {
+        ...q,
+        prompt: q.desc || q.title || q.prompt || '',
+        studentAnswer: myInput,
+        answers: acceptableList,
+        isCorrect,
+        points: q.points || 5,
+        explanation: q.teacherNote || q.explanation || ''
+      };
     });
-    html += `</div></div>`;
 
-    container.innerHTML = html;
+    const part3 = this.latestStudent?.review?.part3 || this.answers?.part3 || {};
+
+    const reviewData = {
+      version: 3,
+      part1: part1Items,
+      part2: part2Items,
+      part3
+    };
+
+    const calculated = this.calculateScores();
+    const scores = calculated?.scores || this.scores || {};
+
+    this.renderReviewModalContent(container, reviewData, this.answers, scores, part3);
   }
 
   // 시험장 나가기 (로드맵으로 복귀)
