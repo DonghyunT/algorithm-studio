@@ -126,11 +126,19 @@ function gradeEvaluation(answers = {}, questionVersion=answers?.part3?.questionV
     ? evaluationQuestions(answers, questionVersion)
     : ((typeof require !== 'undefined') ? require('../data/eval-questions.js').evaluationQuestions(answers, questionVersion) : { part1: [], part2: [] });
 
-  questions.part1.forEach(q=>{if(answers.part1?.[q.id]===q.correctAnswer)part1+=q.points;});
-  questions.part2.forEach(q=>{
-    const raw=answers.part2?.[q.id];
-    const value=(typeof raw==='string'?raw:'').toLowerCase().replace(/\s/g,'');
-    if(q.answers.some(answer=>answer.toLowerCase().replace(/\s/g,'')===value))part2+=q.points;
+  questions.part1.forEach(q => {
+    const ans = answers.part1?.[q.id];
+    if (ans !== undefined && ans !== null && q.correctAnswer !== undefined && q.correctAnswer !== null && Number(ans) === Number(q.correctAnswer)) {
+      part1 += (q.points || 3);
+    }
+  });
+  questions.part2.forEach(q => {
+    const raw = answers.part2?.[q.id];
+    const value = (typeof raw === 'string' ? raw : '').toLowerCase().replace(/\s/g, '');
+    const acceptable = Array.isArray(q.answers) ? q.answers : (Array.isArray(q.acceptableAnswers) ? q.acceptableAnswers : (q.answer != null ? [q.answer] : []));
+    if (value && acceptable.some(answer => String(answer).toLowerCase().replace(/\s/g, '') === value)) {
+      part2 += (q.points || 5);
+    }
   });
   if(questionVersion>=3)return {scores:{part1,part2,part3:null,objectiveTotal:part1+part2,total:null,teacherOverride:null,pendingReview:true},feedback:{part2:'문항 기준으로 계산',part3:'자유 설계 답안은 교사 검토 후 점수가 확정됩니다.'}};
   const inspection=inspectAssessmentFlow(answers.part3||{}), part3=inspection.score;

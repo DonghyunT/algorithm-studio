@@ -2378,7 +2378,7 @@
         <div class="w-full max-w-lg p-6 bg-gradient-to-br from-indigo-50 via-white to-violet-50 rounded-3xl border border-indigo-200 space-y-5 shadow-lg">
           <div class="text-xs font-bold text-indigo-700 tracking-wide">Part 1 · 2 객관·단답 자동채점</div>
           <div id="eval-result-total-score" class="text-4xl sm:text-5xl font-black text-indigo-950 font-mono tracking-tight">
-            0점
+            -- / 60점
           </div>
           <p class="eval-review-status text-xs text-slate-500 font-medium">Part 3(순서도)은 선생님 검토 후 반영됩니다.</p>
           <div id="eval-result-breakdown" class="pt-2"></div>
@@ -2435,29 +2435,33 @@
       </div>
 
       <!-- 📋 [학생용 문항별 내 답안 및 정답 확인 모달] -->
-      <div id="student-eval-review-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 hidden" role="dialog" aria-modal="true" aria-labelledby="student-review-modal-title">
-        <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden animate-scale-in">
+      <div id="student-eval-review-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 sm:p-6 hidden" role="dialog" aria-modal="true" aria-labelledby="student-review-modal-title">
+        <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-4xl max-h-[84vh] flex flex-col overflow-hidden animate-scale-in">
           <!-- 모달 헤더 -->
-          <div class="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-            <div class="flex items-center gap-2.5">
-              <span class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-black">📋</span>
+          <div class="px-6 py-4.5 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+            <div class="flex items-center gap-3">
+              <span class="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-black text-base shadow-2xs">📋</span>
               <div>
                 <h3 id="student-review-modal-title" class="font-black text-slate-800 text-base sm:text-lg">문항별 내 답안과 정답 확인</h3>
                 <p id="student-review-modal-sub" class="text-xs text-slate-500">내가 선택한 답안과 정답, 채점 기준을 확인합니다.</p>
               </div>
             </div>
-            <button type="button" onclick="window.studentEvalApp.closeReviewModal()" class="w-8 h-8 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 flex items-center justify-center transition cursor-pointer" aria-label="닫기">
-              <i class="fa-solid fa-xmark"></i>
+            <button type="button" onclick="window.studentEvalApp.closeReviewModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition cursor-pointer" aria-label="닫기">
+              <i class="fa-solid fa-xmark text-sm"></i>
             </button>
           </div>
           <!-- 모달 본문 (스크롤) -->
-          <div id="student-review-modal-content" class="p-6 overflow-y-auto space-y-6 flex-1 text-left text-sm">
+          <div id="student-review-modal-content" class="px-6 py-5 overflow-y-auto space-y-6 flex-1 text-left text-sm">
             <!-- JS에서 동적 렌더링 -->
           </div>
           <!-- 모달 푸터 -->
-          <div class="p-4 border-t border-slate-100 bg-slate-50 flex justify-end">
-            <button type="button" onclick="window.studentEvalApp.closeReviewModal()" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold text-sm transition cursor-pointer">
-              닫기
+          <div class="px-6 py-3.5 border-t border-slate-100 bg-slate-50/80 flex items-center justify-between shrink-0">
+            <div class="text-[11px] sm:text-xs text-slate-500 flex items-center gap-1.5">
+              <i class="fa-solid fa-circle-info text-indigo-500"></i>
+              <span>문항별 채점 결과는 선생님의 최종 검토 후 생활기록부에 반영됩니다.</span>
+            </div>
+            <button type="button" onclick="window.studentEvalApp.closeReviewModal()" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold text-xs sm:text-sm transition cursor-pointer shadow-xs">
+              확인 및 닫기
             </button>
           </div>
         </div>
