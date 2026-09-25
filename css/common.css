@@ -561,21 +561,37 @@ body.assessment-active #global-header .site-header-inner {
   }
 }
 
-/* 17-2단계(순서도 조립) 높이 고정 해제: 기획서 및 캔버스 작업 공간 무제한 확장 & 자연스러운 페이지 스크롤 */
-#eval-cbt-container.cbt-step2-unclamped #eval-cbt-main {
-  height: auto !important;
-  min-height: calc(100vh - 150px) !important;
-  max-height: none !important;
-  overflow: visible !important;
-}
-#eval-cbt-container.cbt-step2-unclamped #eval-cbt-sidebar {
-  height: auto !important;
-  min-height: calc(100vh - 150px) !important;
-  max-height: none !important;
-}
-#eval-cbt-container.cbt-step2-unclamped #eval-cbt-workspace-host {
-  height: 720px !important;
-  min-height: 720px !important;
+/* 17-2단계(순서도 조립): 작업 공간(640px) 넉넉한 고정 높이 확보 & 자연어 기획서 전용 내부 스크롤 */
+@media (min-width: 768px) {
+  #eval-cbt-container.cbt-step2-unclamped #eval-cbt-main {
+    height: auto !important;
+    min-height: 840px !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  /* 좌측 문항목록 섬: 1~16번 문항 및 1단계와 완전히 동일한 높이 규격(calc(100vh - 150px)) 유지 & 상단 정렬 */
+  #eval-cbt-container.cbt-step2-unclamped #eval-cbt-sidebar {
+    height: calc(100vh - 150px) !important;
+    min-height: 600px !important;
+    max-height: 860px !important;
+    align-self: flex-start !important;
+    position: sticky !important;
+    top: 1rem !important;
+    overflow: hidden !important;
+  }
+  #eval-cbt-container.cbt-step2-unclamped #eval-cbt-body,
+  #eval-cbt-container.cbt-step2-unclamped #eval-cbt-step2-view {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+  /* 순서도 조립 스튜디오 작업대: 시원한 640px 고정 높이! 카드가 아무리 많아도 이 높이는 절대 불변 고정 */
+  #eval-cbt-container.cbt-step2-unclamped #eval-cbt-workspace-host {
+    height: 640px !important;
+    min-height: 640px !important;
+    max-height: 640px !important;
+    overflow: hidden !important;
+  }
 }
 
 /* ==========================================
@@ -708,8 +724,10 @@ body.assessment-active #global-header .site-header-inner {
 #eval-cbt-workspace-host #eval-shared-workspace {
   height: 100% !important;
   max-height: 100% !important;
+  min-height: 0 !important;
   margin: 0 !important;
   margin-top: 0 !important;
+  overflow: hidden !important;
 }
 #eval-cbt-workspace-host #fc-level3-view {
   height: 100% !important;
@@ -718,6 +736,7 @@ body.assessment-active #global-header .site-header-inner {
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
+  margin: 0 !important;
 }
 #eval-cbt-workspace-host .entry-studio-container {
   height: 100% !important;
@@ -727,9 +746,25 @@ body.assessment-active #global-header .site-header-inner {
   box-shadow: none !important;
   border-radius: 0 !important;
   background: #ffffff !important;
+  overflow: hidden !important;
 }
 #eval-cbt-workspace-host section {
+  height: 100% !important;
+  min-height: 0 !important;
   box-shadow: none !important;
+  overflow: hidden !important;
+}
+#eval-cbt-workspace-host .nl-panel-full-view {
+  height: 100% !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+#eval-cbt-workspace-host #nl-cards-container {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
 }
 
 /* ==========================================

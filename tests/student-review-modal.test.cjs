@@ -32,12 +32,17 @@ function extractMethod(code, methodName) {
 function createEvalApp() {
   const sandbox = {
     currentQuestions: () => ({ part1: [], part2: [] }),
-    answers: { part1: {}, part2: {} }
+    answers: { part1: {}, part2: {} },
+    calculateScores: () => ({ scores: { part1: 0, part2: 0, objectiveTotal: 0 } })
   };
 
   const methodCode = extractMethod(labEvalCode, 'renderReviewModalContent');
   const fn = new Function('return ' + methodCode)();
   sandbox.renderReviewModalContent = fn.bind(sandbox);
+
+  const localMethodCode = extractMethod(labEvalCode, 'renderLocalReviewModalContent');
+  const localFn = new Function('return ' + localMethodCode)();
+  sandbox.renderLocalReviewModalContent = localFn.bind(sandbox);
   return sandbox;
 }
 
@@ -174,4 +179,98 @@ test('student review modal renders Part 3 proposal state correctly when unconfir
   assert.ok(html.includes('1차 채점 완료'));
   assert.ok(html.includes('32 / 40점'));
   assert.ok(html.includes('AI 1차 채점 결과입니다.'));
+});
+
+test('student review modal renders mock test (V3) answers and correct matching correctly in local review', () => {
+  const app = createEvalApp();
+  const container = { innerHTML: '' };
+
+  app.currentQuestions = () => ({
+    part1: [
+      {
+        id: 'p1_q1',
+        title: '문제 해결과 상태 분석',
+        desc: '어떤 문제를 해결하기 위해 현재의 조건과 상황을 파악하는 것은?',
+        options: ['목표 상태 설정', '추상화', '알고리즘', '코딩'],
+        correctAnswer: 0,
+        points: 3,
+        teacherNote: '문제를 해결하는 첫 단계입니다.'
+      },
+      {
+        id: 'p1_q2',
+        title: '추상화의 개념',
+        desc: '핵심 요소만 단순화하는 과정은?',
+        options: ['모듈화', '추상화', '디지털화', '최적화'],
+        correctAnswer: 1,
+        points: 3,
+        teacherNote: '단순화는 추상화입니다.'
+      }
+    ],
+    part2: [
+      {
+        id: 'p2_q1',
+        title: '순차 구조',
+        desc: '위에서 아래로 차례차례 실행되는 구조는?',
+        answers: ['순차', '순차구조', '순차 구조'],
+        points: 5,
+        teacherNote: '기본 제어 구조입니다.'
+      },
+      {
+        id: 'p2_q2',
+        title: '선택 구조',
+        desc: '조건에 따라 두 갈래로 나뉘는 구조는?',
+        answers: ['선택', '선택구조', '조건문'],
+        points: 5,
+        teacherNote: '조건 분기 구조입니다.'
+      }
+    ]
+  });
+
+  app.answers = {
+    part1: {
+      p1_q1: 0, // 정답 (1번)
+      p1_q2: 2  // 오답 (3번 디지털화, 정답은 2번 추상화)
+    },
+    part2: {
+      p2_q1: '순차 구조', // 정답
+      p2_q2: '잘못된답'   // 오답
+    },
+    part3: {}
+  };
+
+  app.calculateScores = () => ({
+    scores: { part1: 3, part2: 5, objectiveTotal: 8 }
+  });
+
+  app.renderLocalReviewModalContent(container);
+  const html = container.innerHTML;
+
+  // 1. "미지정"이 더 이상 정답/인정정답에 뜨지 않음
+  assert.ok(!html.includes('실제 정답:</span>\n              <span class="font-black text-indigo-700 ml-1">미지정'));
+  assert.ok(!html.includes('인정 정답:</span>\n              <span class="font-black text-indigo-700 ml-1">미지정'));
+
+  // 2. Part 1 매칭 검증
+  assert.ok(html.includes('Q1. [배점 3점] 어떤 문제를 해결하기 위해'));
+  assert.ok(html.includes('⭕ 정답 (+3점)'));
+  assert.ok(html.includes('내가 선택한 답:</span>\n              <span class="font-black text-emerald-700 ml-1">1번 (목표 상태 설정)</span>'));
+  assert.ok(html.includes('실제 정답:</span>\n              <span class="font-black text-indigo-700 ml-1">1번 (목표 상태 설정)</span>'));
+
+  assert.ok(html.includes('Q2. [배점 3점] 핵심 요소만 단순화하는 과정은?'));
+  assert.ok(html.includes('❌ 오답 (0점)'));
+  assert.ok(html.includes('내가 선택한 답:</span>\n              <span class="font-black text-rose-700 ml-1">3번 (디지털화)</span>'));
+  assert.ok(html.includes('실제 정답:</span>\n              <span class="font-black text-indigo-700 ml-1">2번 (추상화)</span>'));
+
+  // 3. Part 2 매칭 검증
+  assert.ok(html.includes('Q11. [배점 5점] 위에서 아래로 차례차례 실행되는 구조는?'));
+  assert.ok(html.includes('⭕ 정답 (+5점)'));
+  assert.ok(html.includes('내가 입력한 답:</span>\n              <span class="font-black text-emerald-700 ml-1">순차 구조</span>'));
+  assert.ok(html.includes('인정 정답:</span>\n              <span class="font-black text-indigo-700 ml-1">순차, 순차구조, 순차 구조</span>'));
+
+  assert.ok(html.includes('Q12. [배점 5점] 조건에 따라 두 갈래로 나뉘는 구조는?'));
+  assert.ok(html.includes('❌ 오답 (0점)'));
+  assert.ok(html.includes('내가 입력한 답:</span>\n              <span class="font-black text-rose-700 ml-1">잘못된답</span>'));
+  assert.ok(html.includes('인정 정답:</span>\n              <span class="font-black text-indigo-700 ml-1">선택, 선택구조, 조건문</span>'));
+
+  // 4. 요약 배너 점수 검증
+  assert.ok(html.includes('객관·단답 지필소계: <span class="text-indigo-600 font-mono">8점</span> / 60점'));
 });
