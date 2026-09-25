@@ -563,12 +563,28 @@ body.assessment-active #global-header .site-header-inner {
 
 /* 17-2단계(순서도 조립): 작업 공간(640px) 넉넉한 고정 높이 확보 & 자연어 기획서 전용 내부 스크롤 */
 @media (min-width: 768px) {
-  #eval-cbt-container.cbt-step2-unclamped #eval-cbt-main,
-  #eval-cbt-container.cbt-step2-unclamped #eval-cbt-sidebar {
+  #eval-cbt-container.cbt-step2-unclamped #eval-cbt-main {
     height: auto !important;
     min-height: 840px !important;
     max-height: none !important;
     overflow: visible !important;
+  }
+  /* 좌측 문항목록 섬: 2단계 메인 화면이 길어져도 불필요하게 늘어나지 않고 콤팩트하게 상단 고정 */
+  #eval-cbt-container.cbt-step2-unclamped #eval-cbt-sidebar {
+    align-self: flex-start !important;
+    position: sticky !important;
+    top: 1rem !important;
+    overflow: hidden !important;
+  }
+  #eval-cbt-container.cbt-step2-unclamped #eval-cbt-sidebar.collapsed {
+    height: 320px !important;
+    min-height: 320px !important;
+    max-height: 320px !important;
+  }
+  #eval-cbt-container.cbt-step2-unclamped #eval-cbt-sidebar:not(.collapsed) {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
   }
   #eval-cbt-container.cbt-step2-unclamped #eval-cbt-body,
   #eval-cbt-container.cbt-step2-unclamped #eval-cbt-step2-view {
