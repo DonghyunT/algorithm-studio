@@ -561,34 +561,26 @@ body.assessment-active #global-header .site-header-inner {
   }
 }
 
-/* 17-2단계(순서도 조립): 데스크탑 모니터 뷰포트 밀봉 & 자연어 기획서 전용 내부 스크롤 */
+/* 17-2단계(순서도 조립): 작업 공간(640px) 넉넉한 고정 높이 확보 & 자연어 기획서 전용 내부 스크롤 */
 @media (min-width: 768px) {
-  #eval-cbt-container.cbt-step2-unclamped #eval-cbt-main {
-    height: calc(100vh - 150px) !important;
-    min-height: 600px !important;
-    max-height: 860px !important;
-    overflow: hidden !important;
-  }
+  #eval-cbt-container.cbt-step2-unclamped #eval-cbt-main,
   #eval-cbt-container.cbt-step2-unclamped #eval-cbt-sidebar {
-    height: calc(100vh - 150px) !important;
-    min-height: 600px !important;
-    max-height: 860px !important;
-    overflow: hidden !important;
+    height: auto !important;
+    min-height: 840px !important;
+    max-height: none !important;
+    overflow: visible !important;
   }
-  #eval-cbt-container.cbt-step2-unclamped #eval-cbt-body {
-    height: 100% !important;
-    min-height: 0 !important;
-    overflow: hidden !important;
-  }
+  #eval-cbt-container.cbt-step2-unclamped #eval-cbt-body,
   #eval-cbt-container.cbt-step2-unclamped #eval-cbt-step2-view {
-    height: 100% !important;
+    height: auto !important;
     min-height: 0 !important;
-    overflow: hidden !important;
+    overflow: visible !important;
   }
+  /* 순서도 조립 스튜디오 작업대: 시원한 640px 고정 높이! 카드가 아무리 많아도 이 높이는 절대 불변 고정 */
   #eval-cbt-container.cbt-step2-unclamped #eval-cbt-workspace-host {
-    height: 100% !important;
-    min-height: 0 !important;
-    flex: 1 1 0 !important;
+    height: 640px !important;
+    min-height: 640px !important;
+    max-height: 640px !important;
     overflow: hidden !important;
   }
 }
